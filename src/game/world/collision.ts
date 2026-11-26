@@ -32,9 +32,9 @@ export class BuildingCollider {
     }
   }
 
-  isBlocked([x, z]: WorldXZ): boolean {
+  isBlocked([x, z]: WorldXZ, radius = BODY_RADIUS): boolean {
     // Sample the body circle at its centre and four edges.
-    const r = BODY_RADIUS;
+    const r = radius;
     const samples: WorldXZ[] = [[x, z], [x + r, z], [x - r, z], [x, z + r], [x, z - r]];
     return samples.some((p) => this.insideAny(p));
   }

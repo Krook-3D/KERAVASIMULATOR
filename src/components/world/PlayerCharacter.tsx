@@ -4,6 +4,17 @@ import * as THREE from 'three';
 import type { WorldXZ } from '../../game/world/projection';
 import { ARRIVE_EPSILON, WALK_SPEED } from '../../game/world/movement';
 import type { BuildingCollider } from '../../game/world/collision';
+import { HumanModel, type Outfit } from './HumanModel';
+
+/** Scripted control used by cutscenes: when active, normal movement is paused. */
+export interface ScriptedPose {
+  active: boolean;
+  /** Body tilt around local x (radians), e.g. tumbling when thrown. */
+  tilt: number;
+  yaw: number;
+  /** Arms raised 0–1 (flailing). */
+  flail: number;
+}
 
 interface PlayerCharacterProps {
   color: string;
@@ -12,14 +23,17 @@ interface PlayerCharacterProps {
   target: WorldXZ | null;
   collider: BuildingCollider | null;
   onArrive: (point: WorldXZ) => void;
+  groundHeight: (p: WorldXZ) => number;
+  visible: boolean;
+  scriptRef: MutableRefObject<ScriptedPose>;
 }
 
-const SKIN = '#f3c9a0';
-const DARK = '#2b3245';
 
 /** Low-poly original character built from primitives. */
-export function PlayerCharacter({ color, positionRef, target, collider, onArrive }: PlayerCharacterProps) {
+export function PlayerCharacter({ color, positionRef, target, collider, onArrive, groundHeight, visible, scriptRef }: PlayerCharacterProps) {
   const root = useRef<THREE.Group>(null);
+  const body = useRef<THREE.Group>(null);
+  const head = useRef<THREE.Group>(null);
   const legL = useRef<THREE.Group>(null);
   const legR = useRef<THREE.Group>(null);
   const armL = useRef<THREE.Group>(null);
@@ -32,6 +46,23 @@ export function PlayerCharacter({ color, positionRef, target, collider, onArrive
     if (!g) return;
     const pos = positionRef.current;
     let moving = false;
+    const script = scriptRef.current;
+
+    if (script.active) {
+      g.position.copy(pos);
+      g.rotation.y = script.yaw;
+      if (body.current) body.current.rotation.x = script.tilt;
+      const f = script.flail;
+      const t = performance.now() / 90;
+      if (armL.current) armL.current.rotation.set(-2.6 * f + Math.sin(t) * 0.4 * f, 0, -0.4 * f);
+      if (armR.current) armR.current.rotation.set(-2.6 * f + Math.cos(t) * 0.4 * f, 0, 0.4 * f);
+      if (legL.current) legL.current.rotation.x = Math.sin(t) * 0.6 * f;
+      if (legR.current) legR.current.rotation.x = -Math.sin(t) * 0.6 * f;
+      return;
+    }
+    if (body.current) body.current.rotation.x = 0;
+    if (armL.current) armL.current.rotation.z = 0;
+    if (armR.current) armR.current.rotation.z = 0;
 
     if (target && arrivedFor.current !== target) {
       const dx = target[0] - pos.x;
@@ -67,6 +98,7 @@ export function PlayerCharacter({ color, positionRef, target, collider, onArrive
       }
     }
 
+    pos.y = THREE.MathUtils.lerp(pos.y, groundHeight([pos.x, pos.z]), Math.min(1, dt * 14));
     g.position.copy(pos);
     walkPhase.current = moving ? walkPhase.current + dt * 10 : walkPhase.current * 0.85;
     const swing = Math.sin(walkPhase.current) * (moving ? 0.7 : 0);
@@ -74,60 +106,29 @@ export function PlayerCharacter({ color, positionRef, target, collider, onArrive
     if (legR.current) legR.current.rotation.x = -swing;
     if (armL.current) armL.current.rotation.x = -swing * 0.8;
     if (armR.current) armR.current.rotation.x = swing * 0.8;
-    g.position.y = moving ? Math.abs(Math.sin(walkPhase.current)) * 0.06 : 0;
+    if (body.current) body.current.position.y = moving ? Math.abs(Math.sin(walkPhase.current)) * 0.07 : 0;
+    if (head.current) head.current.rotation.z = moving ? Math.sin(walkPhase.current) * 0.04 : 0;
   });
 
+  const outfit: Outfit = {
+    top: color,
+    legs: '#2e3b55',
+    shoes: '#f4f4f0',
+    hat: 'beanie',
+    hatColor: '#3a7bd5',
+    accent: '#ffd23f',
+    backpack: true,
+  };
+
   return (
-    <group ref={root}>
-      {/* legs, pivoting at the hip */}
-      <group ref={legL} position={[-0.17, 0.85, 0]}>
-        <mesh position={[0, -0.42, 0]} castShadow>
-          <boxGeometry args={[0.24, 0.85, 0.26]} />
-          <meshStandardMaterial color={DARK} flatShading />
-        </mesh>
+    <group ref={root} visible={visible}>
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0.03, 0]}>
+        <circleGeometry args={[0.6, 20]} />
+        <meshBasicMaterial color="#000" transparent opacity={0.28} depthWrite={false} />
+      </mesh>
+      <group ref={body}>
+        <HumanModel outfit={outfit} rig={{ legL, legR, armL, armR, head }} />
       </group>
-      <group ref={legR} position={[0.17, 0.85, 0]}>
-        <mesh position={[0, -0.42, 0]} castShadow>
-          <boxGeometry args={[0.24, 0.85, 0.26]} />
-          <meshStandardMaterial color={DARK} flatShading />
-        </mesh>
-      </group>
-      {/* torso (hoodie in the player's colour) */}
-      <mesh position={[0, 1.22, 0]} castShadow>
-        <boxGeometry args={[0.62, 0.78, 0.36]} />
-        <meshStandardMaterial color={color} flatShading />
-      </mesh>
-      {/* arms, pivoting at the shoulder */}
-      <group ref={armL} position={[-0.42, 1.55, 0]}>
-        <mesh position={[0, -0.34, 0]} castShadow>
-          <boxGeometry args={[0.18, 0.7, 0.2]} />
-          <meshStandardMaterial color={color} flatShading />
-        </mesh>
-      </group>
-      <group ref={armR} position={[0.42, 1.55, 0]}>
-        <mesh position={[0, -0.34, 0]} castShadow>
-          <boxGeometry args={[0.18, 0.7, 0.2]} />
-          <meshStandardMaterial color={color} flatShading />
-        </mesh>
-      </group>
-      {/* head + beanie */}
-      <mesh position={[0, 1.88, 0]} castShadow>
-        <icosahedronGeometry args={[0.27, 0]} />
-        <meshStandardMaterial color={SKIN} flatShading />
-      </mesh>
-      <mesh position={[0, 2.05, 0]} castShadow>
-        <coneGeometry args={[0.26, 0.28, 6]} />
-        <meshStandardMaterial color="#3a7bd5" flatShading />
-      </mesh>
-      {/* eyes on the +z (forward) side */}
-      <mesh position={[-0.09, 1.9, 0.24]}>
-        <boxGeometry args={[0.05, 0.05, 0.02]} />
-        <meshBasicMaterial color="#14171f" />
-      </mesh>
-      <mesh position={[0.09, 1.9, 0.24]}>
-        <boxGeometry args={[0.05, 0.05, 0.02]} />
-        <meshBasicMaterial color="#14171f" />
-      </mesh>
     </group>
   );
 }

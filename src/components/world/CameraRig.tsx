@@ -69,10 +69,10 @@ export function CameraRig({ followRef }: CameraRigProps) {
       enablePan={false}
       enableDamping
       dampingFactor={0.12}
-      minDistance={6}
-      maxDistance={90}
+      minDistance={4}
+      maxDistance={70}
       minPolarAngle={0.25}
-      maxPolarAngle={1.35}
+      maxPolarAngle={1.42}
     />
   );
 }

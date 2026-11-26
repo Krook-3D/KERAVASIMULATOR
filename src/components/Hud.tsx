@@ -1,7 +1,14 @@
 import type { Player } from '../types/game';
 import { levelFromXp, levelProgress } from '../game/xp/xp';
+import type { GraphicsQuality } from '../services/settings';
 
-export function Hud({ player }: { player: Player }) {
+interface HudProps {
+  player: Player;
+  graphics: GraphicsQuality;
+  onToggleGraphics: () => void;
+}
+
+export function Hud({ player, graphics, onToggleGraphics }: HudProps) {
   const level = levelFromXp(player.xp);
   const progress = levelProgress(player.xp);
 
@@ -21,6 +28,9 @@ export function Hud({ player }: { player: Player }) {
         <div className="hud__chip">💰 {player.money} €</div>
         <div className="hud__chip">⚡ {player.energy}</div>
       </div>
+      <button type="button" className="hud__chip hud__gfx" onClick={onToggleGraphics} title="Vaihda grafiikan laatu">
+        🎨 {graphics === 'high' ? 'Korkea' : 'Kevyt'}
+      </button>
     </header>
   );
 }

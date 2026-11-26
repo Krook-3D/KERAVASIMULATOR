@@ -154,5 +154,7 @@ export interface Player {
   equipment: Partial<Record<EquipmentSlot, string>>;
   quests: Record<string, QuestProgress>;
   visitedPoiIds: string[];
+  /** Opening cutscene (thrown off the train) has been seen. */
+  introDone?: boolean;
   createdAt: number;
 }

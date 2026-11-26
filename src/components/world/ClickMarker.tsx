@@ -4,7 +4,7 @@ import type * as THREE from 'three';
 import type { WorldXZ } from '../../game/world/projection';
 
 /** Pulsing ring on the ground where the player is walking to. */
-export function ClickMarker({ point }: { point: WorldXZ }) {
+export function ClickMarker({ point, y = 0 }: { point: WorldXZ; y?: number }) {
   const ring = useRef<THREE.Mesh>(null);
   useFrame(({ clock }) => {
     const r = ring.current;
@@ -14,7 +14,7 @@ export function ClickMarker({ point }: { point: WorldXZ }) {
     (r.material as THREE.MeshBasicMaterial).opacity = 1 - t;
   });
   return (
-    <mesh ref={ring} position={[point[0], 0.12, point[1]]} rotation-x={-Math.PI / 2}>
+    <mesh ref={ring} position={[point[0], y + 0.12, point[1]]} rotation-x={-Math.PI / 2}>
       <ringGeometry args={[0.5, 0.75, 24]} />
       <meshBasicMaterial color="#ffd23f" transparent depthWrite={false} />
     </mesh>

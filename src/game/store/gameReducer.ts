@@ -8,6 +8,7 @@ export interface GameState {
 export type GameAction =
   | { type: 'createCharacter'; name: string; color: string }
   | { type: 'movePlayer'; position: LngLat }
+  | { type: 'finishIntro'; position: LngLat }
   | { type: 'resetGame' };
 
 export const initialGameState: GameState = { player: null };
@@ -18,6 +19,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return { player: createPlayer(action.name, action.color) };
     case 'movePlayer':
       return state.player ? { player: { ...state.player, position: action.position } } : state;
+    case 'finishIntro':
+      return state.player ? { player: { ...state.player, introDone: true, position: action.position } } : state;
     case 'resetGame':
       return initialGameState;
   }

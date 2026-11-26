@@ -93,6 +93,7 @@ html, body, #root {
   font-size: 14px;
 }
 .hud__chip--name { color: var(--yellow); }
+.hud__gfx { margin-left: auto; color: var(--text); font-family: var(--font-body); cursor: pointer; }
 
 .hud__label { font-family: var(--font-display); font-size: 10px; }
 
@@ -390,3 +391,58 @@ html, body, #root {
   .bottom-nav { left: 8px; right: 8px; transform: none; justify-content: space-between; }
   .bottom-nav__btn { min-width: 0; flex: 1; }
 }
+
+/* ---------- Cutscene ---------- */
+.letterbox {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 11vh;
+  background: #000;
+  pointer-events: none;
+  animation: letterbox-in 0.6s ease-out;
+}
+.letterbox--top { top: 0; }
+.letterbox--bottom {
+  bottom: 0;
+  height: 17vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 14px;
+}
+.subtitle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  max-width: min(760px, 92vw);
+  text-align: center;
+  font-size: clamp(16px, 2.2vw, 22px);
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 2px 0 #000;
+  animation: subtitle-in 0.25s ease-out;
+}
+.subtitle--narrator { font-style: italic; color: #cfd6e4; }
+.subtitle__speaker {
+  font-family: var(--font-display);
+  font-size: 10px;
+  color: var(--yellow);
+  letter-spacing: 1px;
+}
+.subtitle--inspector .subtitle__speaker { color: #8fb4ff; }
+.skip-btn {
+  position: absolute;
+  right: 16px;
+  bottom: calc(17vh + 12px);
+  padding: 8px 12px;
+  background: rgba(20, 23, 31, 0.8);
+  border: 2px solid var(--panel-edge);
+  border-radius: 8px;
+  color: var(--text);
+  font: 700 12px var(--font-body);
+  cursor: pointer;
+}
+@keyframes letterbox-in { from { transform: scaleY(0); } to { transform: none; } }
+@keyframes subtitle-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }

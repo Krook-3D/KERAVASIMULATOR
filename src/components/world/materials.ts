@@ -1,0 +1,189 @@
+import * as THREE from 'three';
+
+/**
+ * Shader patches for the world's materials. Everything is procedural, so the
+ * game ships no texture files and works offline.
+ */
+
+export interface XrayUniforms {
+  uPlayer: { value: THREE.Vector3 };
+  uCamera: { value: THREE.Vector3 };
+  uRadius: { value: number };
+}
+
+export function createXrayUniforms(): XrayUniforms {
+  return {
+    uPlayer: { value: new THREE.Vector3() },
+    uCamera: { value: new THREE.Vector3() },
+    uRadius: { value: 3.4 },
+  };
+}
+
+const WORLD_VARYINGS = 'varying vec3 vWorldPos;\nvarying vec3 vWorldNormal;';
+
+function addWorldVaryings(shader: THREE.WebGLProgramParametersWithUniforms, extraVertexDecl = '', extraVertexBody = '') {
+  shader.vertexShader = shader.vertexShader
+    .replace('#include <common>', `#include <common>\n${WORLD_VARYINGS}\n${extraVertexDecl}`)
+    .replace(
+      '#include <begin_vertex>',
+      `#include <begin_vertex>
+vWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
+vWorldNormal = mat3(modelMatrix) * objectNormal;
+${extraVertexBody}`,
+    );
+}
+
+const NOISE_GLSL = /* glsl */ `
+float hash21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+float vnoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash21(i), hash21(i + vec2(1, 0)), u.x), mix(hash21(i + vec2(0, 1)), hash21(i + vec2(1, 1)), u.x), u.y);
+}`;
+
+/**
+ * Buildings: windows, plinth and roof tint drawn in the shader, plus an x-ray
+ * hole where a wall sits between the camera and the player.
+ */
+export function createBuildingMaterial(xray: XrayUniforms): THREE.MeshStandardMaterial {
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, side: THREE.DoubleSide });
+  m.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, xray);
+    addWorldVaryings(
+      shader,
+      'attribute float aFacade;\nattribute float aTop;\nvarying float vFacade;\nvarying float vTop;',
+      'vFacade = aFacade;\nvTop = aTop;',
+    );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        '#include <common>',
+        `#include <common>
+${WORLD_VARYINGS}
+varying float vFacade;
+varying float vTop;
+uniform vec3 uPlayer;
+uniform vec3 uCamera;
+uniform float uRadius;
+${NOISE_GLSL}`,
+      )
+      .replace(
+        'void main() {',
+        `void main() {
+  vec3 seg = uPlayer - uCamera;
+  float xt = dot(vWorldPos - uCamera, seg) / max(dot(seg, seg), 0.0001);
+  if (xt > 0.0 && xt < 0.96 && length(vWorldPos - (uCamera + seg * xt)) < uRadius) discard;
+  float glass = 0.0;`,
+      )
+      .replace(
+        '#include <color_fragment>',
+        `#include <color_fragment>
+  vec3 n = vWorldNormal / max(length(vWorldNormal), 1e-4);
+  float grime = vnoise(vWorldPos.xz * 0.35 + vWorldPos.y * 0.2) * 0.12;
+  if (vFacade > 1.5) {
+    diffuseColor.rgb *= 0.9 - grime;               // parapet
+  } else if (vFacade > 0.5) {
+    if (n.y > 0.5) {
+      // flat roof: dark felt with patches
+      diffuseColor.rgb = mix(vec3(0.27, 0.28, 0.30), diffuseColor.rgb * 0.5, 0.25) * (0.9 + vnoise(vWorldPos.xz * 0.4) * 0.2);
+    } else {
+      float u = abs(n.z) > abs(n.x) ? vWorldPos.x : vWorldPos.z;
+      float h = vWorldPos.y;
+      float floorH = vTop < 7.6 ? 2.9 : 3.1;
+      float cellW = vTop < 7.6 ? 3.6 : 2.7;
+      vec2 cell = vec2(u / cellW, (h - 0.3) / floorH);
+      vec2 f = fract(cell);
+      vec2 id = floor(cell);
+      bool inWin = f.x > 0.24 && f.x < 0.76 && f.y > 0.32 && f.y < 0.8 && h > 0.9 && h < vTop - 0.7;
+      bool inFrame = f.x > 0.2 && f.x < 0.8 && f.y > 0.28 && f.y < 0.84 && h > 0.9 && h < vTop - 0.7;
+      // ground-floor shop windows on taller buildings
+      bool shop = vTop > 7.6 && h > 0.5 && h < 2.8 && f.x > 0.08 && f.x < 0.92;
+      diffuseColor.rgb *= 1.0 - grime;
+      if (h < 0.5) diffuseColor.rgb *= 0.55;        // plinth
+      if (shop || inWin) {
+        float lit = step(0.86, hash21(id));
+        vec3 glassCol = mix(vec3(0.16, 0.22, 0.30), vec3(0.42, 0.55, 0.66), f.y);
+        diffuseColor.rgb = mix(glassCol, vec3(0.95, 0.82, 0.55), lit * 0.55);
+        glass = 1.0;
+      } else if (inFrame) {
+        diffuseColor.rgb = vec3(0.93, 0.92, 0.88);
+      }
+      // subtle horizontal floor lines
+      diffuseColor.rgb *= 1.0 - 0.06 * step(0.97, fract((h - 0.3) / floorH));
+    }
+  }`,
+      )
+      .replace(
+        '#include <roughnessmap_fragment>',
+        '#include <roughnessmap_fragment>\n  roughnessFactor = mix(roughnessFactor, 0.22, glass);',
+      )
+      .replace(
+        '#include <metalnessmap_fragment>',
+        '#include <metalnessmap_fragment>\n  metalnessFactor = mix(metalnessFactor, 0.6, glass);',
+      );
+  };
+  m.customProgramCacheKey = () => 'kerava-building';
+  return m;
+}
+
+/** Grass with large- and small-scale colour variation. */
+export function createGroundMaterial(): THREE.MeshStandardMaterial {
+  const m = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 1 });
+  m.onBeforeCompile = (shader) => {
+    addWorldVaryings(shader);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>\n${WORLD_VARYINGS}\n${NOISE_GLSL}`)
+      .replace(
+        '#include <color_fragment>',
+        `#include <color_fragment>
+  vec2 p = vWorldPos.xz;
+  float big = vnoise(p * 0.012) * 0.6 + vnoise(p * 0.04) * 0.4;
+  float small = vnoise(p * 0.6) * 0.5 + vnoise(p * 2.3) * 0.5;
+  vec3 g1 = vec3(0.24, 0.42, 0.13);
+  vec3 g2 = vec3(0.38, 0.55, 0.19);
+  vec3 dry = vec3(0.62, 0.60, 0.38);
+  vec3 col = mix(g1, g2, big);
+  col = mix(col, dry, smoothstep(0.72, 0.95, big) * 0.5);
+  diffuseColor.rgb = col * (0.88 + small * 0.24);`,
+      );
+  };
+  m.customProgramCacheKey = () => 'kerava-ground';
+  return m;
+}
+
+/** Asphalt / gravel with fine grain noise. */
+export function createGrainMaterial(color: string, grain = 0.18, roughness = 0.95): THREE.MeshStandardMaterial {
+  const m = new THREE.MeshStandardMaterial({ color, roughness });
+  m.onBeforeCompile = (shader) => {
+    addWorldVaryings(shader);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>\n${WORLD_VARYINGS}\n${NOISE_GLSL}`)
+      .replace(
+        '#include <color_fragment>',
+        `#include <color_fragment>
+  float gr = vnoise(vWorldPos.xz * 3.1) * 0.5 + vnoise(vWorldPos.xz * 0.3) * 0.5;
+  diffuseColor.rgb *= 1.0 - ${grain.toFixed(3)} + gr * ${(grain * 2).toFixed(3)};`,
+      );
+  };
+  m.customProgramCacheKey = () => `kerava-grain-${color}-${grain}`;
+  return m;
+}
+
+/** Plain standard material with the x-ray hole (for canopies and other roofs). */
+export function createXrayStandardMaterial(xray: XrayUniforms, params: THREE.MeshStandardMaterialParameters): THREE.MeshStandardMaterial {
+  const m = new THREE.MeshStandardMaterial(params);
+  m.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, xray);
+    addWorldVaryings(shader);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>\n${WORLD_VARYINGS}\nuniform vec3 uPlayer;\nuniform vec3 uCamera;\nuniform float uRadius;`)
+      .replace(
+        'void main() {',
+        `void main() {
+  vec3 seg = uPlayer - uCamera;
+  float xt = dot(vWorldPos - uCamera, seg) / max(dot(seg, seg), 0.0001);
+  if (xt > 0.0 && xt < 0.96 && length(vWorldPos - (uCamera + seg * xt)) < uRadius) discard;`,
+      );
+  };
+  m.customProgramCacheKey = () => `kerava-xray-${String(params.color)}`;
+  return m;
+}

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { loadGraphicsQuality, saveGraphicsQuality, type GraphicsQuality } from '../services/settings';
 import type { Player } from '../types/game';
 import { useGame } from '../game/store/GameProvider';
 import { GameWorld } from '../components/world/GameWorld';
@@ -33,23 +34,33 @@ function PanelContent({ id, player }: { id: PanelId; player: Player }) {
 export function GamePage({ player }: { player: Player }) {
   const { dispatch } = useGame();
   const [panel, setPanel] = useState<PanelId | null>(null);
+  const [gfx, setGfx] = useState<GraphicsQuality>(loadGraphicsQuality);
+  const toggleGfx = () => {
+    const next = gfx === 'high' ? 'low' : 'high';
+    saveGraphicsQuality(next);
+    setGfx(next);
+  };
 
   return (
     <div className="game">
       <GameWorld
         start={player.position}
         color={player.color}
+        playerName={player.name}
+        introDone={!!player.introDone}
+        onIntroDone={(position) => dispatch({ type: 'finishIntro', position })}
+        highQuality={gfx === 'high'}
         onMove={(position) => dispatch({ type: 'movePlayer', position })}
       />
-      <Hud player={player} />
-      {panel ? (
+      {player.introDone && <Hud player={player} graphics={gfx} onToggleGraphics={toggleGfx} />}
+      {!player.introDone ? null : panel ? (
         <Panel title={PANEL_TITLES[panel]} onClose={() => setPanel(null)}>
           <PanelContent id={panel} player={player} />
         </Panel>
       ) : (
         <div className="hint">Klikkaa maata kävelläksesi · raahaa tai nuolet kääntävät kameraa</div>
       )}
-      <BottomNav active={panel} onSelect={setPanel} />
+      {player.introDone && <BottomNav active={panel} onSelect={setPanel} />}
     </div>
   );
 }
