@@ -12,6 +12,17 @@ Vaiheet: ks. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#8-kehitysjärjestys).
 - [x] Kolmannen persoonan kamera: raahaus, rulla, nuolet / WASD
 - [x] Läpinäkyvä reikä rakennuksissa kameran ja pelaajan välissä
 
+## Grafiikka ja intro ✅
+- [x] Taivas, pilvet, ympäristövalo, varjot, AO/bloom (Korkea/Kevyt-valinta HUDissa)
+- [x] Proseduraaliset julkisivut ikkunoineen, harjakatot, suomalainen värimaailma
+- [x] Jalkakäytävät, tiemerkinnät, katuvalot, parkkiautot, rata ratapölkkyineen
+- [x] Kuuset, männyt ja koivut
+- [x] Keravan asema: laituri, katos, asemarakennus, kyltit, penkit, matkustajat
+- [x] Lähijuna liukuovineen, kiertää asemalla
+- [x] Intro: lipuntarkastaja heittää pelaajan ulos junasta ("Voihan vittu."), ohitettavissa
+- [ ] Omat glTF-mallit myöhemmin, äänet ja musiikki
+- [ ] Hahmolle ja junalle törmäys, reitinhaku
+
 ## Vaihe 2: Pelin UI-runko ✅
 - [x] HUD: level, XP-palkki, raha, energia
 - [x] Alapalkki: Kartta / Hahmo / Skillit / Reppu / Questit
