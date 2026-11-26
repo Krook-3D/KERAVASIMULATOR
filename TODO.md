@@ -36,6 +36,13 @@ Vaiheet: ks. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#8-kehitysjärjestys).
 - [ ] 15 itemiä, inventory-paneeli (käytä/myy)
 - [ ] 5 NPC:tä, dialogi, kauppa
 
+## Vaihe 10b: Aseman Areena (vain Keravan asemalla)
+- [ ] `src/game/duel/`: tila, liikkeet (Tönäisy / Torjunta / Väistö), stamina, vuoron ratkaisu
+- [ ] 3–5 NPC-haastajaa `src/data/duelists.ts`
+- [ ] Panos ja asemamaksu, palkinnot (XP, raha, rankki, collectible)
+- [ ] DuelScreen-UI
+- [ ] Myöhemmin: PvP backendin kautta
+
 ## Myöhemmin
 - [ ] Backend (Node + TS, REST) ja PostgreSQL/PostGIS
 - [ ] Oma vektorikarttatyyli / oma tiilipalvelu ennen julkaisua

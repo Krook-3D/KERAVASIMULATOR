@@ -238,7 +238,31 @@ Visuaalinen tyyli: tumma pohja, kirkkaat korostusvärit (keltainen ja sininen ku
 | 8 | Questit | 5 questia läpipelattavissa |
 | 9 | Inventory ja itemit | 15 itemiä, käytä/myy |
 | 10 | NPC:t ja dialogi | 5 NPC:tä, kaupat |
+| 10b | Aseman Areena (ks. luku 9) | NPC-duelit asemalla, panokset, rankit |
 | 11 | Tallennus: localStorage, sitten backend + PostgreSQL | Progress säilyy refreshissä |
 | 12 | Viimeistely | Äänet, animaatiot, tasapainotus |
 
 Huom: localStorage-tallennus tuodaan jo vaiheessa 3, koska se on halpa ja tekee testaamisesta helpompaa. Vaihe 11 tarkoittaa siirtoa palvelimelle.
+
+## 9. Aseman Areena (duel-järjestelmä)
+
+Kaksintaisteluareena, joka on **vain Keravan asemalla**. Idea on tuttu RPG-peleistä, mutta nimi, säännöt ja toteutus ovat omia.
+
+Perusidea:
+
+- Areena on aseman POI:n aktiviteetti ("Aseman Areena"). Muualla Keravalla duelleja ei ole, joten asema on pelin sosiaalinen keskipiste.
+- MVP-versiossa vastustajat ovat **NPC-haastajia** (esim. "Lähijuna-Lasse", "Kioskin Kimmo", "Pendelöijä-Paula"), jokaisella oma taso ja tyyli. PvP pelaajien välillä tulee myöhemmin backendin ja WebSocketien myötä.
+- **Panos**: pelaaja voi laittaa rahaa peliin (ei pakollinen). Voittaja saa potin, areena ottaa pienen "asemamaksun" (rahanielu taloudelle).
+- **Vuoropohjainen kaksintaistelu**, jokaisella kierroksella valitaan yksi liike:
+  - **Tönäisy**: voittaa Väistön, häviää Torjunnalle. Vahinko skaalautuu **Strengthistä**.
+  - **Torjunta**: voittaa Tönäisyn, häviää Väistölle. Kestävyys skaalautuu **Endurancesta**.
+  - **Väistö**: voittaa Torjunnan, häviää Tönäisylle. Onnistumisprosentti skaalautuu **Runningista**.
+  - Jokainen liike kuluttaa **staminaa**. Kun stamina loppuu, pelaaja voi vain levätä kierroksen.
+- Ottelu päättyy kun toisen "kunto" (health) loppuu tai 10 kierrosta on käyty (silloin voittaa se, jolla on enemmän kuntoa jäljellä).
+- Hävinnyt ei kuole: hän "lähtee seuraavalla junalla" ja menettää vain panoksen ja energiaa.
+- Palkinnot: Strength/Endurance/Running-XP:tä, raha, **areenan rankki** (Pronssi → Hopea → Kulta → "Aseman legenda") ja harvinaisia collectibleja (esim. "Areenan VR-lippu").
+- Vaatimus: character level 3, jotta uudet pelaajat ensin tutustuvat perusjärjestelmiin.
+
+Tekninen toteutus: puhdas `src/game/duel/`-moduuli (tila, liikkeet, vuoron ratkaisu, NPC-tekoäly), data `src/data/duelists.ts`, UI `components/DuelScreen`. Sama vuororatkaisu siirtyy myöhemmin palvelimelle PvP:tä varten.
+
+Paikka kehitysjärjestyksessä: **vaihe 10b**, heti NPC-järjestelmän jälkeen, koska se tarvitsee skillit, XP:n, rahan, NPC:t ja POI-aktiviteetit.
