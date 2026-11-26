@@ -2,6 +2,21 @@
 
 Tämä dokumentti on projektin tekninen pohja. Se on tarkoituksella lyhyt: tarkennetaan sitä mukaa kun järjestelmiä rakennetaan.
 
+## 0. Pelin suunta
+
+Kerava Simulator on **RuneScape-henkinen progression-peli, ei GTA-tyylinen sandbox**. Tunnelman referenssinä on paikallinen selainpeli Myyr York, mutta pelimekaniikat, ulkoasu ja sisältö suunnitellaan omiksi.
+
+Mitä tämä tarkoittaa käytännössä:
+
+- **Skillaus on ydin.** Pelaaja kävelee paikkaan ja tekee toistuvia aktiviteetteja (kalastaa joella, treenaa salilla, kokkaa kotona). Jokainen toisto kestää hetken ja antaa XP:tä, itemeitä tai rahaa.
+- **Pitkäjänteinen kehitys.** Levelit avaavat uusia paikkoja, parempia aktiviteetteja ja questeja. Tavoite on "vielä yksi level", ei nopea kaaos.
+- **Kartta on maailma, jossa kävellään.** Klikkaa ja kävele, ei ajoneuvoja, takaa-ajoja tai reaaliaikaista toimintaa.
+- **Questit kertovat tarinan.** Monivaiheisia, paikallisia ja huumorilla höystettyjä tehtäviä NPC:iltä.
+- **Talous perustuu keräämiseen ja myymiseen.** Raaka-aineita kerätään, jalostetaan (esim. kala → kypsennetty kala) ja myydään.
+- **Ei:** ajamista, ammuskelua, poliisijahteja tai rikossandboxia.
+
+Tämän takia vaiheisiin 6–7 lisätään **aktiviteettijärjestelmä**: POI:lla on aktiviteetteja, joilla on vaatimus (skill-level, työkalu), kesto, energiankulutus ja palkinto (XP, itemit). Se on pelin tärkein silmukka heti questien rinnalla.
+
 ## 1. Tekninen arkkitehtuuri
 
 ```text
@@ -219,7 +234,7 @@ Visuaalinen tyyli: tumma pohja, kirkkaat korostusvärit (keltainen ja sininen ku
 | 4 | Skillit | Skill-paneeli näyttää 5 skilliä |
 | 5 | XP ja levelit | XP:n lisäys nostaa leveliä, level-up-ilmoitus |
 | 6 | Kartalla liikkuminen | Klikkaus liikuttaa hahmoa, energia kuluu |
-| 7 | POI-järjestelmä | 10 POI:ta, POI-kortti ja aktiviteetit |
+| 7 | POI- ja aktiviteettijärjestelmä | 10 POI:ta, POI-kortti, toistettavat skill-aktiviteetit (kesto, energia, XP, saalis) |
 | 8 | Questit | 5 questia läpipelattavissa |
 | 9 | Inventory ja itemit | 15 itemiä, käytä/myy |
 | 10 | NPC:t ja dialogi | 5 NPC:tä, kaupat |

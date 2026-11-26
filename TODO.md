@@ -29,6 +29,7 @@ Vaiheet: ks. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#8-kehitysjärjestys).
 - [ ] Energia kuluu liikkuessa, Running/Endurance XP matkasta
 - [ ] 10 POI:ta `src/data/pois.ts`
 - [ ] POI-kortti ja aktiviteetit
+- [ ] Aktiviteettijärjestelmä: vaatimus, kesto, energiankulutus, XP + saalis (RuneScape-henkinen skillaus)
 
 ## Vaihe 8–10: Questit, inventory, NPC:t
 - [ ] 5 questia, quest-tracker
