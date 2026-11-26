@@ -13,7 +13,8 @@ Mitä tämä tarkoittaa käytännössä:
 - **Kartta on maailma, jossa kävellään.** Klikkaa ja kävele, ei ajoneuvoja, takaa-ajoja tai reaaliaikaista toimintaa.
 - **Questit kertovat tarinan.** Monivaiheisia, paikallisia ja huumorilla höystettyjä tehtäviä NPC:iltä.
 - **Talous perustuu keräämiseen ja myymiseen.** Raaka-aineita kerätään, jalostetaan (esim. kala → kypsennetty kala) ja myydään.
-- **Ei:** ajamista, ammuskelua, poliisijahteja tai rikossandboxia.
+- **Ei:** ajamista tai ammuskelua. Rikollisuus on mukana vain riskiin perustuvana talousjärjestelmänä (ks. luku 10), ei GTA-tyylisenä toimintana.
+- **Peli on K18.** Hahmon luonnissa vahvistetaan ikä.
 
 Tämän takia vaiheisiin 6–7 lisätään **aktiviteettijärjestelmä**: POI:lla on aktiviteetteja, joilla on vaatimus (skill-level, työkalu), kesto, energiankulutus ja palkinto (XP, itemit). Se on pelin tärkein silmukka heti questien rinnalla.
 
@@ -239,6 +240,7 @@ Visuaalinen tyyli: tumma pohja, kirkkaat korostusvärit (keltainen ja sininen ku
 | 9 | Inventory ja itemit | 15 itemiä, käytä/myy |
 | 10 | NPC:t ja dialogi | 5 NPC:tä, kaupat |
 | 10b | Aseman Areena (ks. luku 9) | NPC-duelit asemalla, panokset, rankit |
+| 10c | Katukauppa, heat ja poliisi (ks. luku 10) | Osto/myynti, kotivarasto, heat-mittari, jahdit, kotietsinnät, kuulustelu ja vankila |
 | 11 | Tallennus: localStorage, sitten backend + PostgreSQL | Progress säilyy refreshissä |
 | 12 | Viimeistely | Äänet, animaatiot, tasapainotus |
 
@@ -266,3 +268,25 @@ Perusidea:
 Tekninen toteutus: puhdas `src/game/duel/`-moduuli (tila, liikkeet, vuoron ratkaisu, NPC-tekoäly), data `src/data/duelists.ts`, UI `components/DuelScreen`. Sama vuororatkaisu siirtyy myöhemmin palvelimelle PvP:tä varten.
 
 Paikka kehitysjärjestyksessä: **vaihe 10b**, heti NPC-järjestelmän jälkeen, koska se tarvitsee skillit, XP:n, rahan, NPC:t ja POI-aktiviteetit.
+
+## 10. Katukauppa, heat ja poliisi (K18)
+
+Aikuisille suunnattu riskitalous: pelaaja voi välittää ja myydä fiktiivisiä laittomia aineita, mutta mitä enemmän tekee, sitä kovemmin poliisi kiinnostuu. Järjestelmä on pelimekaniikka (riski vs. tuotto), ei realistinen kuvaus.
+
+**Sisältö pidetään fiktiivisenä.** Aineet ovat keksittyjä (esim. "Jokivarren Vihreä", "Asemanpölly", "Lähijunasieni"), niillä ei ole oikeita valmistusohjeita, annosteluja tai hintoja. Diilauspaikat ovat yleisiä alueita (kujat, puistot, aseman tunneli), eivät oikeita nimettyjä yrityksiä, jotta oikeita keravalaisia liikkeitä ei leimata.
+
+Järjestelmät:
+
+- **Hinnat ja markkina** (`src/game/street/market.ts`): jokaisella aineella on perushinta, joka vaihtelee alueittain ja päivittäin. Ostetaan halvalla yhdeltä välittäjä-NPC:ltä ja myydään kalliimmalla toisaalla. Satunnaiset tapahtumat (esim. "Festarit Kirsikkapuistossa", "Poliisin iskuviikko") heiluttavat hintoja.
+- **Kotivarasto**: pelaajan koti (`home`-POI) on varasto. Repussa kulkee vain rajattu määrä, ylimäärä jää kotiin.
+- **Heat-mittari 0–100** (`src/game/street/heat.ts`): nousee jokaisesta kaupasta, isoista määristä ja kaupoista lähellä poliisia. Laskee ajan myötä ja "rauhallisilla" teoilla (töissä käynti, salilla treenaus). Heat näkyy HUDissa.
+- **Poliisipartiot kartalla**: partio-markkerit liikkuvat katuja pitkin. Jos pelaaja kävelee partion lähelle heatin ollessa korkea, alkaa **jahti**: lyhyt minipeli, jossa Running ja Endurance ratkaisevat pääseekö karkuun.
+- **Kiinni jääminen ja selittely**: jos poliisi saa kiinni (jahti epäonnistuu tai jää kiinni itse teosta), avautuu **kuulusteludialogi**. Pelaaja valitsee vastauksia, ja osa vaihtoehdoista on skill-checkejä, joiden onnistuminen riippuu Charismasta, Knowledgesta ja reputationista (esim. "[Charisma 5] Olin vaan viemässä mummolle karjalanpiirakoita"). Onnistunut selitys päästää varoituksella tai pelkällä sakolla, epäonnistunut vie vankilaan. Mitä enemmän tavaraa mukana ja mitä korkeampi heat, sitä vaikeampia checkit ovat.
+- **Vankila**: tuomio kestää pelin sisäistä aikaa (pituus riippuu määrästä ja aiemmista tuomioista). Vankilassa voi tehdä rajattuja aktiviteetteja (punnerrukset → Strength, kirjasto → Knowledge, keittiövuoro → Cooking) ja tavata omia NPC:itä ja questeja. Tuomion voi lyhentää hyvällä käytöksellä. Takavarikko vie mukana olleet aineet ja osan rahoista, heat nollautuu.
+- **Kotietsinnät**: satunnaistapahtuma, jonka todennäköisyys kasvaa heatin ja kotona olevan määrän mukaan (`raidChance = f(heat, kotivarasto)`). Ratsia vie kotivaraston ja sakottaa. Pelaaja voi vähentää riskiä hajauttamalla varastoa tai pitämällä heatin matalana.
+- **Rangit**: katukaupan maine ("Rivikaupustelija" → "Välittäjä" → "Keravan tukkuri") avaa isompia kauppoja ja parempia kontakteja.
+- **Liitännät muihin järjestelmiin**: Charisma parantaa hintoja ja selittelyä (Charisma ja Knowledge tuodaan skilleihin tämän vaiheen yhteydessä), Running auttaa jahdeissa, raha ja maine vaikuttavat questeihin. Aseman Areenalla voi myöhemmin olla katukauppaan liittyviä haastajia.
+
+Tekninen toteutus: puhdas `src/game/street/`-moduuli (market, heat, police, raids, interrogation, jail). Kuulustelu käyttää samaa dialogijärjestelmää kuin NPC:t, laajennettuna skill-check-vaihtoehdoilla, data `src/data/street.ts`. Satunnaisuus kulkee yhden siemenellisen RNG:n kautta, jotta tapahtumat ovat testattavia ja myöhemmin palvelimen ratkaistavissa.
+
+Paikka kehitysjärjestyksessä: **vaihe 10c**, NPC:iden ja inventoryn jälkeen, koska se tarvitsee kaupat, kotivaraston, liikkumisen ja energian. Ikävahvistus on jo hahmon luonnissa.

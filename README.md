@@ -10,7 +10,7 @@ npm run dev        # avaa http://localhost:5173
 npm run build      # tyyppitarkistus + tuotantobuild
 ```
 
-Nykyinen tila: **vaihe 1 valmis**. Keravan kartta (MapLibre + OpenStreetMap) ja pelaajahahmo, joka kävelee klikattuun kohtaan.
+Nykyinen tila: **vaiheet 1–3 valmiit**. Hahmon luonti (K18-vahvistus), Keravan kartta (MapLibre + OpenStreetMap), pelaajahahmo joka kävelee klikattuun kohtaan, HUD, paneelit (hahmo, skillit, reppu, questit) ja automaattinen tallennus selaimeen.
 
 - Arkkitehtuuri, MVP-lista, tietomalli ja kehitysjärjestys: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - Tehtävälista: [TODO.md](TODO.md)

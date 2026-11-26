@@ -247,7 +247,9 @@ html, body, #root {
   outline: none;
 }
 .create__input:focus { border-color: var(--yellow); }
-.create__colors { display: flex; gap: 10px; margin-bottom: 14px; }
+.create__colors { display: flex; gap: 10px; margin-bottom: 6px; }
+.create__age { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: var(--muted); line-height: 1.4; margin-bottom: 10px; cursor: pointer; }
+.create__age input { margin-top: 2px; width: 18px; height: 18px; accent-color: var(--yellow); }
 .create__swatch {
   width: 36px;
   height: 36px;

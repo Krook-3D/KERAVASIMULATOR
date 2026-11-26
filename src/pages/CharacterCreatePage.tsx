@@ -9,11 +9,12 @@ export function CharacterCreatePage() {
   const { dispatch } = useGame();
   const [name, setName] = useState('');
   const [color, setColor] = useState(COLORS[0]!);
+  const [isAdult, setIsAdult] = useState(false);
   const trimmed = name.trim();
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (trimmed) dispatch({ type: 'createCharacter', name: trimmed, color });
+    if (trimmed && isAdult) dispatch({ type: 'createCharacter', name: trimmed, color });
   };
 
   return (
@@ -56,7 +57,14 @@ export function CharacterCreatePage() {
           ))}
         </div>
 
-        <button type="submit" className="btn btn--primary" disabled={!trimmed}>
+        <label className="create__age">
+          <input type="checkbox" checked={isAdult} onChange={(e) => setIsAdult(e.target.checked)} />
+          <span>
+            Olen täyttänyt 18 vuotta. Peli on K18 ja sisältää fiktiivistä rikollisuutta ja aikuisten huumoria.
+          </span>
+        </label>
+
+        <button type="submit" className="btn btn--primary" disabled={!trimmed || !isAdult}>
           Astu junasta ulos ▶
         </button>
       </form>

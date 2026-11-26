@@ -9,16 +9,16 @@ Vaiheet: ks. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#8-kehitysjärjestys).
 - [x] Pelaajahahmo kartalla (Keravan asema)
 - [x] Hahmo kävelee klikattuun kohtaan
 
-## Vaihe 2: Pelin UI-runko
-- [ ] HUD: level, XP-palkki, raha, energia
-- [ ] Alapalkki: Kartta / Hahmo / Skillit / Reppu / Questit
-- [ ] Paneelikomponentti kartan päälle
-- [ ] Visuaalinen teema (fontit, värit)
+## Vaihe 2: Pelin UI-runko ✅
+- [x] HUD: level, XP-palkki, raha, energia
+- [x] Alapalkki: Kartta / Hahmo / Skillit / Reppu / Questit
+- [x] Paneelikomponentti kartan päälle
+- [x] Visuaalinen teema (fontit, värit)
 
-## Vaihe 3: Player
-- [ ] Game store (reducer + context)
-- [ ] Hahmon luonti -ruutu (nimi, väri)
-- [ ] localStorage-tallennus (`kerava-sim:save`, versio 1)
+## Vaihe 3: Player ✅
+- [x] Game store (reducer + context)
+- [x] Hahmon luonti -ruutu (nimi, väri, K18-vahvistus)
+- [x] localStorage-tallennus (`kerava-sim:save`, versio 1)
 
 ## Vaihe 4–5: Skillit ja XP
 - [ ] XP-käyrä `src/game/xp`
@@ -42,6 +42,18 @@ Vaiheet: ks. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#8-kehitysjärjestys).
 - [ ] Panos ja asemamaksu, palkinnot (XP, raha, rankki, collectible)
 - [ ] DuelScreen-UI
 - [ ] Myöhemmin: PvP backendin kautta
+
+## Vaihe 10c: Katukauppa, heat ja poliisi (K18)
+- [ ] Fiktiiviset aineet ja välittäjä-NPC:t `src/data/street.ts`
+- [ ] Markkina: alue- ja päiväkohtaiset hinnat, satunnaistapahtumat
+- [ ] Kotivarasto (home-POI) ja repun kantoraja
+- [ ] Heat-mittari HUDiin, nousu ja lasku
+- [ ] Poliisipartiot kartalle, jahti-minipeli (Running/Endurance)
+- [ ] Satunnaiset kotietsinnät: todennäköisyys heatin ja kotivaraston mukaan
+- [ ] Kuulustelu: dialogi skill-check-vaihtoehdoilla (Charisma, Knowledge, reputation)
+- [ ] Vankila: tuomion kesto, vankila-aktiviteetit ja -NPC:t, takavarikko
+- [ ] Charisma- ja Knowledge-skillit
+- [ ] Katukaupan maine ja rangit
 
 ## Myöhemmin
 - [ ] Backend (Node + TS, REST) ja PostgreSQL/PostGIS
