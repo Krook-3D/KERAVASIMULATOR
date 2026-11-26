@@ -55,7 +55,8 @@ Stack:
 | Kerros | Valinta | Miksi |
 | --- | --- | --- |
 | Frontend | React 19, Vite, TypeScript | Nopea kehitys, laaja ekosysteemi |
-| Kartta | MapLibre GL JS + OpenStreetMap | Avoin, ei API-avaimia, tukee myöhemmin omaa vektorityyliä |
+| 3D-maailma | Three.js + React Three Fiber + drei | RuneScape-tyylinen 3D-näkymä selaimessa, Reactin kanssa yhteensopiva |
+| Maailman data | OpenStreetMap (Overpass API → staattinen JSON) | Oikeat Keravan rakennukset, tiet, rata, vedet ja puistot |
 | Tila | Oma reducer-pohjainen store (React `useReducer` + context) | Ei ylimääräisiä riippuvuuksia MVP:ssä |
 | Tallennus (MVP) | localStorage | Riittää "progress säilyy refreshissä" -vaatimukseen |
 | Backend (myöhemmin) | Node.js + TypeScript, REST | Jakaa tyypit frontendin kanssa |
@@ -68,6 +69,7 @@ src/
   main.tsx              sovelluksen käynnistys
   App.tsx               pääruudun asettelu
   components/           UI-komponentit (HUD, paneelit, napit)
+    world/              3D-scene: maailma, pelaaja, kamera
   pages/                kokonaiset näkymät (GamePage, CharacterCreatePage)
   game/
     player/             pelaajan luonti, health/energy
@@ -78,13 +80,15 @@ src/
     items/              item-apufunktiot
     economy/            raha, ostot ja myynnit
     npc/                dialogi ja NPC-logiikka
-    map/                kartan konfiguraatio ja liikkuminen
+    map/                koordinaatit ja Keravan rajat
+    world/              3D-maailma: projektio, OSM-data, geometria, törmäys
     store/              pelitila, actionit ja reducer
   data/                 POI:t, questit, itemit, NPC:t (Kerava-paketti)
   services/             persistence (localStorage → REST)
   types/                jaetut tyypit (Player, Skill, Item, Quest…)
   styles/               globaalit tyylit ja teemamuuttujat
 server/                 (vaihe 11) api/, services/, database/, models/, auth/
+scripts/                fetch-osm.mjs: hakee Keravan OSM-datan maailmaksi
 docs/                   arkkitehtuuri ja suunnitelmat
 ```
 
@@ -190,14 +194,14 @@ Sama kaava character levelille ja skilleille, maksimi aluksi 50. Käyrää on he
 
 ## 6. UI-rakenne
 
-Kartta täyttää koko ruudun, käyttöliittymä on sen päällä kelluvina "pelipaneeleina", ei admin-sivupalkkeina.
+3D-maailma täyttää koko ruudun, käyttöliittymä on sen päällä kelluvina "pelipaneeleina", ei admin-sivupalkkeina.
 
 ```text
 ┌───────────────────────────────────────────────────────────┐
 │ KERAVA SIMULATOR   [Lv 5 ███████░░] [💰 425 €] [⚡ 80]   │  ← HUD (yläpalkki)
 │                                                           │
 │                                              ┌──────────┐ │
-│               KARTTA (koko ruutu)            │ QUESTIT  │ │  ← questiseuranta
+│           3D-MAAILMA (koko ruutu)            │ QUESTIT  │ │  ← questiseuranta
 │          📍 POI   🧍 pelaaja   💬 NPC         │ > Keskus │ │
 │                                              └──────────┘ │
 │  ┌───────────────┐                                        │
@@ -209,32 +213,37 @@ Kartta täyttää koko ruudun, käyttöliittymä on sen päällä kelluvina "pel
 ```
 
 - **HUD**: nimi, level + XP-palkki, raha, energia.
-- **Alapalkki** avaa paneelin (Character, Skills, Inventory, Quests) kartan päälle. Mobiilissa paneeli on koko ruudun levyinen.
+- **Alapalkki** avaa paneelin (Character, Skills, Inventory, Quests) maailman päälle. Myöhemmin oikeaan yläkulmaan tulee minikartta. Mobiilissa paneeli on koko ruudun levyinen.
 - **POI-kortti**: nimi, kuvaus, NPC:t, aktiviteetit ("Kalasta", "Treenaa").
 - **Dialogi**: NPC:n nimi, repliikki, vastausvaihtoehdot.
 
-Visuaalinen tyyli: tumma pohja, kirkkaat korostusvärit (keltainen ja sininen kuin Keravan vaakunassa), pyöristetyt mutta paksureunaiset "pelikortit", pikselimäinen otsikkofontti ja selkeä leipäteksti. Kartta värisävytetään hieman, jotta se näyttää pelimaailmalta eikä navigaattorilta.
+Visuaalinen tyyli: tumma pohja, kirkkaat korostusvärit (keltainen ja sininen kuin Keravan vaakunassa), pyöristetyt mutta paksureunaiset "pelikortit", pikselimäinen otsikkofontti ja selkeä leipäteksti. Maailma on low-poly-tyylinen: tasavärit, flat shading, selkeät muodot.
 
-## 7. Karttaratkaisu
+## 7. Maailmaratkaisu (3D)
 
-- **MapLibre GL JS** renderöi kartan. Pohjana OpenStreetMapin rasteritiilet (`tile.openstreetmap.org`) ja OSM-attribuutio.
-- Kartta keskitetään Keravan asemalle (`[25.1037, 60.4044]`) ja rajataan `maxBounds`illa Keravan alueelle, zoom 12–18.
-- **Pelaaja, POI:t ja NPC:t** ovat MapLibren `Marker`eita, joiden sisältö on omaa HTML:ää. Siksi ne on helppo tyylittää pelimäisiksi.
-- **Liikkuminen** (vaihe 6–7): klikkaus asettaa kohteen, hahmo liikkuu suoraviivaisesti animaationa. Myöhemmin voidaan reitittää OSM-katuverkkoa pitkin.
-- **Locked-alueet**: GeoJSON-polygonit omana layerinaan, harmaana kunnes avattu.
-- **Myöhemmin**: oma vektorityyli (esim. OpenFreeMap tai omat tiilet), jotta kartasta saadaan täysin pelin näköinen. OSM:n julkisia tiilipalvelimia ei saa kuormittaa raskaasti tuotannossa, joten ennen julkaisua vaihdetaan omaan tai kaupalliseen tiilipalveluun.
-- **GPS-tila** on myöhempi lisäys: sama `position`-kenttä, lähde vain vaihtuu.
+Peli pelataan kolmannen persoonan 3D-näkymässä kuten RuneScapessa: klikkaa maata ja hahmo kävelee sinne, kameraa käännetään raahaamalla tai nuolinäppäimillä ja zoomataan rullalla.
+
+- **Renderöinti**: Three.js React Three Fiberin kautta (`src/components/world/`). Pelilogiikka (`src/game/world/`) ei riipu Reactista.
+- **Koordinaatit**: pelaajan sijainti tallennetaan oikeina koordinaatteina (`[lng, lat]`). `projection.ts` muuntaa ne maailman metreiksi, origo Keravan asemalla (+x itä, +z etelä). Sama sijaintikenttä toimii myöhemmin GPS:n kanssa.
+- **Maailman data**: `npm run fetch:osm` hakee Overpass API:sta Keravan keskustan (oletus 700 m säde asemasta) rakennukset, tiet, radan, vedet ja puistot ja tallentaa ne tiedostoon `public/data/kerava-world.json`. Rakennusten korkeus tulee OSM:n `height`/`building:levels`-tiedoista, muuten arvioidaan tyypin mukaan. Ilman tiedostoa peli käyttää väliaikaista, käsin tehtyä keskustaa.
+- **Geometria**: kaikki rakennukset yhdistetään yhdeksi meshiksi ja tiet yhdeksi meshiksi tyypeittäin, jolloin koko kaupunki piirtyy muutamalla draw callilla.
+- **Liikkuminen**: suora kävely kohteeseen, seinien läpi ei pääse (hahmo liukuu seinää pitkin). Vaiheessa 6 lisätään reitinhaku (A* ruudukolla tai OSM-tieverkolla), jotta hahmo kiertää rakennukset kuten RuneScapessa.
+- **Kamera**: orbit-kamera seuraa pelaajaa. Kameran ja pelaajan välissä olevaan rakennukseen piirretään läpinäkyvä "reikä", jotta hahmo näkyy aina.
+- **POI:t, NPC:t ja questit**: 3D-objekteja ja kelluvia ikoneita maailmassa, sijainnit oikeina koordinaatteina.
+- **Isompi alue myöhemmin**: maailma jaetaan ruutuihin (chunks), joita ladataan pelaajan ympäriltä. Näin koko Kerava ja myöhemmin muut kaupungit mahtuvat peliin.
+- **Grafiikka**: alkuun primitiiveistä tehty oma low-poly-hahmo. Myöhemmin omat glTF-mallit (hahmo, puut, kyltit, Keravan maamerkit). Ei kopioituja assetteja.
+- **Attribuutio**: © OpenStreetMap contributors (ODbL) näkyy pelissä.
 
 ## 8. Kehitysjärjestys
 
 | Vaihe | Sisältö | Valmis kun |
 | --- | --- | --- |
-| 1 | Projektin pohja: Vite + React + TS, MapLibre-kartta, pelaajamarkkeri | Selaimessa näkyy Keravan kartta ja hahmo |
+| 1 | Projektin pohja: Vite + React + TS, 3D-maailma, pelaajahahmo, kamera | Selaimessa näkyy 3D-Kerava ja hahmo, jota voi liikuttaa |
 | 2 | Pelin UI-runko: HUD, alapalkki, paneelit | Paneelit aukeavat ja sulkeutuvat |
 | 3 | Player-järjestelmä: hahmon luonti, store | Oma nimi näkyy HUDissa |
 | 4 | Skillit | Skill-paneeli näyttää 5 skilliä |
 | 5 | XP ja levelit | XP:n lisäys nostaa leveliä, level-up-ilmoitus |
-| 6 | Kartalla liikkuminen | Klikkaus liikuttaa hahmoa, energia kuluu |
+| 6 | Liikkuminen | Reitinhaku rakennusten ympäri, juoksu, energia kuluu, minikartta |
 | 7 | POI- ja aktiviteettijärjestelmä | 10 POI:ta, POI-kortti, toistettavat skill-aktiviteetit (kesto, energia, XP, saalis) |
 | 8 | Questit | 5 questia läpipelattavissa |
 | 9 | Inventory ja itemit | 15 itemiä, käytä/myy |

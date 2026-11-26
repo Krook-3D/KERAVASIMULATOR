@@ -5,9 +5,12 @@ Vaiheet: ks. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#8-kehitysjärjestys).
 ## Vaihe 1: Projektin pohja ✅
 - [x] Arkkitehtuuri, kansiorakenne, MVP-lista, tietomalli, UI-rakenne, karttaratkaisu
 - [x] Vite + React + TypeScript
-- [x] MapLibre-kartta Keravasta (OSM-tiilet), rajattu Keravan alueelle
-- [x] Pelaajahahmo kartalla (Keravan asema)
-- [x] Hahmo kävelee klikattuun kohtaan
+- [x] 3D-maailma (React Three Fiber): maa, tiet, rata, vedet, puistot, rakennukset
+- [x] OSM-hakuskripti `npm run fetch:osm` + väliaikainen keskusta ilman dataa
+- [x] Low-poly-pelaajahahmo Keravan asemalla, kävelyanimaatio
+- [x] Klikkaa ja kävele, seinätörmäys
+- [x] Kolmannen persoonan kamera: raahaus, rulla, nuolet / WASD
+- [x] Läpinäkyvä reikä rakennuksissa kameran ja pelaajan välissä
 
 ## Vaihe 2: Pelin UI-runko ✅
 - [x] HUD: level, XP-palkki, raha, energia
@@ -26,6 +29,9 @@ Vaiheet: ks. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#8-kehitysjärjestys).
 - [ ] Level-up-ilmoitus
 
 ## Vaihe 6–7: Liikkuminen ja POI:t
+- [ ] Aja `npm run fetch:osm` ja commitoi oikea Keravan data
+- [ ] Reitinhaku rakennusten ympäri
+- [ ] Minikartta
 - [ ] Energia kuluu liikkuessa, Running/Endurance XP matkasta
 - [ ] 10 POI:ta `src/data/pois.ts`
 - [ ] POI-kortti ja aktiviteetit
@@ -57,5 +63,6 @@ Vaiheet: ks. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#8-kehitysjärjestys).
 
 ## Myöhemmin
 - [ ] Backend (Node + TS, REST) ja PostgreSQL/PostGIS
-- [ ] Oma vektorikarttatyyli / oma tiilipalvelu ennen julkaisua
+- [ ] Maailma chunkeiksi, koko Kerava
+- [ ] Omat glTF-mallit (hahmo, puut, maamerkit)
 - [ ] Achievementit, daily/weekly, minipelit, GPS

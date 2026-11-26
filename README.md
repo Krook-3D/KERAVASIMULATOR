@@ -10,7 +10,16 @@ npm run dev        # avaa http://localhost:5173
 npm run build      # tyyppitarkistus + tuotantobuild
 ```
 
-Nykyinen tila: **vaiheet 1–3 valmiit**. Hahmon luonti (K18-vahvistus), Keravan kartta (MapLibre + OpenStreetMap), pelaajahahmo joka kävelee klikattuun kohtaan, HUD, paneelit (hahmo, skillit, reppu, questit) ja automaattinen tallennus selaimeen.
+Nykyinen tila: **vaiheet 1–3 valmiit**. Hahmon luonti (K18-vahvistus), RuneScape-tyylinen 3D-Kerava (Three.js / React Three Fiber), pelaajahahmo joka kävelee klikattuun kohtaan, kääntyvä kamera, HUD, paneelit (hahmo, skillit, reppu, questit) ja automaattinen tallennus selaimeen.
+
+Oikean Keravan rakennukset ja tiet OpenStreetMapista:
+
+```bash
+npm run fetch:osm          # kirjoittaa public/data/kerava-world.json (oletus 700 m säde asemasta)
+npm run fetch:osm -- 1200  # isompi alue
+```
+
+Ohjaus: klikkaa maata kävelläksesi, raahaa hiirellä tai käytä nuolinäppäimiä / WASD kameran kääntämiseen, rulla zoomaa.
 
 - Arkkitehtuuri, MVP-lista, tietomalli ja kehitysjärjestys: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - Tehtävälista: [TODO.md](TODO.md)
@@ -365,7 +374,7 @@ Preferred technology:
 
 ```text
 OpenStreetMap
-MapLibre GL JS
+Three.js + React Three Fiber (3D, RuneScape-style third-person view)
 ```
 
 The map should eventually support:
@@ -446,7 +455,7 @@ TypeScript
 ## Map
 
 ```text
-MapLibre GL JS
+Three.js + React Three Fiber (3D, RuneScape-style third-person view)
 OpenStreetMap
 ```
 
