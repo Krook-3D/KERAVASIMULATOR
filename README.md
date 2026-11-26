@@ -1,5 +1,24 @@
 # Kerava Simulator
 
+## Pelin käynnistys / Getting started
+
+Vaatii Node.js 20+.
+
+```bash
+npm install
+npm run dev        # avaa http://localhost:5173
+npm run build      # tyyppitarkistus + tuotantobuild
+```
+
+Nykyinen tila: **vaihe 1 valmis**. Keravan kartta (MapLibre + OpenStreetMap) ja pelaajahahmo, joka kävelee klikattuun kohtaan.
+
+- Arkkitehtuuri, MVP-lista, tietomalli ja kehitysjärjestys: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- Tehtävälista: [TODO.md](TODO.md)
+
+Karttadata © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors.
+
+---
+
 ## Project Context
 
 Kerava Simulator is a browser-based open-world life simulator / RPG set in the real city of Kerava, Finland.
