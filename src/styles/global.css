@@ -26,15 +26,36 @@ html, body, #root {
 
 .game { position: relative; height: 100%; }
 
-.game-map { position: absolute; inset: 0; }
-.game-map .maplibregl-canvas { cursor: crosshair; }
+.game-world { position: absolute; inset: 0; }
+.game-world canvas { cursor: pointer; touch-action: none; }
+.world-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: var(--yellow);
+  background: var(--ink);
+}
+.world-badge {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--muted);
+  background: rgba(20, 23, 31, 0.75);
+  border-radius: 6px;
+  pointer-events: none;
+}
 
 /* ---------- HUD ---------- */
 .hud {
   position: absolute;
   top: 12px;
   left: 12px;
-  right: 64px;
+  right: 12px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -363,9 +384,9 @@ html, body, #root {
 }
 
 @media (max-width: 600px) {
-  .hud { right: 56px; }
   .hud__logo { display: none; }
   .panel { top: 72px; }
+  .world-badge { bottom: calc(var(--nav-h) + 22px); }
   .bottom-nav { left: 8px; right: 8px; transform: none; justify-content: space-between; }
   .bottom-nav__btn { min-width: 0; flex: 1; }
 }

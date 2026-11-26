@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Player } from '../types/game';
 import { useGame } from '../game/store/GameProvider';
-import { GameMap } from '../components/GameMap';
+import { GameWorld } from '../components/world/GameWorld';
 import { Hud } from '../components/Hud';
 import { BottomNav, type PanelId } from '../components/BottomNav';
 import { Panel } from '../components/Panel';
@@ -36,14 +36,18 @@ export function GamePage({ player }: { player: Player }) {
 
   return (
     <div className="game">
-      <GameMap player={player} onMove={(position) => dispatch({ type: 'movePlayer', position })} />
+      <GameWorld
+        start={player.position}
+        color={player.color}
+        onMove={(position) => dispatch({ type: 'movePlayer', position })}
+      />
       <Hud player={player} />
       {panel ? (
         <Panel title={PANEL_TITLES[panel]} onClose={() => setPanel(null)}>
           <PanelContent id={panel} player={player} />
         </Panel>
       ) : (
-        <div className="hint">Klikkaa karttaa liikkuaksesi</div>
+        <div className="hint">Klikkaa maata kävelläksesi · raahaa tai nuolet kääntävät kameraa</div>
       )}
       <BottomNav active={panel} onSelect={setPanel} />
     </div>
