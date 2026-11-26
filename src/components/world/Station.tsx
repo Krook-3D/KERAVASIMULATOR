@@ -3,6 +3,7 @@ import { createXrayStandardMaterial, type XrayUniforms } from './materials';
 import * as THREE from 'three';
 import { PLATFORM, STATION_BUILDING, type StationLayout } from '../../game/world/station';
 import { createTextTexture } from './textTexture';
+import { Passengers } from './Passengers';
 
 /**
  * Kerava station, an original low-poly take on a Finnish town station:
@@ -278,6 +279,7 @@ export function Station({ layout, xray }: { layout: StationLayout; xray: XrayUni
       <Platform />
       <Canopy xray={xray} />
       <StationHouse />
+      <Passengers />
     </group>
   );
 }

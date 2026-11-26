@@ -27,6 +27,8 @@ import { Station } from './Station';
 import { Train } from './Train';
 import { Inspector } from './Inspector';
 import { IntroDirector } from './IntroDirector';
+import { Clouds } from './StreetProps';
+import { placeClouds } from '../../game/world/streetProps';
 
 interface GameWorldProps {
   start: LngLat;
@@ -67,6 +69,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
   const positionRef = useRef(new THREE.Vector3(startXZ[0], 0, startXZ[1]));
   const clockRef = useRef(introDone ? NO_INTRO_START : 0);
   const xray = useMemo(createXrayUniforms, []);
+  const clouds = useMemo(placeClouds, []);
   const scriptRef = useRef<ScriptedPose>({ active: !introDone, tilt: 0, yaw: 0, flail: 0 });
 
   useEffect(() => {
@@ -141,6 +144,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
         <Clock clockRef={clockRef} />
         <Atmosphere followRef={positionRef} high={highQuality} />
         {highQuality && <Effects />}
+        <Clouds clouds={clouds} />
 
         {world && collider && layout && (
           <>

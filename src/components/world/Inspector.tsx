@@ -36,18 +36,18 @@ export function Inspector({ layout, clockRef }: { layout: StationLayout; clockRe
       // points out of the door, then shoves
       const push = t > INTRO_TIMES.throwStart ? Math.min(1, (t - INTRO_TIMES.throwStart) * 6) : 0;
       arm.rotation.x = -1.4 - push * 0.2;
-      g.position.z = 1.0 + push * 0.5;
+      g.position.z = 1.7 + push * 0.4;
     } else if (t > 11.8 && t < 13.8) {
       arm.rotation.x = -0.9; // holding out the card reader
     } else {
       arm.rotation.x = 0;
-      g.position.z = 1.0;
+      g.position.z = 1.7;
     }
   });
 
   return (
     <group position={[layout.origin[0], 0, layout.origin[1]]} rotation-y={layout.rotationY}>
-      <group ref={root} position={[INTRO_DOOR_X + 0.75, PLATFORM.height, 1.0]} visible={false}>
+      <group ref={root} position={[INTRO_DOOR_X + 0.85, PLATFORM.height, 1.7]} rotation-y={-0.9} visible={false}>
         <HumanModel outfit={UNIFORM} rig={rig} />
       </group>
     </group>

@@ -8,6 +8,8 @@ import { placeTrees } from '../../game/world/vegetation';
 import { buildAreaGeometry, buildBuildingsGeometry, buildRoadLayers } from '../../game/world/geometry';
 import { createBuildingMaterial, createGrainMaterial, createGroundMaterial, type XrayUniforms } from './materials';
 import { Trees } from './Trees';
+import { StreetProps } from './StreetProps';
+import { placeStreetProps } from '../../game/world/streetProps';
 
 interface KeravaWorldProps {
   data: WorldData;
@@ -51,6 +53,7 @@ export function KeravaWorld({ data, collider, excludeTrees, onGroundClick, playe
   );
 
   const trees = useMemo(() => placeTrees(data, collider, excludeTrees), [data, collider, excludeTrees]);
+  const props = useMemo(() => placeStreetProps(data, collider, excludeTrees ?? (() => false)), [data, collider, excludeTrees]);
 
   useEffect(
     () => () => {
@@ -97,6 +100,7 @@ export function KeravaWorld({ data, collider, excludeTrees, onGroundClick, playe
       {flat(r.rails, materials.rail)}
       {geos.buildings && <mesh geometry={geos.buildings} material={materials.building} castShadow receiveShadow />}
       <Trees trees={trees} />
+      <StreetProps lamps={props.lamps} cars={props.cars} />
     </group>
   );
 }
