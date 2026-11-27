@@ -1,3 +1,5 @@
+import { placeTrees } from '../../game/world/vegetation';
+import { placeStreetProps } from '../../game/world/streetProps';
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -50,7 +52,9 @@ export function MenuBackdrop() {
     const world = { ...raw, buildings: clearStationArea(layout, prisma.buildings) };
     const terrain = createTerrain(world, layout);
     const collider = new BuildingCollider([...world.buildings, ...stationFootprints(layout).map((footprint) => ({ footprint, height: 8 }))]);
-    return { layout, prisma, world, terrain, collider };
+    const trees = placeTrees(world, collider, undefined, terrain);
+    const props = placeStreetProps(world, collider, () => false, terrain);
+    return { layout, prisma, world, terrain, collider, trees, props };
   }, [raw]);
   const centre = useMemo(() => new THREE.Vector3(-40, 0, 20), []);
   return (
@@ -62,7 +66,7 @@ export function MenuBackdrop() {
         {scene && (
           <group>
             <Clouds clouds={clouds} />
-            <KeravaWorld data={scene.world} terrain={scene.terrain} collider={scene.collider} playerRef={nowhere} xray={xray} onGroundClick={() => {}} />
+            <KeravaWorld data={scene.world} terrain={scene.terrain} collider={scene.collider} trees={scene.trees} props={scene.props} playerRef={nowhere} xray={xray} onGroundClick={() => {}} />
             <Station layout={scene.layout} xray={xray} />
             <Train layout={scene.layout} clockRef={clock} />
             <PrismaExterior site={scene.prisma.site} ground={scene.terrain.surfaceAt(scene.prisma.site.door[0], scene.prisma.site.door[1])} />

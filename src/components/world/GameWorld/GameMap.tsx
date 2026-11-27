@@ -38,7 +38,7 @@ export function GameMap({ w, clouds, xray, highQuality, cutscene, playerRef, clo
     <>
       <Clouds clouds={clouds} />
       <Birds followRef={playerRef} />
-      <KeravaWorld data={world} terrain={terrain} collider={w.collider!} excludeTrees={w.excludeTrees} playerRef={playerRef} xray={xray} onGroundClick={onGroundClick} />
+      <KeravaWorld data={world} terrain={terrain} collider={w.collider!} excludeTrees={w.excludeTrees} trees={w.trees} props={w.streetProps} playerRef={playerRef} xray={xray} onGroundClick={onGroundClick} />
       <Station layout={layout} xray={xray} />
       <Train layout={layout} clockRef={clockRef} />
       <PrismaExterior site={w.prisma!.site} ground={ground(w.prisma!.site.door)} />

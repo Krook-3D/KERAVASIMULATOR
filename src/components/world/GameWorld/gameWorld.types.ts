@@ -15,10 +15,14 @@ export interface WorldDoor {
   to?: { scene: InteriorId; exit: string };
 }
 
-/** A clickable place: walking onto it calls `use`. */
+/** A usable place: E, a click or the right-click menu uses it when you stand close. */
 export interface Spot {
   at: WorldXZ;
   use: () => void;
+  /** Name in the right-click menu. */
+  label?: string;
+  /** "Tarkastele" text. */
+  info?: string;
 }
 
 export type TrainStop = { id: 'kerava' | 'savio'; name: string; at: WorldXZ };

@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import type { WorldXZ } from '../../../game/world/projection';
 import { loadWorldData, worldBounds, type Building, type WorldData } from '../../../game/world/worldData';
 import { createTerrain } from '../../../game/world/terrain';
+import { placeTrees } from '../../../game/world/vegetation';
+import { placeStreetProps } from '../../../game/world/streetProps';
+import { PropCollider } from '../../../game/world/propCollider';
 import { placeBlock, placeBlockAt, placePrisma } from '../../../game/world/prisma';
 import { findSavioStation } from '../../../game/world/savio';
 import { SITES } from '../../../game/world/sites';
@@ -82,10 +85,12 @@ export function useWorldSetup(scene: SceneId) {
     },
     [layout, terrain, scene],
   );
+  /** Lamp posts, parked cars, bus shelters and tree trunks (filled in once they are placed below). */
+  const propColRef = useRef<PropCollider | null>(null);
   const extraBlocked = useCallback(
     (p: WorldXZ, from?: WorldXZ) => {
       if (scene !== 'world' || !layout) return false;
-      return isTrackBlocked(layout, p) || (!!from && bridgeBlocked(layout, p, from));
+      return isTrackBlocked(layout, p) || (!!from && bridgeBlocked(layout, p, from)) || !!propColRef.current?.isBlocked(p);
     },
     [layout, scene],
   );
@@ -100,6 +105,8 @@ export function useWorldSetup(scene: SceneId) {
     return [THREE.MathUtils.clamp(x, b.minX, b.maxX), THREE.MathUtils.clamp(z, b.minZ, b.maxZ)];
   };
 
+  const trees = useMemo(() => (world && collider && terrain ? placeTrees(world, collider, excludeTrees, terrain) : []), [world, collider, excludeTrees, terrain]);
+  const streetProps = useMemo(() => (world && collider && terrain ? placeStreetProps(world, collider, excludeTrees, terrain) : { lamps: [], cars: [] }), [world, collider, excludeTrees, terrain]);
   const loot = useMemo(() => (world && collider && terrain ? placeLoot(world, collider, excludeTrees, terrain) : []), [world, collider, terrain, excludeTrees]);
 
   const doors = useMemo(() => {
@@ -192,6 +199,26 @@ export function useWorldSetup(scene: SceneId) {
 
   const ready = !!(world && collider && layout && terrain && doors);
 
+  const propCollider = useMemo(() => {
+    const c = new PropCollider();
+    for (const l of streetProps.lamps) c.circle(l.x, l.z, 0.18);
+    // parked cars: 1.75 m × 4.1 m, long side along the car's heading
+    for (const car of streetProps.cars) c.box(car.x, car.z, 0.9, 2.08, car.rotation);
+    for (const t of trees) c.circle(t.x, t.z, 0.22 * t.scale);
+    // bus shelters (see BusStopModel): back wall, side panes, bench, sign pole; open towards the road
+    for (const b of busStops) {
+      const yaw = Math.atan2(b.side[0], b.side[1]);
+      const ox = b.at[0] + b.side[0] * 1.2, oz = b.at[1] + b.side[1] * 1.2;
+      c.boxIn(ox, oz, yaw, 0, 0.7, 1.85, 0.06);
+      c.boxIn(ox, oz, yaw, -1.85, 0.2, 0.05, 0.5);
+      c.boxIn(ox, oz, yaw, 1.85, 0.2, 0.05, 0.5);
+      c.boxIn(ox, oz, yaw, 0, 0.45, 1.2, 0.2);
+      c.boxIn(ox, oz, yaw, -2.3, -0.6, 0.06, 0.06);
+    }
+    return c;
+  }, [streetProps, trees, busStops]);
+  propColRef.current = propCollider;
+
   return {
     ready,
     world,
@@ -205,6 +232,9 @@ export function useWorldSetup(scene: SceneId) {
     extraBlocked,
     excludeTrees,
     grassBlocked,
+    trees,
+    streetProps,
+    propCollider,
     clampToWorld,
     loot,
     npcs,

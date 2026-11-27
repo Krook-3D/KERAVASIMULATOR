@@ -15,6 +15,8 @@ export const CELL_SPAWN: WorldXZ = [PLAYER_CELL_X + 0.6, -4.2];
 export const HOTSPOT_SNAP = 2.6;
 /** Arriving this close to a hotspot uses it. */
 export const HOTSPOT_USE = 1.8;
+/** How close you must stand to use something (no click-to-walk: move with the keys). */
+export const USE_REACH = 4.5;
 /** Where you stand to talk to the gym's roina dealer. */
 export const ROINA_TALK_SPOT: WorldXZ = [7.0, 5.0];
 export const SWIM_ENERGY = 8;

@@ -41,6 +41,7 @@ export function useDebugHook(d: {
   graffiti: ReturnType<typeof useGraffiti>;
   transit: ReturnType<typeof useTransit>;
   stash: ReturnType<typeof useStashes>;
+  openContextAt: (p: WorldXZ, x: number, y: number) => void;
 }) {
   useEffect(() => {
     if (!new URLSearchParams(window.location.search).has('debug')) return;
@@ -52,6 +53,9 @@ export function useDebugHook(d: {
       talkToJonne: d.talkToJonne,
       setRoute: d.setRoute,
       pos: () => [positionRef.current.x, positionRef.current.z],
+      ctx: (x: number, z: number) => d.openContextAt([x, z], 400, 300),
+      lamps: () => w.streetProps.lamps.slice(0, 400).map((l) => [l.x, l.z]),
+      cars: () => w.streetProps.cars.slice(0, 50).map((c) => [c.x, c.z, c.rotation]),
       doors: w.doors,
       live: d.jailLive.current,
       hold: (v: boolean) => (d.holdingRef.current = v),

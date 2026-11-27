@@ -23,7 +23,7 @@ const BOUNDS = radiusArg
   : { minX: -700, maxX: 2000, minZ: -1400, maxZ: 700 };
 const RADIUS = Math.max(-BOUNDS.minX, BOUNDS.maxX, -BOUNDS.minZ, BOUNDS.maxZ);
 const OUT = new URL('../public/data/kerava-world.json', import.meta.url);
-const ENDPOINTS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+const ENDPOINTS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
 
 const R = 6_371_000;
 const rad = (d) => (d * Math.PI) / 180;
@@ -51,10 +51,25 @@ const query = `[out:json][timeout:90];
   relation["landuse"="forest"](${bbox});
   relation["natural"="wood"](${bbox});
   nwr["name"~"Prisma"](${bbox});
+  nwr["natural"~"peak|hill"](${bbox});
+  nwr["name"~"mäki$|vuori$"]["highway"!~"."]["building"!~"."](${bbox});
 );
 out geom;`;
 
 async function overpass() {
+  // Overpass servers are often busy (502/504): try each one, then go round again after a pause.
+  for (let round = 0; round < 3; round++) {
+    if (round) {
+      console.warn(`All endpoints busy, retrying in ${10 * round} s…`);
+      await new Promise((r) => setTimeout(r, 10000 * round));
+    }
+    const got = await overpassOnce();
+    if (got) return got;
+  }
+  throw new Error('All Overpass endpoints failed');
+}
+
+async function overpassOnce() {
   for (const url of ENDPOINTS) {
     try {
       const res = await fetch(url, {
@@ -68,7 +83,7 @@ async function overpass() {
       console.warn(`${url}: ${e.message}`);
     }
   }
-  throw new Error('All Overpass endpoints failed');
+  return null;
 }
 
 function buildingHeight(tags) {
@@ -89,7 +104,9 @@ const ROAD_KINDS = {
 const inside = ([x, z]) => x >= BOUNDS.minX - 50 && x <= BOUNDS.maxX + 50 && z >= BOUNDS.minZ - 50 && z <= BOUNDS.maxZ + 50;
 
 const data = await overpass();
-const world = { source: 'osm', radius: RADIUS, bounds: BOUNDS, buildings: [], roads: [], water: [], parks: [], forests: [], landmarks: [] };
+const world = { source: 'osm', radius: RADIUS, bounds: BOUNDS, buildings: [], roads: [], water: [], parks: [], forests: [], landmarks: [], hills: [] };
+/** Hills: OSM peaks / named 'mäki' or 'vuori' places; the game shapes the terrain to them. */
+const isHill = (tags) => tags.natural === 'peak' || tags.natural === 'hill' || (!!tags.name && /(mäki|vuori)$/i.test(tags.name) && !tags.highway && !tags.building && !tags.place);
 
 for (const el of data.elements) {
   const tags = el.tags ?? {};
@@ -98,6 +115,19 @@ for (const el of data.elements) {
     if (pts.length) {
       const c = pts.reduce((a, p) => [a[0] + p[0], a[1] + p[1]], [0, 0]);
       world.landmarks.push({ name: tags.name, x: round(c[0] / pts.length), z: round(c[1] / pts.length) });
+    }
+  }
+  if (isHill(tags)) {
+    const ele = parseFloat(tags.ele);
+    const hill = { name: tags.name ?? 'mäki', ...(Number.isFinite(ele) ? { ele } : {}) };
+    if (el.type === 'node') world.hills.push({ ...hill, x: toWorld(el)[0], z: toWorld(el)[1] });
+    else {
+      const ring = el.type === 'way' ? el.geometry : (el.members ?? []).find((m) => m.role === 'outer' && m.geometry)?.geometry;
+      if (ring && ring.length >= 4) {
+        const outline = ring.map(toWorld).slice(0, -1);
+        const c = outline.reduce((a, p) => [a[0] + p[0], a[1] + p[1]], [0, 0]);
+        world.hills.push({ ...hill, x: round(c[0] / outline.length), z: round(c[1] / outline.length), outline });
+      }
     }
   }
   if (el.type === 'node') continue;
@@ -129,9 +159,9 @@ for (const el of data.elements) {
   }
 }
 
-/** Elevation grid (50 m) from Open-Meteo, relative to the station. */
+/** Elevation grid (40 m) from Open-Meteo, relative to the station (`base` = the station's height above sea level). */
 async function fetchElevation() {
-  const step = 50;
+  const step = 40;
   const margin = 300;
   const minX = BOUNDS.minX - margin, minZ = BOUNDS.minZ - margin;
   const cols = Math.ceil((BOUNDS.maxX + margin - minX) / step) + 1;
@@ -161,7 +191,7 @@ async function fetchElevation() {
   }
   process.stdout.write('\n');
   const base = out.pop();
-  return { minX, minZ, step, cols, rows, heights: out.map((h) => round(h - base)) };
+  return { minX, minZ, step, cols, rows, base, heights: out.map((h) => round(h - base)) };
 }
 
 if (WITH_ELEVATION) {
@@ -177,5 +207,5 @@ await writeFile(OUT, JSON.stringify(world));
 console.log(
   `Wrote ${OUT.pathname}: ${world.buildings.length} buildings, ${world.roads.length} roads, ` +
     `${world.water.length} water, ${world.parks.length} parks, ${world.forests.length} forests, ` +
-    `${world.landmarks.length} landmarks, elevation: ${world.elevation ? 'yes' : 'no'}`,
+    `${world.landmarks.length} landmarks, ${world.hills.length} hills (${world.hills.map((h) => h.name).join(', ')}), elevation: ${world.elevation ? 'yes' : 'no'}`,
 );

@@ -1,3 +1,6 @@
+import type { ThreeEvent } from '@react-three/fiber';
+import { speakerName } from '../../../game/npc/talk';
+import { describeNpc } from '../../../game/npc/describe';
 import { levelFromXp } from '../../../game/xp/xp';
 import { bodyShape } from '../../../game/player/body';
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
@@ -19,7 +22,7 @@ import { createXrayUniforms } from '../materials';
 import type { NpcLive } from '../npc/Crowd';
 import type { DialogueView } from '../quest/DialogueBox';
 import { newJailLive } from '../quest/Jailbreak';
-import { CELL_SPAWN } from './constants';
+import { CELL_SPAWN, dist, USE_REACH } from './constants';
 import type { GameCtx } from './gameWorld.types';
 import { useWorldSetup } from './useWorldSetup';
 import { useDebugHook } from './useDebugHook';
@@ -293,9 +296,64 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     obs.observe(document.body, { childList: true, subtree: true });
     return () => obs.disconnect();
   }, []);
+  // ------------------------------------------------------------ right-click menu
+  // Right-click anything to see what you can do with it. Using needs you to
+  // stand close (movement is keys only); "Tarkastele" works from anywhere.
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; title: string; options: { text: string; onPick: () => void; disabled?: boolean }[] } | null>(null);
+  const onContext = (e: ThreeEvent<MouseEvent>) => {
+    e.stopPropagation();
+    e.nativeEvent.preventDefault();
+    const locked = !!document.pointerLockElement;
+    openContextAt([e.point.x, e.point.z], locked ? window.innerWidth / 2 + 12 : e.nativeEvent.clientX, locked ? window.innerHeight / 2 + 12 : e.nativeEvent.clientY);
+  };
+  const openContextAt = (p: WorldXZ, x: number, y: number) => {
+    if (inputLocked) return;
+    const here: WorldXZ = [positionRef.current.x, positionRef.current.z];
+    const far = (d: number) => `Liian kaukana (${Math.round(d)} m), kävele lähemmäs`;
+    // people first
+    let npc: (typeof w.npcs)[number] | null = null, nd = 1.6;
+    if (inWorld)
+      for (const n of w.npcs) {
+        const at = npcLive.current.get(n.id)?.p ?? n.at;
+        if (!at) continue;
+        const d = dist(at, p);
+        if (d < nd) { npc = n; nd = d; }
+      }
+    if (npc) {
+      const n = npc;
+      const at = npcLive.current.get(n.id)?.p ?? n.at!;
+      const d = dist(at, here);
+      setCtxMenu({
+        x, y, title: speakerName(n),
+        options: [
+          { text: d < USE_REACH ? '💬 Puhu' : `💬 ${far(d)}`, disabled: d >= USE_REACH, onPick: () => talk.onNpcClick(n) },
+          { text: '🔍 Tarkastele', onPick: () => setToast(describeNpc(n, levelFromXp(player?.skills.strength?.xp ?? 0), levelFromXp(player?.skills.martial?.xp ?? 0))) },
+        ],
+      });
+      return;
+    }
+    const sp = interaction.spotAt(p);
+    if (!sp) return setCtxMenu(null);
+    const d = dist(sp.at, here);
+    setCtxMenu({
+      x, y, title: sp.label ?? 'Kohde',
+      options: [
+        { text: d < USE_REACH ? '✋ Käytä' : `✋ ${far(d)}`, disabled: d >= USE_REACH, onPick: () => onGroundClick(sp.at) },
+        { text: '🔍 Tarkastele', onPick: () => setToast(sp.info ?? sp.label ?? 'Ei mitään erikoista.') },
+      ],
+    });
+  };
+  useEffect(() => {
+    // the browser's own menu never opens over the game
+    const block = (e: MouseEvent) => { if ((e.target as HTMLElement | null)?.closest?.('.game-world')) e.preventDefault(); };
+    window.addEventListener('contextmenu', block);
+    return () => window.removeEventListener('contextmenu', block);
+  }, []);
+
   const onSteerStart = useCallback(() => {
     setRoute([]);
     closePanels();
+    setCtxMenu(null);
   }, [closePanels]);
   const onSteerEnd = (p: WorldXZ) => {
     if (scene === 'world') onMove(worldToLngLat(p));
@@ -318,7 +376,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
   useDebugHook({
     w, scene, cutscene, dispatch, positionRef, jailLive, holdingRef, npcLive, goTo, teleport, setRoute,
     talkToJonne: jailbreak.talkToJonne, onGroundClick, onNpcClick: talk.onNpcClick, spots: interaction.spots, lootTaken: interaction.lootTaken,
-    shop, graffiti, transit, stash,
+    shop, graffiti, transit, stash, openContextAt,
   });
 
   const speaker = line?.speaker === 'inspector' ? INSPECTOR_NAME : line?.speaker === 'player' ? playerName : null;
@@ -335,6 +393,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
         <Clock clockRef={clockRef} />
         <Atmosphere followRef={positionRef} high={highQuality} indoor={!inWorld} />
         {highQuality && <Effects />}
+        <group onContextMenu={onContext}>
 
         {w.ready && (
           <group visible={inWorld}>
@@ -393,6 +452,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
           />
         )}
 
+        </group>
         <Player
           color={color}
           appearance={appearance}
@@ -417,6 +477,18 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
         />
       </Canvas>
       {pointerLocked && !cutscene && <div className="crosshair" aria-hidden />}
+      {ctxMenu && (
+        <div className="ctx-backdrop" onClick={() => setCtxMenu(null)} onContextMenu={(e) => { e.preventDefault(); setCtxMenu(null); }}>
+          <div className="ctx-menu" style={{ left: ctxMenu.x, top: ctxMenu.y }} onClick={(e) => e.stopPropagation()}>
+            <div className="ctx-menu__title">{ctxMenu.title}</div>
+            {ctxMenu.options.map((o) => (
+              <button key={o.text} type="button" disabled={o.disabled} onClick={() => { setCtxMenu(null); o.onPick(); }}>
+                {o.text}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {!cutscene && nearSpot && !inputLocked && <div className="use-prompt"><kbd>E</kbd> Käytä</div>}
 
       <GameHUD

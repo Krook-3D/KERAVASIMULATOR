@@ -3,9 +3,8 @@ import { FIGHT_SPOTS } from '../../../../game/interiors/interiors';
 import { useMemo } from 'react';
 import type { WorldXZ } from '../../../../game/world/projection';
 import { worldToLngLat } from '../../../../game/world/projection';
-import { planRoute } from '../../../../game/world/station';
+
 import { BARBER_CHAIR_SPOT, GYM_STATIONS, INTERIORS, POLICE_DESK_SPOT, POOL_SWIM_SPOT } from '../../../../game/interiors/interiors';
-import type { LiftId } from '../../../../game/gym/lifting';
 import type { BusStop } from '../../../../game/world/transit';
 import type { CookSpot } from '../../../../game/world/grills';
 import type { PlacedStash } from '../../../../game/quests/stashes';
@@ -15,7 +14,10 @@ import { canAdd } from '../../../../game/store/gameReducer';
 import { ITEMS, RARITY_NAMES, itemName } from '../../../../data/items';
 import type { LngLat } from '../../../../types/game';
 import type { Appearance } from '../../../../game/player/appearance';
-import { HOTSPOT_SNAP, HOTSPOT_USE, ROINA_TALK_SPOT, dist } from '../constants';
+import { HOTSPOT_SNAP, HOTSPOT_USE, ROINA_TALK_SPOT, USE_REACH, dist } from '../constants';
+import { DRILLS } from '../../../../game/gym/drills';
+import type { LiftId } from '../../../../game/gym/lifting';
+import { LIFTS } from '../../../../game/gym/lifting';
 import type { GameCtx, Spot, TrainStop } from '../gameWorld.types';
 import type { WorldSetup } from '../useWorldSetup';
 
@@ -63,7 +65,7 @@ export function useInteraction(
   },
 ) {
   const { player, dispatch, scene, positionRef, setRoute, setToast, goTo } = ctx;
-  const { doors, jonneAt, busStops, trainStops, stashes, cookSpots, loot, layout } = w;
+  const { doors, jonneAt, busStops, trainStops, stashes, cookSpots, loot } = w;
   const lootTaken = player?.lootTaken ?? [];
 
   const pickLoot = (s: LootSpot) => {
@@ -82,44 +84,64 @@ export function useInteraction(
       const list: Spot[] = [];
       for (const d of Object.values(doors ?? {})) {
         const to = d.to;
-        list.push({ at: d.at, use: () => (to ? goTo({ scene: to.scene, exit: to.exit }) : setToast('Vankilan portti on lukossa. Hyvä niin.')) });
+        list.push({ at: d.at, label: `🚪 ${d.label}`, info: to ? `Ovi: ${d.label}. Käytä mennäksesi sisään.` : 'Vankilan portti. Lukossa.', use: () => (to ? goTo({ scene: to.scene, exit: to.exit }) : setToast('Vankilan portti on lukossa. Hyvä niin.')) });
       }
-      if (jonneAt) list.push({ at: jonneAt, use: a.talkToJonne });
-      for (const b of busStops) list.push({ at: b.at, use: () => a.setAtBusStop(b) });
-      for (const t of trainStops) list.push({ at: t.at, use: () => a.setAtTrain(t) });
-      for (const st of stashes) if (!a.stashTaken.has(st.id)) list.push({ at: st.at, use: () => a.takeStash(st) });
-      for (const c of cookSpots) list.push({ at: c.at, use: () => a.setAtCook(c) });
-      for (const l of loot) if (!lootTaken.includes(l.id)) list.push({ at: [l.x, l.z], use: () => pickLoot(l) });
+      if (jonneAt) list.push({ at: jonneAt, label: '🧍 Jonne', info: 'Jonne pyörii aseman nurkilla. Hänellä on aina jokin juoni.', use: a.talkToJonne });
+      for (const b of busStops) list.push({ at: b.at, label: `🚌 ${b.name}`, info: `Bussipysäkki ${b.name}. Täältä pääsee bussilla muualle Keravalle.`, use: () => a.setAtBusStop(b) });
+      for (const t of trainStops) list.push({ at: t.at, label: `🚆 ${t.name}`, info: `Lähijunan laituri: ${t.name}.`, use: () => a.setAtTrain(t) });
+      for (const st of stashes) if (!a.stashTaken.has(st.id)) list.push({ at: st.at, label: '❓ Jotain maassa', info: 'Sammaleen alla näkyy jotain. Joku on piilottanut tänne jotain.', use: () => a.takeStash(st) });
+      for (const c of cookSpots) list.push({ at: c.at, label: `🔥 ${c.name}`, info: `${c.name}: täällä voi kokata raaka-aineista ruokaa.`, use: () => a.setAtCook(c) });
+      for (const l of loot) if (!lootTaken.includes(l.id)) list.push({ at: [l.x, l.z], label: `✨ ${itemName(l.itemId)}`, info: `${itemName(l.itemId)} (${RARITY_NAMES[ITEMS[l.itemId]?.rarity ?? 'common']}). ${ITEMS[l.itemId]?.description ?? ''}`, use: () => pickLoot(l) });
       return list;
     }
     const list: Spot[] = INTERIORS[scene].exits.map((e) => ({
       at: e.at,
+      label: `🚪 ${e.label}`,
       use: () => (scene === 'prison' && e.id === 'yard' ? a.escaped() : goTo(e.to)),
     }));
-    if (scene === 'gym') list.push({ at: ROINA_TALK_SPOT, use: a.talkToPete });
-    if (scene === 'gym') for (const g of GYM_STATIONS) list.push({ at: g.use, use: () => a.arriveAtStation(g.lift) });
-    if (scene === 'fightgym') for (const [id, at] of Object.entries(FIGHT_SPOTS)) list.push({ at, use: () => a.setAtDrill(id as DrillId) });
-    if (scene === 'pool') list.push({ at: POOL_SWIM_SPOT, use: () => a.setAtPool(true) });
-    if (scene === 'barber') list.push({ at: BARBER_CHAIR_SPOT, use: () => a.setBarberDraft({ ...a.currentLook }) });
+    if (scene === 'gym') list.push({ at: ROINA_TALK_SPOT, label: '🧴 Pumppi-Pete', info: 'Pumppi-Pete myy salin nurkassa "lisäravinteita". Fiktiivisiä, ja karma kärsii.', use: a.talkToPete });
+    if (scene === 'gym') for (const g of GYM_STATIONS) list.push({ at: g.use, label: `🏋️ ${LIFTS[g.lift].name}`, info: `${LIFTS[g.lift].name}: lataa tankoon levyjä ja nosta. Kehittää Voimaa.`, use: () => a.arriveAtStation(g.lift) });
+    if (scene === 'fightgym') for (const [id, at] of Object.entries(FIGHT_SPOTS)) list.push({ at, label: `🥊 ${DRILLS[id as DrillId].name}`, info: `${DRILLS[id as DrillId].blurb} Vaatii Kamppailu ${DRILLS[id as DrillId].level}.`, use: () => a.setAtDrill(id as DrillId) });
+    if (scene === 'pool') list.push({ at: POOL_SWIM_SPOT, label: '🏊 Uintirata', info: 'Ui allasmittoja. Kehittää Kestävyyttä.', use: () => a.setAtPool(true) });
+    if (scene === 'barber') list.push({ at: BARBER_CHAIR_SPOT, label: '💈 Parturin tuoli', info: 'Uusi kampaus tai parta.', use: () => a.setBarberDraft({ ...a.currentLook }) });
     const sh = SHOPS[scene];
     if (sh) {
-      for (const shelf of sh.shelves) list.push({ at: shelf.at, use: () => a.setAtShelf(shelf) });
-      list.push({ at: sh.till, use: () => a.setAtTill(true) });
+      for (const shelf of sh.shelves) list.push({ at: shelf.at, label: `🛒 ${shelf.name}`, info: `${shelf.name}: ${shelf.items.map((i) => itemName(i)).join(', ')}.`, use: () => a.setAtShelf(shelf) });
+      list.push({ at: sh.till, label: '💳 Kassa', info: 'Maksa korin tuotteet täällä.', use: () => a.setAtTill(true) });
     }
-    if (scene === 'police') list.push({ at: POLICE_DESK_SPOT, use: a.talkAtPoliceDesk });
+    if (scene === 'police') list.push({ at: POLICE_DESK_SPOT, label: '👮 Asiakaspalvelu', info: 'Poliisiaseman tiski.', use: a.talkAtPoliceDesk });
     return list;
     // The actions read the latest state through closures re-created each render;
     // the list is rebuilt when any of these change (same dependencies as before the split).
   }, [scene, doors, jonneAt, goTo, a.jailStep, player, a.carrying, busStops, trainStops, a.currentLook, loot, lootTaken, a.putkaUntil, cookSpots, stashes, a.stashTaken, a.chase]);
 
+  /**
+   * A click in the world. There is no click-to-walk: you move with the arrow
+   * keys / WASD. Clicking something usable that you stand next to uses it
+   * right away; anything else is ignored.
+   */
   const onGroundClick = (raw: WorldXZ) => {
     if (opts.locked) return;
-    opts.closePanels();
-    let p = scene === 'world' ? w.clampToWorld(raw) : raw;
-    const snap = spots.find((s) => dist(s.at, p) < HOTSPOT_SNAP);
-    if (snap) p = snap.at;
+    const p = scene === 'world' ? w.clampToWorld(raw) : raw;
+    const snap = spotAt(p);
+    if (!snap) return;
     const here: WorldXZ = [positionRef.current.x, positionRef.current.z];
-    setRoute(scene === 'world' && layout ? planRoute(layout, here, p) : [p]);
+    if (dist(here, snap.at) > USE_REACH) {
+      setToast(`${snap.label ?? 'Kohde'} on liian kaukana. Kävele lähemmäs nuolilla tai WASD:lla.`);
+      return;
+    }
+    opts.closePanels();
+    setRoute([]);
+    snap.use();
+  };
+  /** The usable spot closest to a point (within snapping distance), or null. */
+  const spotAt = (p: WorldXZ): Spot | null => {
+    let best: Spot | null = null, bd = HOTSPOT_SNAP;
+    for (const s of spots) {
+      const d = dist(s.at, p);
+      if (d < bd) { best = s; bd = d; }
+    }
+    return best;
   };
 
   const onArrive = (p: WorldXZ) => {
@@ -146,15 +168,16 @@ export function useInteraction(
     }
     return best;
   };
-  /** E key: walk the last step to the nearest hotspot and use it. */
+  /** E key: use the nearest hotspot. */
   const useNearest = () => {
     if (opts.locked) return false;
     const sp = nearest();
     if (!sp) return false;
     opts.closePanels();
-    setRoute([sp.at]);
+    setRoute([]);
+    sp.use();
     return true;
   };
 
-  return { spots, onGroundClick, onArrive, lootTaken, nearest, useNearest };
+  return { spots, onGroundClick, onArrive, lootTaken, nearest, useNearest, spotAt };
 }

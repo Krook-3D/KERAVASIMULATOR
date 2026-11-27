@@ -894,3 +894,5 @@ button.inv-slot:disabled { cursor: default; }
 .crosshair { position: fixed; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 2px #0008; pointer-events: none; z-index: 30; }
 .use-prompt { position: fixed; left: 50%; top: calc(50% + 34px); transform: translateX(-50%); background: #14171fd9; color: var(--text); border: 1px solid #2f3648; border-radius: 8px; padding: 4px 10px; font-size: 13px; pointer-events: none; z-index: 30; }
 .use-prompt kbd { display: inline-block; min-width: 18px; text-align: center; background: var(--yellow); color: #14171f; border-radius: 4px; font-weight: 800; padding: 0 4px; margin-right: 4px; }
+.ctx-backdrop { position: fixed; inset: 0; z-index: 59; }
+.ctx-menu button:disabled { opacity: 0.5; cursor: default; }

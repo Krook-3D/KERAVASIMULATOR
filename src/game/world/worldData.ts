@@ -38,6 +38,18 @@ export interface ElevationGrid {
   rows: number;
   /** Row-major (z rows, x columns). */
   heights: number[];
+  /** The station's height above sea level (heights are relative to it). */
+  base?: number;
+}
+
+/** A hill from OSM: a peak (point, maybe with a height) or a named 'mäki' area. */
+export interface Hill {
+  name: string;
+  x: number;
+  z: number;
+  /** Height above sea level, when OSM has it. */
+  ele?: number;
+  outline?: WorldXZ[];
 }
 
 export interface Landmark {
@@ -61,6 +73,8 @@ export interface WorldData {
   elevation?: ElevationGrid;
   /** Named places (e.g. Prisma) found in OSM. */
   landmarks?: Landmark[];
+  /** Hills the terrain is shaped to (see game/world/landforms.ts). */
+  hills?: Hill[];
 }
 
 /**

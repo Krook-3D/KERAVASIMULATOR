@@ -1,4 +1,5 @@
 import { pointInPolygon } from './collision';
+import { landformHeight, landformsFor } from './landforms';
 import type { WorldXZ } from './projection';
 import { toLocal, type StationLayout } from './station';
 import { ROAD_WIDTH, worldBounds, type Area, type Bounds, type ElevationGrid, type Road, type WorldData } from './worldData';
@@ -203,13 +204,15 @@ export function createTerrain(world: WorldData, layout: StationLayout | null): T
   const base = (x: number, z: number) => (elev ? sampleGrid(elev, x, z) : proceduralHeight(x, z));
   const origin = layout?.origin ?? [0, 0];
   const zero = base(origin[0], origin[1]);
+  const forms = landformsFor(world);
   for (let r = 0; r < rows; r++)
     for (let c = 0; c < cols; c++) {
       const x = minX + c * step, z = minZ + r * step;
       // Fade to the station level beyond the playable area so the far plane meets it.
       const out = Math.max(b.minX - x, x - b.maxX, b.minZ - z, z - b.maxZ, 0);
       const fade = 1 - smooth(MARGIN * 0.35, MARGIN * 0.9, out);
-      h[r * cols + c] = (base(x, z) - zero) * fade;
+      const b0 = base(x, z) - zero;
+      h[r * cols + c] = (b0 + landformHeight(forms, x, z, b0)) * fade;
     }
 
   // Level beds for roads and rails, following the smoothed centre line.

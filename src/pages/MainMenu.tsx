@@ -103,7 +103,8 @@ export function MainMenu({ onPlay }: { onPlay: () => void }) {
                   <li><b>Klikkaa peliä</b>: hiiri lukittuu ruudun keskelle</li>
                   <li><b>Nuolinäppäimet / WASD</b>: liiku</li>
                   <li><b>Hiiri</b>: käännä kameraa hahmon takana</li>
-                  <li><b>Tähtää ja klikkaa</b>: kävele, käytä ovea tai puhu ihmiselle</li>
+                  <li><b>Tähtää ja klikkaa</b>: käytä ovea tai puhu ihmiselle, kun seisot vieressä</li>
+                  <li><b>Hiiren oikea</b>: näytä kohteen toiminnot (käytä, puhu, tarkastele)</li>
                   <li><b>E</b>: käytä lähintä kohdetta</li>
                   <li><b>Rulla</b>: zoomaa · <b>Esc</b>: vapauta hiiri</li>
                   <li><b>Välilyönti</b>: viilaa (vankilassa)</li>

@@ -4,7 +4,7 @@ import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import type { WorldData } from '../../game/world/worldData';
 import type { WorldXZ } from '../../game/world/projection';
 import type { BuildingCollider } from '../../game/world/collision';
-import { placeTrees } from '../../game/world/vegetation';
+import type { Tree } from '../../game/world/vegetation';
 import { buildAreaGeometry, buildBuildingsGeometry, buildRoadLayers, buildTerrainGeometry } from '../../game/world/geometry';
 import type { Terrain } from '../../game/world/terrain';
 import { paintGroundMap } from './groundMap';
@@ -12,7 +12,7 @@ import { createBuildingMaterial, createGrainMaterial, createGroundMaterial, crea
 import { WaterDetails } from './WaterDetails';
 import { Trees } from './Trees';
 import { StreetProps } from './StreetProps';
-import { placeStreetProps } from '../../game/world/streetProps';
+import type { PlacedProp } from '../../game/world/streetProps';
 
 interface KeravaWorldProps {
   data: WorldData;
@@ -22,6 +22,9 @@ interface KeravaWorldProps {
   onGroundClick: (point: WorldXZ) => void;
   playerRef: MutableRefObject<THREE.Vector3>;
   xray: XrayUniforms;
+  /** Trees and street props placed by the world setup (they also collide). */
+  trees: Tree[];
+  props: { lamps: PlacedProp[]; cars: PlacedProp[] };
 }
 
 /** Pull a ground layer towards the camera in the depth test so it never flickers with the terrain. */
@@ -35,7 +38,7 @@ function offset<M extends THREE.Material>(m: M, units: number): M {
 /** Max pointer travel (px) for a press to count as a click rather than a camera drag. */
 const CLICK_TOLERANCE_PX = 6;
 
-export function KeravaWorld({ data, terrain, collider, excludeTrees, onGroundClick, playerRef, xray }: KeravaWorldProps) {
+export function KeravaWorld({ data, terrain, onGroundClick, playerRef, xray, trees, props }: KeravaWorldProps) {
   const groundMap = useMemo(() => paintGroundMap(data, terrain), [data, terrain]);
   useEffect(() => () => groundMap.texture.dispose(), [groundMap]);
 
@@ -66,8 +69,6 @@ export function KeravaWorld({ data, terrain, collider, excludeTrees, onGroundCli
     [data, terrain],
   );
 
-  const trees = useMemo(() => placeTrees(data, collider, excludeTrees, terrain), [data, collider, excludeTrees, terrain]);
-  const props = useMemo(() => placeStreetProps(data, collider, excludeTrees ?? (() => false), terrain), [data, collider, excludeTrees, terrain]);
 
   useEffect(
     () => () => {

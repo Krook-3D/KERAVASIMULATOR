@@ -8,6 +8,8 @@ import { artXp, spotQuality, witnessReaction } from './art/graffiti';
 import { buffMultipliers, strainEffect } from './gym/roina';
 import type { Player } from '../types/game';
 import { moveDir } from '../components/world/controls';
+import { PropCollider } from './world/propCollider';
+import { landformHeight, landformsFor } from './world/landforms';
 import { muscleOf } from './player/body';
 import { fightChance, roadmanLevel, ROADMAN_MAX, ROADMAN_MIN } from './street/fight';
 import { DRILLS, drillXp } from './gym/drills';
@@ -317,5 +319,37 @@ describe('body shape', () => {
     let s = run(fresh(), { type: 'recordLift', lift: 'deadlift', kg: 140 }, { type: 'recordLift', lift: 'deadlift', kg: 100 }, { type: 'addItem', itemId: 'massamix' }, { type: 'useRoina', id: 'massamix' });
     expect(s.player!.body!.deadlift).toBe(140);
     expect(s.player!.body!.roina).toBeCloseTo(0.32);
+  });
+});
+
+describe('street prop collisions', () => {
+  it('blocks lamp posts, rotated parked cars and shelter parts', () => {
+    const c = new PropCollider().circle(0, 0, 0.18).box(10, 0, 0.9, 2.08, Math.PI / 2).boxIn(30, 0, 0, 0, 0.7, 1.85, 0.06);
+    expect(c.isBlocked([0.3, 0])).toBe(true);
+    expect(c.isBlocked([0.8, 0])).toBe(false);
+    // car turned 90°: long along x
+    expect(c.isBlocked([11.8, 0])).toBe(true);
+    expect(c.isBlocked([10, 1.6])).toBe(false);
+    // shelter back wall at local z 0.7, open in front
+    expect(c.isBlocked([30, 0.7])).toBe(true);
+    expect(c.isBlocked([30, -1.2])).toBe(false);
+  });
+});
+
+describe('landforms', () => {
+  const base = { source: 'osm' as const, radius: 500, buildings: [], roads: [], water: [], parks: [] };
+  it('raises a named OSM hill area, highest in the middle', () => {
+    const outline: [number, number][] = [[-100, -100], [100, -100], [100, 100], [-100, 100]];
+    const forms = landformsFor({ ...base, hills: [{ name: 'Aurinkomäki', x: 0, z: 0, outline }] });
+    const top = landformHeight(forms, 0, 0, 0), edge = landformHeight(forms, 95, 0, 0), out = landformHeight(forms, 200, 0, 0);
+    expect(top).toBeGreaterThan(6);
+    expect(edge).toBeLessThan(top);
+    expect(out).toBe(0);
+  });
+  it('lifts a peak to its OSM height and puts Aurinkomäki on the placeholder map', () => {
+    const forms = landformsFor({ ...base, elevation: { minX: 0, minZ: 0, step: 40, cols: 1, rows: 1, heights: [0], base: 40 }, hills: [{ name: 'Huippu', x: 0, z: 0, ele: 55 }] });
+    expect(landformHeight(forms, 0, 0, 3)).toBeCloseTo(12);
+    const ph = landformsFor({ ...base, source: 'placeholder' });
+    expect(ph.some((f) => f.name === 'Aurinkomäki')).toBe(true);
   });
 });

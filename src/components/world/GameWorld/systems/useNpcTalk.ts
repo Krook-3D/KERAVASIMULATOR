@@ -5,7 +5,7 @@ import type { Npc } from '../../../../game/npc/population';
 import { speakerName, talkTreeFor, type TalkOption, type TalkTree } from '../../../../game/npc/talk';
 import type { STASH_DEFS } from '../../../../game/quests/stashes';
 import type { NpcLive } from '../../npc/Crowd';
-import { dist } from '../constants';
+import { dist, USE_REACH } from '../constants';
 import type { GameCtx } from '../gameWorld.types';
 import { useCrewStreet } from './useCrewStreet';
 
@@ -27,7 +27,7 @@ export function useNpcTalk(
   },
 ) {
   const { player, dispatch, dialogue, cutscene, fading, positionRef, setRoute, setToast, say, close } = ctx;
-  const { npcs, npcLive, blocked, walkTo, stash } = opts;
+  const { npcs, npcLive, blocked, stash } = opts;
   const [talkingId, setTalkingId] = useState<string | null>(null);
   const pendingTalk = useRef<string | null>(null);
   const street = useCrewStreet(ctx, npcs);
@@ -79,11 +79,9 @@ export function useNpcTalk(
     const at = npcLive.current.get(npc.id)?.p ?? npc.at;
     if (!at) return;
     const here: WorldXZ = [positionRef.current.x, positionRef.current.z];
-    if (dist(here, at) < 3.5) return startTalk(npc);
-    const k = 1.4 / Math.max(1e-3, dist(here, at));
-    const goal: WorldXZ = [at[0] + (here[0] - at[0]) * k, at[1] + (here[1] - at[1]) * k];
-    walkTo(goal);
-    pendingTalk.current = npc.id;
+    // no click-to-walk: you talk to people you stand next to
+    if (dist(here, at) < USE_REACH) return startTalk(npc);
+    setToast(`${npc.name} on liian kaukana. Kävele lähemmäs nuolilla tai WASD:lla.`);
   };
   /** On arrival: start a talk that was waiting for the walk, if the NPC is still close. */
   const arrived = (p: WorldXZ) => {
