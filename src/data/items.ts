@@ -17,7 +17,13 @@ const defs: Record<string, Def> = {
   taskulamppu: { name: 'Taskulamppu', description: 'Paristot puoliksi täynnä.', category: 'tool', value: 4, rarity: 'common', hands: 1, icon: '🔦' },
   koysi: { name: 'Köysi', description: 'Kymmenen metriä punottua köyttä.', category: 'tool', value: 5, rarity: 'common', hands: 1, icon: '🪢' },
   ketju: { name: 'Ketju', description: 'Ruosteinen pyöränlukon ketju.', category: 'tool', value: 6, rarity: 'common', hands: 1, icon: '⛓️' },
-  spraymaali: { name: 'Spraymaali', description: 'Tölkki mustaa spraymaalia. Graffiteihin.', category: 'tool', value: 6, rarity: 'common', stackable: true, hands: 1, icon: '🎨', price: 7 },
+  spraymaali: { name: 'Spraymaali, musta', description: 'Spraymaalitölkki graffiteihin. Pidä kädessä ja maalaa seinään.', category: 'tool', value: 6, rarity: 'common', stackable: true, hands: 1, icon: '🎨', price: 7 },
+  spray_punainen: { name: 'Spraymaali, punainen', description: 'Spraymaalitölkki graffiteihin. Pidä kädessä ja maalaa seinään.', category: 'tool', value: 6, rarity: 'common', stackable: true, hands: 1, icon: '🎨', price: 7 },
+  spray_sininen: { name: 'Spraymaali, sininen', description: 'Spraymaalitölkki graffiteihin. Pidä kädessä ja maalaa seinään.', category: 'tool', value: 6, rarity: 'common', stackable: true, hands: 1, icon: '🎨', price: 7 },
+  spray_keltainen: { name: 'Spraymaali, keltainen', description: 'Spraymaalitölkki graffiteihin. Pidä kädessä ja maalaa seinään.', category: 'tool', value: 6, rarity: 'common', stackable: true, hands: 1, icon: '🎨', price: 7 },
+  spray_vihrea: { name: 'Spraymaali, vihreä', description: 'Spraymaalitölkki graffiteihin. Pidä kädessä ja maalaa seinään.', category: 'tool', value: 6, rarity: 'common', stackable: true, hands: 1, icon: '🎨', price: 7 },
+  spray_valkoinen: { name: 'Spraymaali, valkoinen', description: 'Spraymaalitölkki graffiteihin. Pidä kädessä ja maalaa seinään.', category: 'tool', value: 6, rarity: 'common', stackable: true, hands: 1, icon: '🎨', price: 7 },
+  spray_pinkki: { name: 'Spraymaali, pinkki', description: 'Spraymaalitölkki graffiteihin. Pidä kädessä ja maalaa seinään.', category: 'tool', value: 6, rarity: 'common', stackable: true, hands: 1, icon: '🎨', price: 7 },
   puukko: { name: 'Puukko', description: 'Perinteinen suomalainen puukko tupessa. Työkalu, ei lelu.', category: 'tool', value: 12, rarity: 'uncommon', hands: 1, icon: '🔪' },
   shankki: { name: 'Shänkki', description: 'Itse teroitettu. Ei kannata jäädä kiinni tämän kanssa.', category: 'tool', value: 8, rarity: 'uncommon', hands: 1, icon: '🗡️' },
   sorkkarauta: { name: 'Sorkkarauta', description: 'Avaa laatikot, ovet ja keskustelut.', category: 'tool', value: 14, rarity: 'uncommon', hands: 1, icon: '🦯' },
@@ -81,6 +87,13 @@ const defs: Record<string, Def> = {
   broileririisi: { name: 'Broileririisi', description: 'Proteiinia salille.', category: 'food', value: 7.5, rarity: 'common', stackable: true, icon: '🍛', effects: { energy: 60 } },
   lammitettypizza: { name: 'Grillattu pizza', description: 'Rapea pohja, sula juusto.', category: 'food', value: 3.0, rarity: 'common', stackable: true, icon: '🍕', effects: { energy: 24 } },
   palanut: { name: 'Palanut annos', description: 'Hiiltä. Syötävä, juuri ja juuri.', category: 'food', value: 0.4, rarity: 'common', stackable: true, icon: '🔥', effects: { energy: 3 } },
+  // ---- gym roina (fictional, see game/gym/roina.ts)
+  tankkioljy: { name: 'Tankkiöljy', description: 'Pieni ruskea pullo, etiketissä hauis ja salama. Fiktiivinen salituote.', category: 'drug', value: 0, rarity: 'rare', stackable: true, icon: '🧴' },
+  massamix: { name: 'Massamix-X', description: '"Ammattilaisille." Pakkaus on käsin teipattu. Fiktiivinen.', category: 'drug', value: 0, rarity: 'rare', stackable: true, icon: '💉' },
+  kuivatin: { name: 'Kuivatin 9000', description: 'Lupaa sixpackin viikossa. Fiktiivinen.', category: 'drug', value: 0, rarity: 'uncommon', stackable: true, icon: '💊' },
+  palautin: { name: 'Peptidi P-17 "Palautin"', description: 'Kylmälaukussa säilytettävä ampulli. Fiktiivinen.', category: 'drug', value: 0, rarity: 'uncommon', stackable: true, icon: '🧪' },
+  tuplaus: { name: 'GH-Tuplaus', description: 'Kallein kaikista. Pete kutsuu tätä "kultakaivokseksi". Fiktiivinen.', category: 'drug', value: 0, rarity: 'epic', stackable: true, icon: '⚗️' },
+  leikkuri: { name: 'Leikkuri-T', description: 'Pete sanoo että tämä "tasoittaa". Fiktiivinen.', category: 'drug', value: 0, rarity: 'uncommon', stackable: true, icon: '💠' },
   oljy: { name: 'Moottoriöljy', description: 'Litra 5W-30.', category: 'material', value: 4, rarity: 'common', stackable: true, price: 12, icon: '🛢️' },
 };
 
@@ -93,5 +106,17 @@ export const RARITY_NAMES: Record<Rarity, string> = { common: 'Tavallinen', unco
 export const RARITY_COLORS: Record<Rarity, string> = { common: '#c8ccd2', uncommon: '#5ee07a', rare: '#3a9bff', epic: '#c084fc', legendary: '#ffb43c' };
 
 /** Items that can turn up lying around the map, weighted by rarity. */
-export const WORLD_LOOT = Object.values(ITEMS).filter((i) => i.category !== 'quest' && i.category !== 'food' && !i.price && i.id !== 'oljy');
+export const WORLD_LOOT = Object.values(ITEMS).filter((i) => i.category !== 'quest' && i.category !== 'food' && i.category !== 'drug' && !i.price && i.id !== 'oljy');
 export const RARITY_WEIGHT: Record<Rarity, number> = { common: 60, uncommon: 26, rare: 10, epic: 3.4, legendary: 0.6 };
+
+/** Paint colour of each spray can. */
+export const SPRAY_COLORS: Record<string, string> = {
+  spraymaali: '#1b1d22',
+  spray_punainen: '#e23b3b',
+  spray_sininen: '#3a7bd5',
+  spray_keltainen: '#ffd23f',
+  spray_vihrea: '#2ecc71',
+  spray_valkoinen: '#f4f4f4',
+  spray_pinkki: '#ff5fb2',
+};
+export const isSpray = (id?: string) => !!id && id in SPRAY_COLORS;

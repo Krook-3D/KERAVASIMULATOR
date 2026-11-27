@@ -53,6 +53,17 @@ export const SHOPS: Partial<Record<InteriorId, ShopDef>> = {
     till: [5.6, 3.2],
     guard: [-8.5, 4.5],
   },
+  motonet: {
+    id: 'motonet',
+    name: 'Motonet Kerava',
+    shelves: [
+      { id: 'paint', name: 'Spraymaalit', at: [-4, -2], items: ['spraymaali', 'spray_punainen', 'spray_sininen', 'spray_keltainen', 'spray_vihrea', 'spray_valkoinen', 'spray_pinkki'] },
+      { id: 'tools', name: 'Työkalut', at: [8.6, -4], items: ['ruuvimeisseli', 'jakoavain', 'sorkkarauta', 'voimapihdit', 'taskulamppu', 'koysi'] },
+      { id: 'car', name: 'Autotarvikkeet', at: [2, -2], items: ['oljy', 'tyomiehenliivi', 'potkulautaakku'] },
+    ],
+    till: [6.5, 4.6],
+    guard: [-11.5, 7],
+  },
 };
 
 export const STEAL_KARMA = -2;

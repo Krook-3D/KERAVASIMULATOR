@@ -14,5 +14,6 @@ export const SKILLS: SkillDef[] = [
   { id: 'cooking', name: 'Ruoanlaitto', icon: '🍳', description: 'Raaka-aineista ruokaa, joka palauttaa energiaa.' },
   { id: 'fishing', name: 'Kalastus', icon: '🎣', description: 'Keravanjoen ahvenet ja legendaarinen hauki.' },
   { id: 'hustling', name: 'Hustlaus', icon: '🤝', description: 'Katukauppa, välitys ja paremmat hinnat. Kovempi maine avaa isommat diilit.' },
+  { id: 'art', name: 'Art', icon: '🎨', description: 'Graffitit spraymaaleilla. Rähjäisiin paikkoihin plussaa karmaan, siisteille alueille miinusta. Älä jää kiinni.' },
   { id: 'evasion', name: 'Kyttien pakoilu', icon: '🚨', description: 'Partioiden välttely, jahdeista karkuun pääsy ja pienempi heat.' },
 ];

@@ -146,7 +146,14 @@ export function createPlaceholderWorld(): WorldData {
     bounds: B,
     buildings: kept,
     roads,
-    water: [{ outline: [[-700, 380], [-610, 360], [-590, 430], [-650, 520], [-700, 520]] }],
+    water: [
+      { outline: [[-700, 380], [-610, 360], [-590, 430], [-650, 520], [-700, 520]] },
+      // park ponds
+      { outline: blob(236, 252, 17, 11) },
+      { outline: blob(-286, 372, 13, 23) },
+      // a forest lake out east (Talma)
+      { outline: blob(1320, -1010, 46, 7) },
+    ],
     parks: [
       { outline: rect(212, 232, 96, 96) },
       { outline: rect(-308, 352, 96, 136) },
@@ -158,6 +165,17 @@ export function createPlaceholderWorld(): WorldData {
       { name: 'Alepa Savio', x: 73, z: SAVIO_Z - 1 },
     ],
   };
+}
+
+/** An irregular round outline (pond/lake). */
+function blob(cx: number, cz: number, r: number, seed: number): WorldXZ[] {
+  const out: WorldXZ[] = [];
+  for (let i = 0; i < 18; i++) {
+    const a = (i / 18) * Math.PI * 2;
+    const k = 1 + 0.18 * Math.sin(a * 3 + seed) + 0.1 * Math.sin(a * 5 + seed * 2);
+    out.push([cx + Math.cos(a) * r * k, cz + Math.sin(a) * r * k * 0.8]);
+  }
+  return out;
 }
 
 function rect(x: number, z: number, w: number, d: number): WorldXZ[] {

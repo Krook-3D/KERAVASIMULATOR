@@ -6,11 +6,11 @@ import type { WorldXZ } from '../world/projection';
  * the floor at y = 0. Exits link to a door in the world or to another
  * interior's exit.
  */
-export type InteriorId = 'tunnel' | 'station' | 'prisma' | 'prison' | 'gym' | 'pool' | 'alepa' | 'barber' | 'police';
+export type InteriorId = 'tunnel' | 'station' | 'prisma' | 'prison' | 'gym' | 'pool' | 'alepa' | 'barber' | 'police' | 'motonet';
 export type SceneId = 'world' | InteriorId;
 
 /** Doors placed in the 3D town (positions are worked out at runtime). */
-export type WorldDoorId = 'tunnel-town' | 'tunnel-east' | 'station-platform' | 'station-town' | 'prisma' | 'prison-yard' | 'gym' | 'pool' | 'alepa' | 'barber' | 'police';
+export type WorldDoorId = 'tunnel-town' | 'tunnel-east' | 'station-platform' | 'station-town' | 'prisma' | 'prison-yard' | 'gym' | 'pool' | 'alepa' | 'barber' | 'police' | 'motonet';
 
 export interface Rect {
   minX: number;
@@ -290,7 +290,24 @@ const police: InteriorDef = {
   exits: [{ id: 'main', at: [8, 7.4], spawn: [8, 5.6], yaw: Math.PI, label: 'Ulos', to: { scene: 'world', door: 'police' } }],
 };
 
-export const INTERIORS: Record<InteriorId, InteriorDef> = { tunnel, station, prisma, prison, gym, pool, alepa, barber, police };
+// ------------------------------------------------------------ Motonet (paints, tools, car stuff)
+export const MOTONET_HALL = R(-14, 14, -10, 10);
+export const MOTONET_SHELF_XS = [-7, -1, 5];
+const motonet: InteriorDef = {
+  id: 'motonet',
+  name: 'Motonet Kerava',
+  floor: MOTONET_HALL,
+  solids: [
+    ...roomWalls(MOTONET_HALL, 0.5, [['s', -9, 2.6]]),
+    ...MOTONET_SHELF_XS.map((x) => R(x - 0.7, x + 0.7, -7, 3)),
+    R(-14, 14, -10, -8.8), // back wall racks (tyres, oil)
+    R(9.5, 14, -8, 0), // tool wall
+    R(4, 9, 5.6, 7), // checkout
+  ],
+  exits: [{ id: 'main', at: [-9, 9.4], spawn: [-9, 7.4], yaw: Math.PI, label: 'Ulos', to: { scene: 'world', door: 'motonet' } }],
+};
+
+export const INTERIORS: Record<InteriorId, InteriorDef> = { tunnel, station, prisma, prison, gym, pool, alepa, barber, police, motonet };
 
 export const inRect = (r: Rect, [x, z]: WorldXZ, pad = 0) => x >= r.minX - pad && x <= r.maxX + pad && z >= r.minZ - pad && z <= r.maxZ + pad;
 

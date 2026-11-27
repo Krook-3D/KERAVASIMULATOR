@@ -7,7 +7,7 @@ export function SkillsPanel({ player }: { player: Player }) {
   return (
     <ul className="skill-list">
       {SKILLS.map((skill) => {
-        const xp = player.skills[skill.id].xp;
+        const xp = player.skills[skill.id]?.xp ?? 0;
         const level = levelFromXp(xp);
         return (
           <li key={skill.id} className="skill">

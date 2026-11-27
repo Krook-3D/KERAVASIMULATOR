@@ -1,19 +1,38 @@
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Tree, TreeKind } from '../../game/world/vegetation';
 
+/** Darker underneath, lighter on top: baked into a colour attribute so instanced tints still apply. */
+function shadeByHeight(g: THREE.BufferGeometry, lo: number, hi: number, dark = 0.62, light = 1.12) {
+  const p = g.attributes.position as THREE.BufferAttribute;
+  const col = new Float32Array(p.count * 3);
+  for (let i = 0; i < p.count; i++) {
+    const k = Math.min(1, Math.max(0, (p.getY(i) - lo) / (hi - lo)));
+    // a little per-vertex noise so facets read as clumps of needles/leaves
+    const n = 0.92 + 0.16 * Math.abs(Math.sin(p.getX(i) * 12.9 + p.getZ(i) * 78.2 + p.getY(i) * 37.7));
+    const v = (dark + (light - dark) * k) * n;
+    col[i * 3] = v;
+    col[i * 3 + 1] = v;
+    col[i * 3 + 2] = v;
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return g;
+}
+
 /** Low-poly tree parts: [trunk, crown] per kind, built once. */
 function makeTreeGeometries(): Record<TreeKind, [THREE.BufferGeometry, THREE.BufferGeometry]> {
-  const cone = (r: number, h: number, y: number) => new THREE.ConeGeometry(r, h, 7).translate(0, y, 0);
-  const spruceCrown = mergeGeometries([cone(2.0, 2.8, 2.0), cone(1.6, 2.5, 3.3), cone(1.1, 2.2, 4.5), cone(0.6, 1.6, 5.5)]);
-  const pineCrown = mergeGeometries([
-    new THREE.DodecahedronGeometry(1.7, 0).scale(1.2, 0.7, 1.2).translate(0.3, 6.2, 0),
-    new THREE.DodecahedronGeometry(1.3, 0).scale(1.2, 0.7, 1.2).translate(-0.6, 5.4, 0.4),
+  const cone = (r: number, h: number, y: number, rot = 0, dx = 0) => new THREE.ConeGeometry(r, h, 8).rotateY(rot).translate(dx, y, 0);
+  const spruceCrown = mergeGeometries([
+    cone(2.15, 2.4, 1.7), cone(1.85, 2.3, 2.7, 0.4), cone(1.55, 2.2, 3.6, 0.8, 0.05), cone(1.2, 2.0, 4.5, 1.2), cone(0.85, 1.8, 5.3, 1.6, -0.04), cone(0.5, 1.4, 6.0, 2.0),
   ]);
+  const clump = (r: number, x: number, y: number, z: number, sy = 0.7) => new THREE.DodecahedronGeometry(r, 0).scale(1.2, sy, 1.2).translate(x, y, z);
+  const pineCrown = mergeGeometries([clump(1.7, 0.3, 6.2, 0), clump(1.3, -0.7, 5.5, 0.5), clump(1.1, 0.6, 5.3, -0.7), clump(0.9, -0.2, 6.9, -0.3, 0.6)]);
+  const leaf = (r: number, x: number, y: number, z: number, d = 1) => new THREE.IcosahedronGeometry(r, d).translate(x, y, z);
   const birchCrown = mergeGeometries([
-    new THREE.IcosahedronGeometry(1.9, 1).scale(1, 1.25, 1).translate(0, 5.0, 0),
-    new THREE.IcosahedronGeometry(1.2, 1).translate(0.9, 4.2, 0.5),
+    new THREE.IcosahedronGeometry(1.8, 1).scale(1, 1.3, 1).translate(0, 5.1, 0),
+    leaf(1.15, 0.95, 4.3, 0.5), leaf(1.0, -0.9, 4.6, -0.3), leaf(0.9, 0.2, 6.2, -0.6), leaf(0.8, -0.4, 3.9, 0.8, 0),
   ]);
   // Faceted normals baked into the geometry. (flatShading derives normals from
   // screen-space derivatives, which turn into NaN on sub-pixel distant trees and
@@ -24,10 +43,32 @@ function makeTreeGeometries(): Record<TreeKind, [THREE.BufferGeometry, THREE.Buf
     return n;
   };
   return {
-    spruce: [faceted(new THREE.CylinderGeometry(0.16, 0.26, 1.4, 6).translate(0, 0.7, 0)), faceted(spruceCrown)],
-    pine: [faceted(new THREE.CylinderGeometry(0.18, 0.28, 5.6, 6).translate(0, 2.8, 0)), faceted(pineCrown)],
-    birch: [faceted(new THREE.CylinderGeometry(0.13, 0.2, 4.4, 6).translate(0, 2.2, 0)), faceted(birchCrown)],
+    spruce: [faceted(new THREE.CylinderGeometry(0.16, 0.28, 1.6, 6).translate(0, 0.8, 0)), shadeByHeight(faceted(spruceCrown), 0.6, 6.7)],
+    pine: [faceted(new THREE.CylinderGeometry(0.17, 0.3, 5.8, 7).translate(0, 2.9, 0)), shadeByHeight(faceted(pineCrown), 4.4, 7.4, 0.7, 1.1)],
+    birch: [faceted(new THREE.CylinderGeometry(0.12, 0.21, 4.6, 7).translate(0, 2.3, 0)), shadeByHeight(faceted(birchCrown), 3.0, 7.4, 0.7, 1.15)],
   };
+}
+
+/** Crowns sway gently in the wind (phase from the instance position). */
+function swayMaterial(uTime: { value: number }, roughness: number) {
+  const m = new THREE.MeshStandardMaterial({ roughness, vertexColors: true });
+  m.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = uTime;
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nuniform float uTime;').replace(
+      '#include <begin_vertex>',
+      `#include <begin_vertex>
+      #ifdef USE_INSTANCING
+        float ph = instanceMatrix[3].x * 0.13 + instanceMatrix[3].z * 0.17;
+      #else
+        float ph = 0.0;
+      #endif
+      float hh = max(0.0, transformed.y - 1.2);
+      transformed.x += sin(uTime * 1.3 + ph) * 0.035 * hh + sin(uTime * 3.1 + ph * 2.0 + transformed.y) * 0.012 * hh;
+      transformed.z += cos(uTime * 1.1 + ph) * 0.028 * hh;`,
+    );
+  };
+  m.customProgramCacheKey = () => 'tree-sway';
+  return m;
 }
 
 const COLORS: Record<TreeKind, { trunk: string; crown: [string, string] }> = {
@@ -36,7 +77,7 @@ const COLORS: Record<TreeKind, { trunk: string; crown: [string, string] }> = {
   birch: { trunk: '#ece8df', crown: ['#6f9e3c', '#9cbf4a'] },
 };
 
-function TreeKindMesh({ kind, trees, geos }: { kind: TreeKind; trees: Tree[]; geos: [THREE.BufferGeometry, THREE.BufferGeometry] }) {
+function TreeKindMesh({ kind, trees, geos, crownMat }: { kind: TreeKind; trees: Tree[]; geos: [THREE.BufferGeometry, THREE.BufferGeometry]; crownMat: THREE.Material }) {
   const trunk = useRef<THREE.InstancedMesh>(null);
   const crown = useRef<THREE.InstancedMesh>(null);
 
@@ -70,15 +111,19 @@ function TreeKindMesh({ kind, trees, geos }: { kind: TreeKind; trees: Tree[]; ge
       <instancedMesh ref={trunk} args={[geos[0], undefined, trees.length]} castShadow receiveShadow>
         <meshStandardMaterial color={COLORS[kind].trunk} roughness={0.9} />
       </instancedMesh>
-      <instancedMesh ref={crown} args={[geos[1], undefined, trees.length]} castShadow receiveShadow>
-        <meshStandardMaterial roughness={0.8} />
-      </instancedMesh>
+      <instancedMesh ref={crown} args={[geos[1], crownMat, trees.length]} castShadow receiveShadow />
     </group>
   );
 }
 
 export function Trees({ trees }: { trees: Tree[] }) {
   const geos = useMemo(makeTreeGeometries, []);
+  const uTime = useMemo(() => ({ value: 0 }), []);
+  const crownMat = useMemo(() => swayMaterial(uTime, 0.82), [uTime]);
+  useEffect(() => () => crownMat.dispose(), [crownMat]);
+  useFrame(({ clock }) => {
+    uTime.value = clock.elapsedTime;
+  });
   const byKind = useMemo(() => {
     const out: Record<TreeKind, Tree[]> = { spruce: [], pine: [], birch: [] };
     for (const t of trees) out[t.kind].push(t);
@@ -88,7 +133,7 @@ export function Trees({ trees }: { trees: Tree[] }) {
   return (
     <>
       {(Object.keys(byKind) as TreeKind[]).map((k) => (
-        <TreeKindMesh key={k} kind={k} trees={byKind[k]} geos={geos[k]} />
+        <TreeKindMesh key={k} kind={k} trees={byKind[k]} geos={geos[k]} crownMat={crownMat} />
       ))}
     </>
   );

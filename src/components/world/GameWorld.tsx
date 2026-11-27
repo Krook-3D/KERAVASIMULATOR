@@ -47,6 +47,17 @@ import { placeClouds } from '../../game/world/streetProps';
 import { ClickFloor, Hotspot } from './interiors/kit';
 import { LootField } from './items/LootField';
 import { KarmaAura } from './KarmaAura';
+import { GroundDetail } from './GroundDetail';
+import { Birds } from './Birds';
+import { ROINA, ROINA_SPOT, buffMultipliers, strainEffect, type RoinaId } from '../../game/gym/roina';
+import { drugUnits } from '../../game/shop/shop';
+import { Pursuers, Stashes } from './Stashes';
+import { STASH_DEFS, STASH_STEP, placeStashes, stashQuestId, type PlacedStash } from '../../game/quests/stashes';
+import { ITEMS as ITEM_DEFS } from '../../data/items';
+import { GraffitiCanvas } from './art/GraffitiCanvas';
+import { GraffitiWall } from './art/GraffitiWall';
+import { POLICE_RESPONSE, QUALITY_KARMA, QUALITY_NAMES, WITNESS_LINES, artXp, loadPieces, nearestWall, savePieces, spotQuality, witnessReaction, type SavedPiece, type SpotQuality, type WallHit } from '../../game/art/graffiti';
+import { SPRAY_COLORS, isSpray } from '../../data/items';
 import { CookSpots } from './CookSpots';
 import { CookHud } from './CookHud';
 import { placeCookSpots, type CookSpot } from '../../game/world/grills';
@@ -56,10 +67,11 @@ import { populate, type Npc } from '../../game/npc/population';
 import { speakerName, talkTreeFor, type TalkOption, type TalkTree } from '../../game/npc/talk';
 import { ShelfHud, TillHud, AlertMeter } from './shop/ShopHud';
 import { PoliceInterior } from './interiors/PoliceInterior';
+import { MotonetInterior } from './interiors/MotonetInterior';
 import { SHOPS, CAUGHT_KARMA_MULT, STEAL_KARMA, alertLevel, basketTotal, catchChance, type Shelf } from '../../game/shop/shop';
 import { placeLoot, type LootSpot } from '../../game/world/loot';
 import { canAdd, INVENTORY_SIZE } from '../../game/store/gameReducer';
-import { ITEMS, RARITY_NAMES, itemName } from '../../data/items';
+import { ITEMS, RARITY_NAMES, itemIcon, itemName } from '../../data/items';
 import { TunnelInterior } from './interiors/TunnelInterior';
 import { StationInterior } from './interiors/StationInterior';
 import { PrismaInterior, Shopper } from './interiors/PrismaInterior';
@@ -190,13 +202,15 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     buildings = pool.buildings;
     const barber = placeBlock(buildings, rawWorld.roads, SITES.barber.lngLat, SITES.barber.w, SITES.barber.d, SITES.barber.h, SITES.barber.kind);
     buildings = barber.buildings;
+    const motonet = placeBlock(buildings, rawWorld.roads, SITES.motonet.lngLat, SITES.motonet.w, SITES.motonet.d, SITES.motonet.h, SITES.motonet.kind);
+    buildings = motonet.buildings;
     const police = placeBlock(buildings, rawWorld.roads, SITES.police.lngLat, SITES.police.w, SITES.police.d, SITES.police.h, SITES.police.kind);
     buildings = police.buildings;
     const savio = findSavioStation(rawWorld);
     const alepaAt: WorldXZ = [savio.centre[0] + savio.side[0] * 32 + savio.dir[0] * 6, savio.centre[1] + savio.side[1] * 32 + savio.dir[1] * 6];
     const alepa = placeBlockAt(buildings.filter((b) => b.kind !== 'alepa'), rawWorld.roads, alepaAt, 24, 18, 5, 'alepa');
     buildings = alepa.buildings;
-    return { world: { ...rawWorld, buildings }, gym: gym.site, pool: pool.site, alepa: alepa.site, barber: barber.site, police: police.site, savio };
+    return { world: { ...rawWorld, buildings }, gym: gym.site, pool: pool.site, alepa: alepa.site, barber: barber.site, police: police.site, motonet: motonet.site, savio };
   }, [rawWorld, layout, prisma]);
   const world = placed?.world ?? null;
   const terrain = useMemo(() => (world && layout ? createTerrain(world, layout) : null), [world, layout]);
@@ -262,6 +276,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       list.push({ id: 'gym', at: placed.gym.door, outward: placed.gym.outward, label: 'Kuntosali Rauta', to: { scene: 'gym', exit: 'main' } });
       list.push({ id: 'barber', at: placed.barber.door, outward: placed.barber.outward, label: 'Parturi', to: { scene: 'barber', exit: 'main' } });
       list.push({ id: 'alepa', at: placed.alepa.door, outward: placed.alepa.outward, label: 'Alepa', to: { scene: 'alepa', exit: 'main' } });
+      list.push({ id: 'motonet', at: placed.motonet.door, outward: placed.motonet.outward, label: 'Motonet', to: { scene: 'motonet', exit: 'main' } });
       list.push({ id: 'police', at: placed.police.door, outward: placed.police.outward, label: 'Poliisiasema', to: { scene: 'police', exit: 'main' } });
       list.push({ id: 'pool', at: placed.pool.door, outward: placed.pool.outward, label: 'Uimahalli', to: { scene: 'pool', exit: 'main' } });
     }
@@ -280,6 +295,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     return placeCookSpots(world, (p) => !collider.isBlocked(p, 3) && !isTrackBlocked(layout, p) && terrain.heightAt(p[0], p[1]) >= terrain.surfaceAt(p[0], p[1]) - 0.2);
   }, [world, collider, terrain, layout]);
   const npcLive = useRef<NpcLive>(new Map());
+  const grassBlocked = useCallback((p: WorldXZ) => !!collider?.isBlocked(p, 0.6) || (layout ? isTrackBlocked(layout, p) || isInStationClearZone(layout, p) : false), [collider, layout]);
   const [talkingId, setTalkingId] = useState<string | null>(null);
   const pendingTalk = useRef<string | null>(null);
 
@@ -292,6 +308,8 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
         { id: 'keskusta', name: 'Keskusta / Prisma', near: ahead(doors.prisma, 20) },
         { id: 'sali', name: 'Kuntosali', near: ahead(doors.gym, 15) },
         { id: 'uimahalli', name: 'Uimahalli', near: ahead(doors.pool, 15) },
+        ...(doors.motonet ? [{ id: 'motonet', name: 'Motonet', near: ahead(doors.motonet, 16) }] : []),
+        ...(doors.police ? [{ id: 'poliisi', name: 'Poliisiasema', near: ahead(doors.police, 14) }] : []),
         { id: 'kaleva', name: 'Kaleva', near: [-300, 420] },
         { id: 'ahjo', name: 'Ahjo', near: [420, 60] },
         { id: 'talma', name: 'Talma', near: [1450, -860] },
@@ -493,16 +511,18 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
   const [cooking, setCooking] = useState<{ recipe: Recipe; t0: number } | null>(null);
   const [cookProgress, setCookProgress] = useState(0);
   const busy = !!gymActive || swimT0 !== null || !!cooking;
+  const buffMult = useMemo(() => buffMultipliers(player?.buffs ?? []), [player?.buffs]);
   const appearance = player?.appearance;
   const outfit = useMemo(() => playerOutfit(color, appearance), [color, appearance]);
 
   // Energy comes back slowly while you are not training.
   useEffect(() => {
     const id = window.setInterval(() => {
-      if (!busy) dispatch({ type: 'adjustStats', energy: 1 });
+      if (!busy) dispatch({ type: 'adjustStats', energy: Math.round(buffMult.energyRegen) });
+      dispatch({ type: 'tickBuffs', dt: 6 });
     }, 6000);
     return () => window.clearInterval(id);
-  }, [busy, dispatch]);
+  }, [busy, dispatch, buffMult.energyRegen]);
 
   const fetchPlate = (plate: number) => {
     if (!atStation) return;
@@ -522,14 +542,14 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     if (!atStation || busy || energy < SET_ENERGY) return;
     const lift = atStation;
     const kg = barWeight(gymPairs[lift]);
-    const chance = liftChance(lift, strength, kg);
+    const chance = liftChance(lift, strength, kg / buffMult.maxLift);
     const success = Math.random() < chance;
     setGymActive({ lift, success, t0: clockRef.current });
     setPlayerVisible(false);
     window.setTimeout(() => {
       setGymActive(null);
       setPlayerVisible(true);
-      const xp = chance > 0 ? liftXp(lift, strength, kg, success) : 0;
+      const xp = chance > 0 ? Math.round(liftXp(lift, strength, kg, success) * buffMult.strengthXp) : 0;
       dispatch({ type: 'adjustStats', energy: -SET_ENERGY });
       if (xp) dispatch({ type: 'grantReward', reward: { skillXp: { strength: xp } } });
       setToast(
@@ -550,7 +570,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       setSwimT0(null);
       setPlayerVisible(true);
       dispatch({ type: 'adjustStats', energy: -SWIM_ENERGY });
-      const xp = 35 + Math.round(Math.random() * 10);
+      const xp = Math.round((35 + Math.random() * 10) * buffMult.enduranceXp);
       dispatch({ type: 'grantReward', reward: { skillXp: { endurance: xp } } });
       setToast(`🏊 Uit 10 × 25 m. +${xp} Kestävyys XP`);
     }, SWIM_TIME * 1000);
@@ -685,14 +705,16 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       { text: '[Juokse] Yritä livahtaa ovesta.', onPick: () => say('Vartija', 'Ovet on lukossa, kaveri. Hyvä yritys.', [{ text: 'Voi ei.', onPick: () => toPutka(karma - 2) }]) },
     ]);
   };
-  const toPutka = (karma: number) => {
+  const toPutka = (karma: number, reason: 'theft' | 'graffiti' | 'stash' = 'theft') => {
     close();
-    dispatch({ type: 'caughtStealing', karma });
-    const sentence = 25 + Math.min(35, visitThefts * 6);
+    if (reason === 'theft') dispatch({ type: 'caughtStealing', karma });
+    else dispatch({ type: 'adjustKarma', amount: karma });
+    const sentence = reason === 'theft' ? 25 + Math.min(35, visitThefts * 6) : 30;
     setPutkaUntil(clockRef.current + sentence + 0.5);
     setPutkaLeft(sentence);
     teleport('police', POLICE_CELL_SPAWN);
-    window.setTimeout(() => setToast(`🚓 Putkaan ${sentence} s. Varastetut tavarat takavarikoitiin · karma ${karma}`), 500);
+    const what = reason === 'theft' ? 'Varastetut tavarat takavarikoitiin' : reason === 'stash' ? 'Kätkö takavarikoitiin' : 'Töhrimisestä tuli merkintä';
+    window.setTimeout(() => setToast(`🚓 Putkaan ${sentence} s. ${what} · karma ${karma}`), 500);
   };
   // holding cell countdown
   useEffect(() => {
@@ -723,6 +745,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     say('Päivystäjä', putkaUntil !== null ? 'Odota vuoroasi.' : 'Keravan poliisi, päivää. Miten voin auttaa?', [
       { text: 'Tulin vain kysymään tietä.', onPick: () => say('Päivystäjä', 'Asema on suoraan pohjoiseen. Prisma itään. Ja muista: kamerat näkee kaiken.', [{ text: 'Selvä.', onPick: close }]) },
       { text: 'Haluan ilmoittaa rikoksesta.', onPick: () => say('Päivystäjä', 'Ilmoituksen voi tehdä netissä. Mutta kiitos aktiivisuudesta.', [{ text: '(+1 karma) Selvä.', onPick: () => { dispatch({ type: 'adjustKarma', amount: 1 }); close(); } }]) },
+      ...deliverable.slice(0, 1).map((d) => ({ text: `Palauta löytämäni kätkö (${d.title})`, onPick: () => handInStash(d) })),
       { text: 'Ei mitään. Heippa.', onPick: close },
     ]);
 
@@ -748,6 +771,283 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     }, 200);
     return () => window.clearInterval(id);
   }, [cooking, cookLevel, dispatch]);
+
+  // ------------------------------------------------------------ graffiti (Art)
+  const [pieces, setPieces] = useState<SavedPiece[]>(loadPieces);
+  const [nearWall, setNearWall] = useState<WallHit | null>(null);
+  const [painting, setPainting] = useState<{ wall: WallHit; quality: SpotQuality; t0: number } | null>(null);
+  const [policeAt, setPoliceAt] = useState<number | null>(null);
+  const [witnessLog, setWitnessLog] = useState<string[]>([]);
+  const reacted = useRef(new Set<string>());
+  const [, setPaintTick] = useState(0);
+  const heldSpray = isSpray(player?.equipment.handL) || isSpray(player?.equipment.handR);
+  const uglySpots = useMemo((): WorldXZ[] => {
+    if (!layout) return [];
+    const list: WorldXZ[] = TUNNEL_ENTRANCES.map((t) => toWorld(layout, [t.x, t.z]));
+    list.push(PRISON_AT);
+    if (placed) list.push(placed.savio.centre);
+    return list;
+  }, [layout, placed]);
+  const niceSpots = useMemo((): WorldXZ[] => {
+    const list: WorldXZ[] = [];
+    if (doors) for (const id of ['prisma', 'pool', 'gym', 'barber', 'police'] as const) if (doors[id]) list.push(doors[id].at);
+    for (const c of cookSpots) if (c.kind === 'grill') list.push(c.at);
+    return list;
+  }, [doors, cookSpots]);
+  const qualityAt = (p: WorldXZ, n: WorldXZ): SpotQuality => {
+    if (layout) for (const k of [6, 14, 24]) if (isTrackBlocked(layout, [p[0] + n[0] * k, p[1] + n[1] * k])) return 'ugly';
+    return spotQuality(p, uglySpots, niceSpots);
+  };
+  // look for a wall to paint while holding a can
+  useEffect(() => {
+    if (!heldSpray || scene !== 'world' || !world) {
+      setNearWall(null);
+      return;
+    }
+    const id = window.setInterval(() => {
+      const pos = positionRef.current;
+      setNearWall((prev) => {
+        const hit = nearestWall(world.buildings, [pos.x, pos.z]);
+        if (!hit && !prev) return prev;
+        if (hit && prev && Math.hypot(hit.q[0] - prev.q[0], hit.q[1] - prev.q[1]) < 0.3) return prev;
+        return hit;
+      });
+    }, 600);
+    return () => window.clearInterval(id);
+  }, [heldSpray, scene, world]);
+  const startPaint = () => {
+    if (!nearWall) return;
+    reacted.current.clear();
+    setWitnessLog([]);
+    setPoliceAt(null);
+    setRoute([]);
+    setPainting({ wall: nearWall, quality: qualityAt(nearWall.q, nearWall.n), t0: clockRef.current });
+  };
+  // witnesses while painting
+  useEffect(() => {
+    if (!painting) return;
+    const id = window.setInterval(() => {
+      const pos = positionRef.current;
+      const t = clockRef.current;
+      setPaintTick(t);
+      for (const [nid, v] of npcLive.current) {
+        if (reacted.current.has(nid) || Math.hypot(v.p[0] - pos.x, v.p[1] - pos.z) > 22) continue;
+        reacted.current.add(nid);
+        const npc = npcs.find((n) => n.id === nid);
+        if (!npc) continue;
+        const r = witnessReaction(nid, npc.kind === 'crew');
+        const line = WITNESS_LINES[r][nid.length % WITNESS_LINES[r].length]!;
+        setWitnessLog((l) => [...l.slice(-3), `${npc.name}: "${line}"`]);
+        if (r === 'angry') dispatch({ type: 'adjustKarma', amount: -1 });
+        if (r === 'police') setPoliceAt((p) => p ?? t + POLICE_RESPONSE);
+      }
+      // shopping-centre security watches the nice blocks
+      if (painting.quality === 'nice' && doors?.prisma && Math.hypot(doors.prisma.at[0] - pos.x, doors.prisma.at[1] - pos.z) < 90 && t - painting.t0 > 6 && !reacted.current.has('guard')) {
+        reacted.current.add('guard');
+        setWitnessLog((l) => [...l.slice(-3), 'Kauppakeskuksen vartija: "Hälytin poliisit, jää siihen!"']);
+        setPoliceAt((p) => p ?? t + POLICE_RESPONSE * 0.8);
+      }
+      setPoliceAt((p) => {
+        if (p !== null && t >= p) {
+          setPainting(null);
+          say('Poliisi', 'Poliisi! Laita se tölkki maahan. Töhriminen on vahingontekoa, lähdetään asemalle.', [
+            { text: 'Se on taidetta!', onPick: () => toPutka(-6, 'graffiti') },
+            { text: '…', onPick: () => toPutka(-6, 'graffiti') },
+          ]);
+          return null;
+        }
+        return p;
+      });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [painting, npcs, doors]);
+  const finishPaint = (img: string, coverage: number, cans: string[]) => {
+    if (!painting || !player) return;
+    if (coverage < 0.02) {
+      setToast('Seinä jäi lähes tyhjäksi. Maalaa enemmän!');
+      return;
+    }
+    const lvl = levelFromXp(player.skills.art?.xp ?? 0);
+    const xp = artXp(coverage, cans.length, lvl);
+    const karma = QUALITY_KARMA[painting.quality];
+    const w = painting.wall;
+    const pieceW = Math.min(w.len, 3.6);
+    const piece: SavedPiece = { id: `g${Date.now()}`, q: w.q, n: w.n, t: w.t, w: pieceW, h: pieceW / 2, y: terrain ? terrain.surfaceAt(w.q[0] + w.n[0], w.q[1] + w.n[1]) : 0, img };
+    setPieces((list) => savePieces([...list, piece]));
+    dispatch({ type: 'grantReward', reward: { skillXp: { art: xp, ...(policeAt !== null ? { evasion: 15 } : {}) } } });
+    if (karma) dispatch({ type: 'adjustKarma', amount: karma });
+    for (const c of cans) dispatch({ type: 'useUp', itemId: c });
+    setToast(`🎨 Graffiti valmis! +${xp} Art XP${karma ? ` · karma ${karma > 0 ? '+' : ''}${karma}` : ''}${policeAt !== null ? ' · ehdit häipyä ennen poliisia (+15 Kyttien pakoilu XP)' : ''}${cans.length ? ` · ${cans.length} tölkki${cans.length > 1 ? 'ä' : ''} tyhjeni` : ''}`);
+    setPainting(null);
+    setPoliceAt(null);
+  };
+  const sprayPalette = useMemo(() => {
+    if (!player) return [];
+    const ids = new Set<string>();
+    for (const h of [player.equipment.handL, player.equipment.handR]) if (isSpray(h)) ids.add(h!);
+    for (const s of player.inventory) if (isSpray(s.itemId)) ids.add(s.itemId);
+    return [...ids].map((id) => ({ id, color: SPRAY_COLORS[id]!, name: itemName(id) }));
+  }, [player]);
+
+  // ------------------------------------------------------------ forest stashes
+  const stashes = useMemo(() => {
+    if (!world || !collider || !terrain) return [];
+    const roadsNear = (p: WorldXZ) => world.roads.some((r) => r.points.some((q) => Math.hypot(q[0] - p[0], q[1] - p[1]) < 18));
+    return placeStashes(world, (p) => !collider.isBlocked(p, 2) && !roadsNear(p) && terrain.heightAt(p[0], p[1]) >= terrain.surfaceAt(p[0], p[1]) - 0.2);
+  }, [world, collider, terrain]);
+  const stashTaken = useMemo(() => new Set(STASH_DEFS.filter((d) => player?.quests[stashQuestId(d.id)]).map((d) => d.id)), [player?.quests]);
+  const [chase, setChase] = useState<{ stash: PlacedStash; from: WorldXZ; t0: number } | null>(null);
+  const skillLv = (id: 'hustling' | 'evasion' | 'running' | 'strength') => levelFromXp(player?.skills[id]?.xp ?? 0);
+  const stashStep = (s: PlacedStash, step: number) => dispatch({ type: 'setQuestStep', questId: stashQuestId(s.id), step, completed: step >= STASH_STEP.done });
+  const loseStash = (s: PlacedStash) => {
+    for (const it of s.items) dispatch({ type: 'removeItem', itemId: it, quantity: 1 });
+    if (s.money) dispatch({ type: 'adjustStats', money: -s.money });
+  };
+  const takeStash = (s: PlacedStash) => {
+    if (stashTaken.has(s.id) || chase) return;
+    if (s.items.some((it) => player && !canAdd(player, it))) return setToast('🎒 Reppu on täynnä.');
+    for (const it of s.items) dispatch({ type: 'addItem', itemId: it });
+    if (s.money) dispatch({ type: 'adjustStats', money: s.money });
+    stashStep(s, STASH_STEP.pursued);
+    const got = [...s.items.map((i) => itemName(i)), ...(s.money ? [`${s.money} €`] : [])].join(', ');
+    setToast(`${s.find} Otit: ${got}. Joku tulee…`);
+    const pos = positionRef.current;
+    const a = Math.random() * Math.PI * 2;
+    window.setTimeout(() => setChase({ stash: s, from: [pos.x + Math.sin(a) * 18, pos.z + Math.cos(a) * 18], t0: clockRef.current }), 3500);
+  };
+  // the pursuers arrive and talk
+  useEffect(() => {
+    if (!chase) return;
+    const id = window.setTimeout(() => stashTalk(chase.stash), 4300);
+    return () => window.clearTimeout(id);
+  }, [chase]);
+  const endChase = (s: PlacedStash, kept: boolean, toast?: string) => {
+    close();
+    setChase(null);
+    stashStep(s, kept ? STASH_STEP.deliver : STASH_STEP.done);
+    if (!kept) dispatch({ type: 'grantReward', reward: { xp: 40 } });
+    if (toast) setToast(toast);
+  };
+  const stashTalk = (s: PlacedStash) => {
+    const hustle = skillLv('hustling'), evade = Math.max(skillLv('evasion'), skillLv('running'));
+    if (s.owner === 'geocacher') {
+      say('Retkeilijä', 'Hei! Toi on geokätkö! Se kuuluu kaikille. Kirjoita nimesi vihkoon ja laita takaisin, niin seuraavakin löytää sen.', [
+        { text: 'Totta kai. Laitan takaisin.', onPick: () => { loseStash(s); dispatch({ type: 'adjustKarma', amount: 5 }); endChase(s, false, '📓 Kirjoitit nimesi vihkoon. Karma +5'); } },
+        { text: 'Löytäjä saa pitää.', onPick: () => { dispatch({ type: 'adjustKarma', amount: -3 }); endChase(s, true, 'Retkeilijä tuhahtaa. Karma −3'); } },
+      ]);
+      return;
+    }
+    if (s.owner === 'police') {
+      say('Siviilipoliisi', 'Poliisi! Tuo kätkö on todistusaineistoa. Olemme tarkkailleet sitä kolme päivää. Mitä sinä teet täällä?', [
+        {
+          text: `[Hustlaus 4] Löysin sen sattumalta ja aioin tuoda sen teille.`,
+          onPick: () =>
+            hustle >= 4
+              ? say('Siviilipoliisi', 'Hmm. Uskotaan. Kiitos kansalaisaktiivisuudesta, tässä löytöpalkkio.', [{ text: 'Mielelläni.', onPick: () => { loseStash(s); dispatch({ type: 'adjustKarma', amount: 3 }); dispatch({ type: 'adjustStats', money: 20 }); dispatch({ type: 'grantReward', reward: { skillXp: { hustling: 40 } } }); endChase(s, false, 'Selvisit puhumalla. +20 € löytöpalkkio · karma +3'); } }], `Hustlaus ${hustle}/4: onnistui`)
+              : say('Siviilipoliisi', 'Sattumalta. Kaikki sanoo niin. Lähdetään asemalle.', [{ text: 'Voi ei.', onPick: () => { loseStash(s); stashStep(s, STASH_STEP.done); setChase(null); toPutka(-4, 'stash'); } }], `Hustlaus ${hustle}/4: ei riittänyt`),
+        },
+        {
+          text: `[Kyttien pakoilu 6] Juokse metsään.`,
+          onPick: () =>
+            evade >= 6
+              ? (dispatch({ type: 'grantReward', reward: { skillXp: { evasion: 60 } } }), endChase(s, true, '🏃 Karistit poliisit metsään! +60 Kyttien pakoilu XP'))
+              : say('Siviilipoliisi', 'Seis! *kampittaa sinut sammaleeseen*', [{ text: 'Auts.', onPick: () => { loseStash(s); stashStep(s, STASH_STEP.done); setChase(null); toPutka(-6, 'stash'); } }], `Pakoilu ${evade}/6: ei riittänyt`),
+        },
+        { text: 'Antaudun. Ottakaa se.', onPick: () => { loseStash(s); dispatch({ type: 'adjustKarma', amount: 1 }); endChase(s, false, 'Poliisit ottivat kätkön ja päästivät sinut varoituksella.'); } },
+      ]);
+      return;
+    }
+    say('Tuntematon jäbä', 'Ey. Toi on meidän. Mehtäläinen ei tykkää kun sen tavaroihin kosketaan. Anna se takas, niin kukaan ei satu.', [
+      { text: 'Okei okei, ota.', onPick: () => { loseStash(s); dispatch({ type: 'adjustKarma', amount: 2 }); endChase(s, false, 'Annoit kätkön takaisin. Viisas valinta.'); } },
+      {
+        text: '[Hustlaus 6] Mehtäläinen itse käski mun hakea tän.',
+        onPick: () =>
+          hustle >= 6
+            ? (dispatch({ type: 'grantReward', reward: { skillXp: { hustling: 50 } } }), endChase(s, true, '🤝 He uskoivat! Kätkö jäi sinulle. +50 Hustlaus XP'))
+            : say('Tuntematon jäbä', 'Valehtelet. *lyö sinua*', [{ text: 'Ugh…', onPick: () => { loseStash(s); dispatch({ type: 'adjustStats', health: -25 }); endChase(s, false, '🤕 Sait turpaan ja kätkö vietiin. −25 HP'); } }], `Hustlaus ${hustle}/6: ei riittänyt`),
+      },
+      {
+        text: '[Juoksu / pakoilu 5] Juokse karkuun.',
+        onPick: () =>
+          evade >= 5
+            ? (dispatch({ type: 'grantReward', reward: { skillXp: { evasion: 50, running: 30 } } }), endChase(s, true, '🏃 Juoksit karkuun kätkön kanssa!'))
+            : say('Tuntematon jäbä', '*saa sinut kiinni* Minne luulit meneväsi?', [{ text: 'Ugh…', onPick: () => { loseStash(s); dispatch({ type: 'adjustStats', health: -30 }); endChase(s, false, '🤕 Jäit kiinni ja kätkö vietiin. −30 HP'); } }], `Pakoilu ${evade}/5: ei riittänyt`),
+      },
+    ]);
+  };
+  const deliverable = STASH_DEFS.filter((d) => player?.quests[stashQuestId(d.id)]?.status === 'active' && player.quests[stashQuestId(d.id)]!.objectiveIndex === STASH_STEP.deliver);
+  const stashValue = (d: (typeof STASH_DEFS)[number]) => d.items.reduce((a, it) => a + (player?.inventory.some((x) => x.itemId === it) ? ITEM_DEFS[it]?.value ?? 0 : 0), 0);
+  const handInStash = (d: (typeof STASH_DEFS)[number]) => {
+    for (const it of d.items) dispatch({ type: 'removeItem', itemId: it, quantity: 1 });
+    dispatch({ type: 'adjustKarma', amount: 6 });
+    dispatch({ type: 'grantReward', reward: { xp: 80, money: 25 } });
+    dispatch({ type: 'setQuestStep', questId: stashQuestId(d.id), step: STASH_STEP.done, completed: true });
+    close();
+    setToast(`✓ Quest suoritettu: palautit kätkön poliisille. +25 € · karma +6`);
+  };
+  const fenceStash = (d: (typeof STASH_DEFS)[number]) => {
+    const pay = Math.round(stashValue(d) * 0.55);
+    for (const it of d.items) dispatch({ type: 'removeItem', itemId: it, quantity: 1 });
+    dispatch({ type: 'adjustKarma', amount: -3 });
+    dispatch({ type: 'grantReward', reward: { xp: 80, money: pay, skillXp: { hustling: 45 } } });
+    dispatch({ type: 'setQuestStep', questId: stashQuestId(d.id), step: STASH_STEP.done, completed: true });
+    close();
+    setToast(`✓ Quest suoritettu: myit kätkön tavarat. +${pay} € · +45 Hustlaus XP · karma −3`);
+  };
+
+  // ------------------------------------------------------------ gym roina dealer (fictional products)
+  const ROINA_TALK_SPOT: WorldXZ = [7.0, 5.0];
+  const buyRoina = (id: RoinaId) => {
+    const d = ROINA[id];
+    if (!player) return;
+    if (player.money < d.price) return say('Pumppi-Pete', 'Ei rahaa, ei kamaa. Tuu takas kun on.', [{ text: 'Okei.', onPick: close }]);
+    if (!canAdd(player, id)) return say('Pumppi-Pete', 'Sun reppu on täynnä, bro.', [{ text: 'Okei.', onPick: close }]);
+    dispatch({ type: 'adjustStats', money: -d.price });
+    dispatch({ type: 'addItem', itemId: id });
+    if (d.karma) dispatch({ type: 'adjustKarma', amount: d.karma });
+    dispatch({ type: 'grantReward', reward: { skillXp: { hustling: 6 } } });
+    say('Pumppi-Pete', `Siinä. ${itemName(id)}. Ja muista: sä et saanu tätä multa.`, [{ text: 'Mitä muuta sulla on?', onPick: talkToPete }, { text: 'Kiitti.', onPick: close }]);
+  };
+  const talkToPete = () =>
+    say(
+      'Pumppi-Pete',
+      'Psst. Haluuks sä kasvaa nopeemmin? Mulla on "lisäravinteita". Ei mitään laillista, ei mitään takuita. Rasitus kasvaa, ja liika rasitus tuntuu kropassa.',
+      [
+        ...(['tankkioljy', 'massamix', 'kuivatin', 'palautin', 'tuplaus', 'leikkuri'] as RoinaId[]).map((id) => ({
+          text: `${itemName(id)} · ${ROINA[id].price} € — ${ROINA[id].blurb}`,
+          onPick: () => buyRoina(id),
+        })),
+        { text: 'Ei kiitos, mä treenaan puhtaasti.', onPick: () => { dispatch({ type: 'adjustKarma', amount: 1 }); close(); } },
+      ],
+      `Rahaa ${money} € · rasitus ${Math.round(player?.strain ?? 0)}/100 · ${strainEffect(player?.strain ?? 0).label}`,
+    );
+
+  // public alert from carrying drugs: patrols may stop you near the centre
+  useEffect(() => {
+    if (scene !== 'world' || !doors) return;
+    const id = window.setInterval(() => {
+      if (!player || dialogue || cutscene || busy || riding || chase || painting) return;
+      const units = drugUnits(player);
+      if (units < 4) return;
+      const pos = positionRef.current;
+      const centre = doors['station-town'].at;
+      if (Math.hypot(centre[0] - pos.x, centre[1] - pos.z) > 350) return;
+      if (Math.random() > 0.1 + Math.min(0.25, alert * 0.003)) return;
+      const hustle = skillLv('hustling'), evade = Math.max(skillLv('evasion'), skillLv('running'));
+      say('Poliisipartio', 'Iltaa. Rutiinitarkastus. Sulla näyttää olevan reppu aika täynnä. Mitä siellä on?', [
+        {
+          text: '[Hustlaus 7] Salilisäravinteita. Proteiinia ja vitamiineja.',
+          onPick: () => (hustle >= 7 ? (dispatch({ type: 'grantReward', reward: { skillXp: { hustling: 40 } } }), say('Poliisipartio', 'Hmm. Jatka matkaa.', [{ text: 'Kiitos.', onPick: close }], `Hustlaus ${hustle}/7: onnistui`)) : say('Poliisipartio', 'Katsotaanpa… Nämä lähtee meidän mukaan. Ja sinä myös.', [{ text: 'Voi ei.', onPick: () => { dispatch({ type: 'confiscateDrugs' }); toPutka(-5, 'stash'); } }], `Hustlaus ${hustle}/7: ei riittänyt`)),
+        },
+        {
+          text: '[Pakoilu 6] Juokse.',
+          onPick: () => (evade >= 6 ? (dispatch({ type: 'grantReward', reward: { skillXp: { evasion: 50 } } }), close(), setToast('🏃 Karistit partion! +50 Kyttien pakoilu XP')) : say('Poliisipartio', 'Seis! *saa sinut kiinni*', [{ text: 'Auts.', onPick: () => { dispatch({ type: 'confiscateDrugs' }); toPutka(-6, 'stash'); } }], `Pakoilu ${evade}/6: ei riittänyt`)),
+        },
+        { text: 'Ottakaa ne. En halua ongelmia.', onPick: () => { dispatch({ type: 'confiscateDrugs' }); dispatch({ type: 'adjustKarma', amount: 1 }); close(); setToast('Partio takavarikoi tavarat ja päästi sinut varoituksella.'); } },
+      ]);
+    }, 30000);
+    return () => window.clearInterval(id);
+  });
 
   // ------------------------------------------------------------ talking to NPCs
   useEffect(() => {
@@ -779,6 +1079,15 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     pendingTalk.current = null;
     setRoute([]);
     setTalkingId(npc.follow ?? npc.id);
+    const d = deliverable[0];
+    if (d && npc.crew === 'laituri') {
+      const pay = Math.round(stashValue(d) * 0.55);
+      say(speakerName(npc), 'Kuulin et sä löysit jotain metsästä. Lasse ostaa. Mitä sulla on?', [
+        { text: `Myy kätkön tavarat (${pay} €)`, onPick: () => fenceStash(d) },
+        { text: 'Ei mulla mitään. Mitä kuuluu?', onPick: () => runTalk(npc, talkTreeFor(npc)) },
+      ]);
+      return;
+    }
     runTalk(npc, talkTreeFor(npc));
   };
   const onNpcClick = (npc: Npc) => {
@@ -824,6 +1133,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       if (jonneAt) list.push({ at: jonneAt, use: talkToJonne });
       for (const b of busStops) list.push({ at: b.at, use: () => setAtBusStop(b) });
       for (const t of trainStops) list.push({ at: t.at, use: () => setAtTrain(t) });
+      for (const st of stashes) if (!stashTaken.has(st.id)) list.push({ at: st.at, use: () => takeStash(st) });
       for (const c of cookSpots) list.push({ at: c.at, use: () => setAtCook(c) });
       for (const l of loot) if (!lootTaken.includes(l.id)) list.push({ at: [l.x, l.z], use: () => pickLoot(l) });
       return list;
@@ -832,6 +1142,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       at: e.at,
       use: () => (scene === 'prison' && e.id === 'yard' ? escaped() : goTo(e.to)),
     }));
+    if (scene === 'gym') list.push({ at: ROINA_TALK_SPOT, use: talkToPete });
     if (scene === 'gym') for (const g of GYM_STATIONS) list.push({ at: g.use, use: () => arriveAtStation(g.lift) });
     if (scene === 'pool') list.push({ at: POOL_SWIM_SPOT, use: () => setAtPool(true) });
     if (scene === 'barber') list.push({ at: BARBER_CHAIR_SPOT, use: () => setBarberDraft({ ...currentLook }) });
@@ -843,10 +1154,10 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     if (scene === 'police') list.push({ at: POLICE_DESK_SPOT, use: talkAtPoliceDesk });
     return list;
     // talkToJonne/escaped read the latest state through closures re-created each render
-  }, [scene, doors, jonneAt, goTo, jailStep, player, carrying, busStops, trainStops, currentLook, loot, lootTaken, putkaUntil, cookSpots]);
+  }, [scene, doors, jonneAt, goTo, jailStep, player, carrying, busStops, trainStops, currentLook, loot, lootTaken, putkaUntil, cookSpots, stashes, stashTaken, chase]);
 
   const onGroundClick = (raw: WorldXZ) => {
-    if (cutscene || dialogue || fading || busy || riding) return;
+    if (cutscene || dialogue || fading || busy || riding || painting || chase) return;
     setAtBusStop(null);
     setAtTrain(null);
     setBarberDraft(null);
@@ -897,6 +1208,10 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       hold: (v: boolean) => (holdingRef.current = v),
       click: (x: number, z: number) => onGroundClick([x, z]),
       stops: busStops,
+      stashes: () => stashes.map((x) => ({ id: x.id, at: x.at, owner: x.owner, taken: stashTaken.has(x.id) })),
+      wall: () => nearWall,
+      paint: () => startPaint(),
+      pieces: () => pieces.length,
       cookSpots: () => cookSpots,
       give: (id: string, n = 1) => dispatch({ type: 'addItem', itemId: id, quantity: n }),
       npcs: () => [...npcLive.current.entries()].map(([id, v]) => ({ id, p: v.p, kind: npcs.find((n) => n.id === id)?.kind })),
@@ -936,6 +1251,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
         {ready && (
           <group visible={inWorld}>
             <Clouds clouds={clouds} />
+            <Birds followRef={positionRef} />
             <KeravaWorld
               data={world!}
               terrain={terrain!}
@@ -962,11 +1278,16 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
               ))}
             {busRun && <BusVehicle run={busRun} clockRef={clockRef} groundAt={(x, z) => terrain!.surfaceAt(x, z)} />}
             {placed && <BlockExterior site={placed.gym} ground={terrain!.surfaceAt(placed.gym.door[0], placed.gym.door[1])} sign="KUNTOSALI RAUTA" color="#c8312b" sub="AVOINNA 24/7" />}
+            {placed && <BlockExterior site={placed.motonet} ground={terrain!.surfaceAt(placed.motonet.door[0], placed.motonet.door[1])} sign="MOTONET" color="#d4202a" sub="AUTO · KOTI · VAPAA-AIKA" />}
             {placed && <BlockExterior site={placed.police} ground={terrain!.surfaceAt(placed.police.door[0], placed.police.door[1])} sign="POLIISI" color="#1f3f8f" sub="POLISEN · KERAVAN POLIISIASEMA" />}
             {placed && <BlockExterior site={placed.pool} ground={terrain!.surfaceAt(placed.pool.door[0], placed.pool.door[1])} sign="UIMAHALLI" color="#1f8fc0" sub="KERAVAN UIMAHALLI" />}
             {!cutscene && npcs.length > 0 && (
               <Crowd npcs={npcs} live={npcLive} clockRef={clockRef} groundAt={(x, z) => terrain!.surfaceAt(x, z)} playerRef={positionRef} talkingId={talkingId} onTalk={onNpcClick} />
             )}
+            <GraffitiWall pieces={pieces} />
+            {highQuality && <GroundDetail data={world!} terrain={terrain!} blocked={grassBlocked} playerRef={positionRef} />}
+            {!cutscene && <Stashes stashes={stashes} taken={stashTaken} playerRef={positionRef} groundAt={(x, z) => terrain!.surfaceAt(x, z)} onClick={(st) => onGroundClick(st.at)} />}
+            {chase && <Pursuers owner={chase.stash.owner} from={chase.from} t0={chase.t0} playerRef={positionRef} clockRef={clockRef} groundAt={(x, z) => terrain!.surfaceAt(x, z)} />}
             <CookSpots spots={cookSpots} groundAt={(x, z) => terrain!.surfaceAt(x, z)} />
             {!cutscene &&
               cookSpots.map((c) => <Hotspot key={c.id} at={c.at} y={terrain!.surfaceAt(c.at[0], c.at[1])} label={`🍳 ${c.name}`} onClick={() => onGroundClick(c.at)} />)}
@@ -1002,6 +1323,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
             {scene === 'gym' && <GymInterior pairs={gymPairs} active={gymActive} outfit={outfit} clockRef={clockRef} />}
             {scene === 'alepa' && <AlepaInterior />}
             {scene === 'barber' && <BarberInterior />}
+            {scene === 'motonet' && <MotonetInterior />}
             {scene === 'police' && <PoliceInterior cellOpen={putkaUntil === null} />}
             {scene === 'pool' && <PoolInterior swimT0={swimT0} clockRef={clockRef} outfit={outfit} />}
             {scene === 'prison' && (
@@ -1026,6 +1348,12 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
               <Shopper p={shop.guard} yaw={Math.PI * 0.85} sway={1.3} outfit={{ top: '#1b1d22', legs: '#1b1d22', shoes: '#111', hair: '#2a2018', hairStyle: 'buzz', hat: 'none', hatColor: '#000', accent: '#ffd23f', style: 'jacket', build: 1.12 }} />
             )}
             {shop && <Hotspot at={shop.till} label="🧾 Kassa" onClick={() => onGroundClick(shop.till)} />}
+            {scene === 'gym' && (
+              <>
+                <Shopper p={ROINA_SPOT} yaw={-2.2} sway={0.7} outfit={{ top: '#14171f', legs: '#3c4a63', shoes: '#f2f2f2', skin: '#e0ac7e', hair: '#1a1410', hairStyle: 'buzz', facialHair: 'goatee', hat: 'cap', hatColor: '#c8312b', accent: '#ffd23f', style: 'hoodie', build: 1.25 }} />
+                <Hotspot at={ROINA_TALK_SPOT} label="🧴 Pumppi-Pete" onClick={() => onGroundClick(ROINA_TALK_SPOT)} />
+              </>
+            )}
             {scene === 'police' && <Hotspot at={POLICE_DESK_SPOT} label="👮 Palvelutiski" onClick={() => onGroundClick(POLICE_DESK_SPOT)} />}
           </group>
         )}
@@ -1170,6 +1498,44 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       )}
       {!cutscene && inWorld && atCook && player && (
         <CookHud name={atCook.name} level={cookLevel} inventory={player.inventory} cooking={cooking ? { recipe: cooking.recipe, progress: cookProgress } : null} onCook={startCook} onClose={() => setAtCook(null)} />
+      )}
+      {!cutscene && inWorld && nearWall && !painting && !dialogue && (
+        <button type="button" className="btn paint-btn" onClick={startPaint}>
+          🎨 Maalaa seinään · {QUALITY_NAMES[qualityAt(nearWall.q, nearWall.n)]}
+        </button>
+      )}
+      {!cutscene && painting && (
+        <GraffitiCanvas
+          palette={sprayPalette}
+          onCancel={() => {
+            setPainting(null);
+            setPoliceAt(null);
+          }}
+          onDone={finishPaint}
+          info={
+            <>
+              <span className={painting.quality === 'nice' ? 'is-bad' : painting.quality === 'ugly' ? 'is-good' : ''}>{QUALITY_NAMES[painting.quality]}</span>
+              {policeAt !== null && <span className="is-bad">📞 Joku soitti poliisit! Partio paikalla {Math.max(0, Math.ceil(policeAt - clockRef.current))} s kuluttua. Viimeistele tai lopeta!</span>}
+              {witnessLog.map((w, i) => (
+                <span key={i} className="muted">{w}</span>
+              ))}
+            </>
+          }
+        />
+      )}
+      {!cutscene && ((player?.buffs?.length ?? 0) > 0 || (player?.strain ?? 0) >= 5) && (
+        <div className="buff-bar">
+          {player?.buffs?.map((b) => (
+            <span key={b.id} className="buff" title={ROINA[b.id].blurb}>
+              {itemIcon(b.id)} {Math.ceil(b.left / 60)} min
+            </span>
+          ))}
+          {(player?.strain ?? 0) >= 5 && (
+            <span className={`buff buff--strain${(player?.strain ?? 0) >= 55 ? ' is-high' : ''}`} title={strainEffect(player?.strain ?? 0).label}>
+              🫀 Rasitus {Math.round(player?.strain ?? 0)}
+            </span>
+          )}
+        </div>
       )}
       {dialogue && <DialogueBox view={dialogue} />}
       {toast && <div className="toast">{toast}</div>}

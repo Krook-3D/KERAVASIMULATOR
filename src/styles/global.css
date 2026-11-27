@@ -865,3 +865,20 @@ button.inv-slot:disabled { cursor: default; }
 .cook-row__ing .is-missing { color: #ff8a9a; }
 .cook-row__meta { color: var(--yellow); white-space: nowrap; }
 .cook-progress { display: grid; gap: 8px; }
+.graffiti { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 30; width: min(760px, calc(100vw - 32px)); background: #14171fee; border: 3px solid var(--panel-edge, #2f3648); border-radius: 14px; padding: 12px; display: grid; gap: 10px; box-shadow: 0 16px 40px #000a; }
+.graffiti__head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.graffiti__stage { position: relative; width: 100%; aspect-ratio: 2 / 1; border-radius: 6px; overflow: hidden; }
+.graffiti__canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.graffiti__canvas--paint { cursor: crosshair; touch-action: none; }
+.graffiti__tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.graffiti__can { width: 30px; height: 30px; border-radius: 50%; border: 3px solid #2f3648; cursor: pointer; }
+.graffiti__can.is-on { border-color: var(--yellow); transform: scale(1.12); }
+.graffiti__size { display: flex; gap: 6px; align-items: center; font-size: 12px; margin-left: auto; }
+.graffiti__info { display: grid; gap: 4px; font-size: 13px; }
+.graffiti__info .is-bad { color: #ff8a9a; }
+.graffiti__info .is-good { color: #5ee07a; }
+.paint-btn { position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%); z-index: 20; }
+.buff-bar { position: absolute; left: 12px; top: 74px; z-index: 12; display: flex; gap: 6px; flex-wrap: wrap; max-width: 60vw; }
+.buff { background: #14171fdd; border: 2px solid #2f3648; border-radius: 8px; padding: 3px 8px; font-size: 12px; font-weight: 700; }
+.buff--strain { border-color: #ffd23f; color: #ffd23f; }
+.buff--strain.is-high { border-color: #ff5a5a; color: #ff5a5a; }

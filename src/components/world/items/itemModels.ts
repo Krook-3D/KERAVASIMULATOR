@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ITEMS, RARITY_COLORS } from '../../../data/items';
+import { ITEMS, RARITY_COLORS, SPRAY_COLORS } from '../../../data/items';
 
 /**
  * Small procedural 3D models for items. Each model is built in metres with
@@ -47,6 +47,8 @@ const MODELS: Record<string, () => Part[]> = {
 };
 
 function partsFor(itemId: string): Part[] {
+  const spray = SPRAY_COLORS[itemId];
+  if (spray) return [[cyl(0.032, 0.17), '#c8ccd2', [0, -0.07, 0], undefined, { metal: 0.7, rough: 0.3 }], [cyl(0.033, 0.09), spray, [0, -0.06, 0]], [cyl(0.02, 0.03), spray, [0, 0.025, 0]]];
   const m = MODELS[itemId];
   if (m) return m();
   const def = ITEMS[itemId];

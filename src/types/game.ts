@@ -14,7 +14,8 @@ export type SkillId =
   | 'cooking'
   | 'fishing'
   | 'hustling'
-  | 'evasion';
+  | 'evasion'
+  | 'art';
 
 export interface SkillState {
   /** Total XP in this skill. Level is derived from XP. */
@@ -177,6 +178,9 @@ export interface Player {
   stolen?: Record<string, number>;
   /** Thefts since the guard last caught you (catch chance grows with it). */
   sinceCaught?: number;
+  /** Active gym roina boosts (seconds left) and the strain meter 0–100. */
+  buffs?: { id: import('../game/gym/roina').RoinaId; left: number }[];
+  strain?: number;
   /** Looks (character editor + barber). Older saves fall back to `color`. */
   appearance?: import('../game/player/appearance').Appearance;
   /** Opening cutscene (thrown off the train) has been seen. */

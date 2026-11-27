@@ -3,6 +3,7 @@ import type { EquipmentSlot, Player } from '../../types/game';
 import { ITEMS, RARITY_COLORS, RARITY_NAMES, itemIcon, itemName } from '../../data/items';
 import { INVENTORY_SIZE } from '../../game/store/gameReducer';
 import { useGame } from '../../game/store/GameProvider';
+import { ROINA, type RoinaId } from '../../game/gym/roina';
 
 export { INVENTORY_SIZE };
 
@@ -91,6 +92,12 @@ export function InventoryPanel({ player }: { player: Player }) {
               <button type="button" className="btn btn--small" onClick={() => dispatch({ type: 'equipItem', itemId: def.id, hand: 'handL' })}>Vasempaan käteen</button>
               <button type="button" className="btn btn--small" onClick={() => dispatch({ type: 'equipItem', itemId: def.id, hand: 'handR' })}>Oikeaan käteen</button>
             </div>
+          )}
+          {def.category === 'drug' && def.id in ROINA && (
+            <>
+              <div className="muted">{ROINA[def.id as RoinaId].blurb}</div>
+              <button type="button" className="btn btn--small" onClick={() => dispatch({ type: 'useRoina', id: def.id as RoinaId })}>Käytä</button>
+            </>
           )}
           {def.effects && (
             <button type="button" className="btn btn--small" onClick={() => dispatch({ type: 'eatItem', itemId: def.id })}>

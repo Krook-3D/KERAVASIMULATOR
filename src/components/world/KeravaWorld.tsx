@@ -8,7 +8,8 @@ import { placeTrees } from '../../game/world/vegetation';
 import { buildAreaGeometry, buildBuildingsGeometry, buildRoadLayers, buildTerrainGeometry } from '../../game/world/geometry';
 import type { Terrain } from '../../game/world/terrain';
 import { paintGroundMap } from './groundMap';
-import { createBuildingMaterial, createGrainMaterial, createGroundMaterial, type XrayUniforms } from './materials';
+import { createBuildingMaterial, createGrainMaterial, createGroundMaterial, createWaterMaterial, type XrayUniforms } from './materials';
+import { WaterDetails } from './WaterDetails';
 import { Trees } from './Trees';
 import { StreetProps } from './StreetProps';
 import { placeStreetProps } from '../../game/world/streetProps';
@@ -47,7 +48,7 @@ export function KeravaWorld({ data, terrain, collider, excludeTrees, onGroundCli
       sidewalk: offset(createGrainMaterial('#a7a59f', 0.1), -1),
       path: offset(createGrainMaterial('#c9b48a', 0.2), -1),
       ballast: offset(createGrainMaterial('#7d7368', 0.3), -1),
-      water: new THREE.MeshStandardMaterial({ color: '#3f7fae', roughness: 0.2, metalness: 0.1 }),
+      water: createWaterMaterial(),
       marking: offset(new THREE.MeshStandardMaterial({ color: '#f2efe6', roughness: 0.6 }), -3),
       sleeper: new THREE.MeshStandardMaterial({ color: '#4a3527', roughness: 0.9 }),
       rail: new THREE.MeshStandardMaterial({ color: '#b9bcc2', roughness: 0.3, metalness: 0.9 }),
@@ -79,7 +80,8 @@ export function KeravaWorld({ data, terrain, collider, excludeTrees, onGroundCli
   );
   useEffect(() => () => Object.values(materials).forEach((m) => m.dispose()), [materials]);
 
-  useFrame(({ camera }) => {
+  useFrame(({ camera, clock }) => {
+    (materials.water.userData.uTime as { value: number }).value = clock.elapsedTime;
     const p = playerRef.current;
     xray.uPlayer.value.set(p.x, p.y + 1, p.z);
     xray.uCamera.value.copy(camera.position);
@@ -124,6 +126,7 @@ export function KeravaWorld({ data, terrain, collider, excludeTrees, onGroundCli
       {flat(r.sleepers, materials.sleeper)}
       {flat(r.rails, materials.rail)}
       {geos.buildings && <mesh geometry={geos.buildings} material={materials.building} castShadow receiveShadow />}
+      <WaterDetails data={data} terrain={terrain} />
       <Trees trees={trees} />
       <StreetProps lamps={props.lamps} cars={props.cars} />
     </group>

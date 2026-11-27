@@ -1,4 +1,5 @@
 import type { QuestDef } from '../../types/game';
+import { STASH_QUESTS } from './stashes';
 
 /**
  * First quest, "Viilattu vapaus": the player gets jailed after holding a
@@ -34,4 +35,4 @@ export const JAILBREAK_STEP = { notStarted: 0, visit: 1, file: 2, escape: 3, don
 /** Seconds of filing needed to cut through the bars. */
 export const FILE_TIME = 11;
 
-export const QUESTS: Record<string, QuestDef> = { [JAILBREAK_ID]: JAILBREAK };
+export const QUESTS: Record<string, QuestDef> = { [JAILBREAK_ID]: JAILBREAK, ...STASH_QUESTS };

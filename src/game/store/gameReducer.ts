@@ -1,6 +1,7 @@
 import type { EquipmentSlot, LngLat, Player, Reward } from '../../types/game';
 import { ITEMS } from '../../data/items';
 import { KARMA_MAX, KARMA_MIN, STEAL_KARMA } from '../shop/shop';
+import { ROINA, STRAIN_DECAY_PER_MIN, strainEffect, type RoinaId } from '../gym/roina';
 import { createPlayer, MAX_ENERGY } from '../player/createPlayer';
 import { defaultAppearance, type Appearance } from '../player/appearance';
 
@@ -25,6 +26,10 @@ export type GameAction =
   | { type: 'caughtStealing'; karma: number }
   | { type: 'adjustKarma'; amount: number }
   | { type: 'eatItem'; itemId: string }
+  | { type: 'useUp'; itemId: string }
+  | { type: 'useRoina'; id: RoinaId }
+  | { type: 'tickBuffs'; dt: number }
+  | { type: 'confiscateDrugs' }
   | { type: 'cook'; ingredients: Record<string, number>; out: string; xp: number }
   | { type: 'adjustStats'; energy?: number; money?: number; health?: number }
   | { type: 'resetGame' };
@@ -100,6 +105,40 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       for (const [id, n] of Object.entries(action.ingredients)) next = removeItem(next, id, n);
       next = addItem(next, action.out, 1);
       return { player: applyReward(next, { skillXp: { cooking: action.xp } }) };
+    }
+    case 'useRoina': {
+      const p = state.player;
+      const d = ROINA[action.id];
+      if (!p || !d || !p.inventory.some((s) => s.itemId === action.id)) return state;
+      const next = removeItem(p, action.id, 1);
+      const buffs = (p.buffs ?? []).filter((b) => b.id !== action.id && b.left > 0);
+      if (d.duration > 0) buffs.push({ id: action.id, left: d.duration });
+      return { player: { ...next, buffs, strain: Math.max(0, Math.min(100, (p.strain ?? 0) + d.strain)) } };
+    }
+    case 'tickBuffs': {
+      const p = state.player;
+      if (!p || (!p.buffs?.length && !p.strain)) return state;
+      const mins = action.dt / 60;
+      const buffs = (p.buffs ?? []).map((b) => ({ ...b, left: b.left - action.dt })).filter((b) => b.left > 0);
+      const strain = Math.max(0, (p.strain ?? 0) - STRAIN_DECAY_PER_MIN * mins);
+      const drain = strainEffect(p.strain ?? 0).healthPerMin * mins;
+      return { player: { ...p, buffs, strain, health: Math.max(1, Math.min(100, p.health + drain)) } };
+    }
+    case 'confiscateDrugs': {
+      const p = state.player;
+      if (!p) return state;
+      let next = p;
+      for (const s of p.inventory) if (ITEMS[s.itemId]?.category === 'drug') next = removeItem(next, s.itemId, s.quantity);
+      return { player: next };
+    }
+    case 'useUp': {
+      // one of the item is used up: from the backpack if there's a spare, else from the hand
+      const p = state.player;
+      if (!p) return state;
+      if (p.inventory.some((s) => s.itemId === action.itemId)) return { player: removeItem(p, action.itemId, 1) };
+      const equipment = { ...p.equipment };
+      for (const [k, v] of Object.entries(equipment)) if (v === action.itemId) { delete equipment[k as EquipmentSlot]; break; }
+      return { player: { ...p, equipment } };
     }
     case 'eatItem': {
       const p = state.player;

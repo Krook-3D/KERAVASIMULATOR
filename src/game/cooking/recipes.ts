@@ -27,9 +27,9 @@ export const RECIPES: Recipe[] = [
   { id: 'pizza', out: 'lammitettypizza', name: 'Grillattu pizza', level: 2, xp: 10, ingredients: { pakastepizza: 1 }, time: 3 },
 ];
 
-/** Burn chance: 45 % at the recipe's level, down 4 points per extra level, never below 3 %. */
+/** Burn chance: 33 % at the recipe's level, down 3.5 points per extra level, never below 3 %. */
 export function burnChance(level: number, recipe: Recipe): number {
-  return Math.max(0.03, 0.45 - (level - recipe.level) * 0.04);
+  return Math.max(0.03, 0.33 - (level - recipe.level) * 0.035);
 }
 
 export function canCook(inv: { itemId: string; quantity: number }[], r: Recipe): boolean {

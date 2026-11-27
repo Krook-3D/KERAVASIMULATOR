@@ -213,3 +213,79 @@ export function createXrayStandardMaterial(xray: XrayUniforms, params: THREE.Mes
   m.customProgramCacheKey = () => `kerava-xray-${String(params.color)}`;
   return m;
 }
+
+/**
+ * Stylised animated water: rippling normals from layered sine waves, a
+ * shallow/deep tint that follows the ripples and sparkles on the crests.
+ * Update `material.userData.uTime.value` every frame.
+ */
+export function createWaterMaterial(color = '#2f7fb0'): THREE.MeshStandardMaterial {
+  const m = new THREE.MeshStandardMaterial({ color, roughness: 0.12, metalness: 0.2, transparent: true, opacity: 0.9 });
+  const uTime = { value: 0 };
+  m.userData.uTime = uTime;
+  m.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = uTime;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;')
+      .replace('#include <project_vertex>', '#include <project_vertex>\nvWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform float uTime;\nvarying vec3 vWPos;')
+      .replace(
+        '#include <color_fragment>',
+        `#include <color_fragment>
+        vec2 wp = vWPos.xz;
+        float band = sin(wp.x * 0.21 + uTime * 0.6) * sin(wp.y * 0.19 - uTime * 0.5);
+        float caust = pow(abs(sin(wp.x * 1.3 + sin(wp.y * 0.9 + uTime) * 1.5) * sin(wp.y * 1.2 + sin(wp.x * 0.8 - uTime * 1.2) * 1.5)), 3.0);
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.7, 0.85, 0.95), 0.35 + 0.25 * band);
+        diffuseColor.rgb += vec3(0.25, 0.4, 0.45) * caust * 0.35;`,
+      )
+      .replace(
+        '#include <normal_fragment_maps>',
+        `#include <normal_fragment_maps>
+        {
+          vec2 p = vWPos.xz;
+          float t = uTime;
+          vec2 g = vec2(cos(p.x * 0.35 + t * 1.1), cos(p.y * 0.31 + t * 0.9)) * 0.09;
+          g += vec2(cos((p.x + p.y) * 0.9 + t * 1.7), cos((p.x - p.y) * 0.8 - t * 1.4)) * 0.05;
+          g += vec2(cos(p.x * 2.3 - t * 2.6), cos(p.y * 2.1 + t * 2.2)) * 0.025;
+          vec3 nW = normalize(vec3(-g.x, 1.0, -g.y));
+          normal = normalize((viewMatrix * vec4(nW, 0.0)).xyz);
+        }`,
+      )
+      .replace(
+        '#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>
+        {
+          vec2 q = vWPos.xz;
+          float sp = pow(max(0.0, sin(q.x * 3.1 + uTime * 2.0) * sin(q.y * 2.7 - uTime * 1.7) * sin((q.x + q.y) * 1.9 + uTime)), 18.0);
+          totalEmissiveRadiance += vec3(1.0, 0.98, 0.9) * sp * 0.9;
+        }`,
+      );
+  };
+  m.customProgramCacheKey = () => 'kerava-water';
+  return m;
+}
+
+/** Soft animated foam along shores (a ribbon with u across, v along). */
+export function createFoamMaterial(): THREE.MeshBasicMaterial {
+  const m = new THREE.MeshBasicMaterial({ color: '#f4fbff', transparent: true, opacity: 0.6, depthWrite: false, toneMapped: false });
+  const uTime = { value: 0 };
+  m.userData.uTime = uTime;
+  m.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = uTime;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute vec2 foam;\nvarying vec2 vFoam;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFoam = foam;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform float uTime;\nvarying vec2 vFoam;')
+      .replace(
+        '#include <opaque_fragment>',
+        `float edge = 1.0 - abs(vFoam.x * 2.0 - 1.0);
+        float wave = 0.5 + 0.5 * sin(vFoam.y * 0.8 - uTime * 2.2 + vFoam.x * 3.0);
+        diffuseColor.a *= smoothstep(0.0, 0.6, edge) * (0.35 + 0.65 * wave);
+        #include <opaque_fragment>`,
+      );
+  };
+  m.customProgramCacheKey = () => 'kerava-foam';
+  return m;
+}

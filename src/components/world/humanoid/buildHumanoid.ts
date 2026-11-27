@@ -499,19 +499,40 @@ export function buildHumanoid(outfit: Outfit): { mesh: THREE.SkinnedMesh; bones:
     add(at(clean(g), headC.x, headC.y, headC.z), (q) => (q.y < headPos.y - 0.055 && q.z > 0 ? skin.clone().multiplyScalar(0.97) : skin), only('head'));
   }
   const face = (geo: THREE.BufferGeometry, color: THREE.Color | string) => add(geo, solid(color), only('head'));
-  // ears
-  for (const sx of [1, -1]) face(at(ellipsoid(0.012, 0.03, 0.02, 8, 6), headC.x + sx * 0.084, headC.y - 0.005, headC.z - 0.008, 0, 0, sx * 0.15), skinShade);
-  // nose
-  face(at(roundedBox(0.024, 0.042, 0.026, 0.01, 2), 0, headC.y - 0.012, headC.z + 0.098, -0.25), skin.clone().multiplyScalar(0.95));
-  // eyes: whites + iris + brows
+  // ears: outer rim + inner bowl
   for (const sx of [1, -1]) {
+    face(at(ellipsoid(0.012, 0.03, 0.02, 8, 6), headC.x + sx * 0.084, headC.y - 0.005, headC.z - 0.008, 0, 0, sx * 0.15), skinShade);
+    face(at(ellipsoid(0.006, 0.018, 0.011, 6, 5), headC.x + sx * 0.093, headC.y - 0.004, headC.z - 0.004, 0, 0, sx * 0.15), skinShade.clone().multiplyScalar(0.82));
+  }
+  // nose: bridge, tip and nostrils
+  const noseC = skin.clone().multiplyScalar(0.95);
+  face(at(roundedBox(0.02, 0.04, 0.02, 0.008, 2), 0, headC.y - 0.006, headC.z + 0.095, -0.28), noseC);
+  face(at(ellipsoid(0.014, 0.012, 0.013, 8, 6), 0, headC.y - 0.03, headC.z + 0.106), noseC);
+  for (const sx of [1, -1]) {
+    face(at(ellipsoid(0.008, 0.008, 0.008, 6, 5), sx * 0.011, headC.y - 0.034, headC.z + 0.099), noseC.clone().multiplyScalar(0.97));
+    face(at(ellipsoid(0.003, 0.0022, 0.002, 5, 3), sx * 0.007, headC.y - 0.039, headC.z + 0.105), skin.clone().multiplyScalar(0.45));
+  }
+  // cheeks: a touch of warmth
+  for (const sx of [1, -1]) face(at(ellipsoid(0.017, 0.012, 0.006, 8, 6), sx * 0.052, headC.y - 0.022, headC.z + 0.075, 0, sx * 0.5, 0), skin.clone().lerp(lip, 0.22));
+  // eyes: socket shadow, whites, iris, pupil, catchlight, upper lid + lashes, lower lid, brows
+  const lidC = skin.clone().multiplyScalar(0.9);
+  for (const sx of [1, -1]) {
+    face(at(ellipsoid(0.021, 0.016, 0.008, 10, 8), sx * 0.033, headC.y + 0.018, headC.z + 0.077), skin.clone().multiplyScalar(0.86));
     face(at(ellipsoid(0.015, 0.011, 0.01, 10, 8), sx * 0.033, headC.y + 0.016, headC.z + 0.082), '#f6f3ee');
     face(at(ellipsoid(0.008, 0.009, 0.006, 8, 6), sx * 0.033, headC.y + 0.016, headC.z + 0.091), outfit.eyes ?? '#2d2118');
     face(at(ellipsoid(0.0035, 0.004, 0.003, 6, 4), sx * 0.033, headC.y + 0.016, headC.z + 0.0965), '#0c0a08');
+    face(at(ellipsoid(0.0016, 0.0016, 0.001, 4, 3), sx * 0.033 + 0.0028, headC.y + 0.0195, headC.z + 0.0985), '#ffffff');
+    face(at(ellipsoid(0.0165, 0.0055, 0.0108, 10, 5, 0, Math.PI / 2), sx * 0.033, headC.y + 0.0215, headC.z + 0.083), lidC);
+    face(at(roundedBox(0.031, 0.0028, 0.006, 0.0012, 1), sx * 0.033, headC.y + 0.0225, headC.z + 0.0915, -0.2), hair.clone().multiplyScalar(0.35));
+    face(at(roundedBox(0.026, 0.003, 0.006, 0.0012, 1), sx * 0.033, headC.y + 0.0058, headC.z + 0.088, 0.25), lidC.clone().multiplyScalar(0.96));
     face(at(roundedBox(0.04, 0.009, 0.012, 0.004, 1), sx * 0.035, headC.y + 0.04, headC.z + 0.088, 0, 0, sx * -0.1), hair.clone().multiplyScalar(0.8));
   }
-  // mouth
-  face(at(roundedBox(0.038, 0.009, 0.01, 0.004, 1), 0, headC.y - 0.058, headC.z + 0.088), lip);
+  // mouth: upper and lower lip with a dark line between, a philtrum and a chin dimple
+  face(at(roundedBox(0.036, 0.0075, 0.01, 0.0035, 1), 0, headC.y - 0.0545, headC.z + 0.089), lip.clone().multiplyScalar(0.92));
+  face(at(roundedBox(0.034, 0.0022, 0.006, 0.001, 1), 0, headC.y - 0.0588, headC.z + 0.0925), lip.clone().multiplyScalar(0.4));
+  face(at(roundedBox(0.032, 0.009, 0.011, 0.004, 1), 0, headC.y - 0.063, headC.z + 0.087), lip);
+  face(at(roundedBox(0.008, 0.012, 0.005, 0.002, 1), 0, headC.y - 0.045, headC.z + 0.095), skin.clone().multiplyScalar(0.93));
+  face(at(ellipsoid(0.012, 0.007, 0.005, 6, 4), 0, headC.y - 0.086, headC.z + 0.088), skin.clone().multiplyScalar(0.94));
 
   // ---- hair: style on top of a base cap that follows the skull
   const style: HairStyle = outfit.hairStyle ?? 'short';
