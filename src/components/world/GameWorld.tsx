@@ -5,7 +5,8 @@ import type { LngLat } from '../../types/game';
 import { lngLatToWorld, worldToLngLat, type WorldXZ } from '../../game/world/projection';
 import { loadWorldData, worldBounds, type Building, type WorldData } from '../../game/world/worldData';
 import { createTerrain } from '../../game/world/terrain';
-import { placeBlock, placePrisma } from '../../game/world/prisma';
+import { placeBlock, placeBlockAt, placePrisma } from '../../game/world/prisma';
+import { TRAIN_DODGE_CATCH, TRAIN_FARE, TRAIN_FINE, findSavioStation } from '../../game/world/savio';
 import { SITES } from '../../game/world/sites';
 import { BUS_FARE, FARE_DODGE_CATCH, inspectorDropStop, placeBusStops, type BusStop } from '../../game/world/transit';
 import { BUS_ARRIVE, BusStopModel, BusVehicle, type BusRun } from './Bus';
@@ -51,7 +52,8 @@ import { PrisonInterior } from './interiors/PrisonInterior';
 import { GymInterior, setDuration, type GymActive } from './interiors/GymInterior';
 import { PoolInterior, SWIM_TIME } from './interiors/PoolInterior';
 import { GymHud } from './gym/GymHud';
-import { BlockExterior, PrismaExterior, PrisonExterior } from './Landmarks';
+import { BlockExterior, PrismaExterior, PrisonExterior, SavioStationModel } from './Landmarks';
+import { AlepaInterior } from './interiors/AlepaInterior';
 import { Jonne } from './quest/Jonne';
 import { DialogueBox, type DialogueView } from './quest/DialogueBox';
 import { JailHud, PrisonGuards, newJailLive } from './quest/Jailbreak';
@@ -160,7 +162,11 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     buildings = gym.buildings;
     const pool = placeBlock(buildings, rawWorld.roads, SITES.pool.lngLat, SITES.pool.w, SITES.pool.d, SITES.pool.h, SITES.pool.kind);
     buildings = pool.buildings;
-    return { world: { ...rawWorld, buildings }, gym: gym.site, pool: pool.site };
+    const savio = findSavioStation(rawWorld);
+    const alepaAt: WorldXZ = [savio.centre[0] + savio.side[0] * 32 + savio.dir[0] * 6, savio.centre[1] + savio.side[1] * 32 + savio.dir[1] * 6];
+    const alepa = placeBlockAt(buildings.filter((b) => b.kind !== 'alepa'), rawWorld.roads, alepaAt, 24, 18, 5, 'alepa');
+    buildings = alepa.buildings;
+    return { world: { ...rawWorld, buildings }, gym: gym.site, pool: pool.site, alepa: alepa.site, savio };
   }, [rawWorld, layout, prisma]);
   const world = placed?.world ?? null;
   const terrain = useMemo(() => (world && layout ? createTerrain(world, layout) : null), [world, layout]);
@@ -210,6 +216,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     ];
     if (placed) {
       list.push({ id: 'gym', at: placed.gym.door, outward: placed.gym.outward, label: 'Kuntosali Rauta', to: { scene: 'gym', exit: 'main' } });
+      list.push({ id: 'alepa', at: placed.alepa.door, outward: placed.alepa.outward, label: 'Alepa', to: { scene: 'alepa', exit: 'main' } });
       list.push({ id: 'pool', at: placed.pool.door, outward: placed.pool.outward, label: 'Uimahalli', to: { scene: 'pool', exit: 'main' } });
     }
     return Object.fromEntries(list.map((d) => [d.id, d])) as Record<WorldDoorId, WorldDoor>;
@@ -228,10 +235,11 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
         { id: 'ahjo', name: 'Ahjo', near: [420, 60] },
         { id: 'talma', name: 'Talma', near: [1450, -860] },
         { id: 'vankila', name: 'Vankilan risteys', near: [PRISON_AT[0], PRISON_AT[1] + 45] },
+        ...(placed ? [{ id: 'savio', name: 'Savio', near: [placed.savio.wait[0] + placed.savio.side[0] * 40, placed.savio.wait[1] + placed.savio.side[1] * 40] as WorldXZ }] : []),
       ],
       world.roads,
     );
-  }, [world, doors, layout]);
+  }, [world, doors, layout, placed]);
 
   const jonneAt = useMemo(() => (layout ? toWorld(layout, JONNE_LOCAL) : null), [layout]);
   const jonneYaw = useMemo(() => (layout ? Math.atan2(-layout.dirZ[0], -layout.dirZ[1]) + 0.6 : 0), [layout]);
@@ -519,6 +527,50 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     }, (BUS_ARRIVE + 0.6) * 1000);
   };
 
+  // ------------------------------------------------------------ local train Kerava <-> Savio
+  type TrainStop = { id: 'kerava' | 'savio'; name: string; at: WorldXZ };
+  const trainStops = useMemo((): TrainStop[] => {
+    if (!layout || !placed) return [];
+    return [
+      { id: 'kerava', name: 'Kerava', at: toWorld(layout, [-24, 6]) },
+      { id: 'savio', name: 'Savio', at: placed.savio.wait },
+    ];
+  }, [layout, placed]);
+  const [atTrain, setAtTrain] = useState<TrainStop | null>(null);
+  const [trainRide, setTrainRide] = useState<string | null>(null);
+  const rideTrain = (from: TrainStop) => {
+    const to = trainStops.find((t) => t.id !== from.id);
+    if (!to) return;
+    if (!dodge && money < TRAIN_FARE) {
+      setToast(`Lippu maksaa ${TRAIN_FARE} €. Rahat ei riitä.`);
+      return;
+    }
+    setAtTrain(null);
+    setRoute([]);
+    setFading(true);
+    window.setTimeout(() => {
+      setTrainRide(`🚆 Lähijuna ${from.name} → ${to.name}`);
+      setPlayerVisible(false);
+    }, 300);
+    const caught = dodge && Math.random() < TRAIN_DODGE_CATCH;
+    window.setTimeout(() => {
+      setTrainRide(null);
+      setPlayerVisible(true);
+      teleport('world', to.at);
+      if (!dodge) dispatch({ type: 'adjustStats', money: -TRAIN_FARE });
+      if (caught) dispatch({ type: 'adjustStats', money: -TRAIN_FINE });
+      window.setTimeout(
+        () =>
+          setToast(
+            caught
+              ? `Lipuntarkastus! Tarkastusmaksu ${TRAIN_FINE} €. Tuttu tunne… voihan vittu.`
+              : `🚆 Perillä: ${to.name}${dodge ? ' · pummilla, kukaan ei kysellyt' : ` (−${TRAIN_FARE} €)`}`,
+          ),
+        600,
+      );
+    }, 3600);
+  };
+
   // ------------------------------------------------------------ clicks and arrival
   interface Spot {
     at: WorldXZ;
@@ -533,6 +585,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       }
       if (jonneAt) list.push({ at: jonneAt, use: talkToJonne });
       for (const b of busStops) list.push({ at: b.at, use: () => setAtBusStop(b) });
+      for (const t of trainStops) list.push({ at: t.at, use: () => setAtTrain(t) });
       return list;
     }
     const list: Spot[] = INTERIORS[scene].exits.map((e) => ({
@@ -543,11 +596,12 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     if (scene === 'pool') list.push({ at: POOL_SWIM_SPOT, use: () => setAtPool(true) });
     return list;
     // talkToJonne/escaped read the latest state through closures re-created each render
-  }, [scene, doors, jonneAt, goTo, jailStep, player, carrying, busStops]);
+  }, [scene, doors, jonneAt, goTo, jailStep, player, carrying, busStops, trainStops]);
 
   const onGroundClick = (raw: WorldXZ) => {
     if (cutscene || dialogue || fading || busy || riding) return;
     setAtBusStop(null);
+    setAtTrain(null);
     setAtStation(null);
     setAtPool(false);
     setCarrying(null);
@@ -586,8 +640,9 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       hold: (v: boolean) => (holdingRef.current = v),
       click: (x: number, z: number) => onGroundClick([x, z]),
       stops: busStops,
+      trains: trainStops,
       blocked: (x: number, z: number) => !!collider?.isBlocked([x, z]) || extraBlocked([x, z]),
-      ui: () => ({ atBusStop: atBusStop?.id, busRun: busRun?.mode, scene, cutscene }),
+      ui: () => ({ atTrain: atTrain?.id, spots: spots.length, atBusStop: atBusStop?.id, busRun: busRun?.mode, scene, cutscene }),
       local: (x: number, z: number) => (layout ? toWorld(layout, [x, z]) : null),
       ground: (x: number, z: number) => [terrain?.heightAt(x, z), terrain?.surfaceAt(x, z), positionRef.current.y],
     };
@@ -630,6 +685,12 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
             ))}
             {!cutscene &&
               busStops.map((b) => <Hotspot key={b.id} at={b.at} y={terrain!.surfaceAt(b.at[0], b.at[1])} label={`🚌 ${b.name}`} onClick={() => onGroundClick(b.at)} />)}
+            {placed && <SavioStationModel centre={placed.savio.centre} dir={placed.savio.dir} side={placed.savio.side} ground={terrain!.surfaceAt(placed.savio.wait[0], placed.savio.wait[1])} />}
+            {placed && <BlockExterior site={placed.alepa} ground={terrain!.surfaceAt(placed.alepa.door[0], placed.alepa.door[1])} sign="Alepa" color="#f28c28" />}
+            {!cutscene &&
+              trainStops.map((t) => (
+                <Hotspot key={t.id} at={t.at} y={layout ? stationGroundHeight(layout, t.at, terrain!.surfaceAt(t.at[0], t.at[1])) : 0} label="🚆 Lähijuna" onClick={() => onGroundClick(t.at)} />
+              ))}
             {busRun && <BusVehicle run={busRun} clockRef={clockRef} groundAt={(x, z) => terrain!.surfaceAt(x, z)} />}
             {placed && <BlockExterior site={placed.gym} ground={terrain!.surfaceAt(placed.gym.door[0], placed.gym.door[1])} sign="KUNTOSALI RAUTA" color="#c8312b" sub="AVOINNA 24/7" />}
             {placed && <BlockExterior site={placed.pool} ground={terrain!.surfaceAt(placed.pool.door[0], placed.pool.door[1])} sign="UIMAHALLI" color="#1f8fc0" sub="KERAVAN UIMAHALLI" />}
@@ -662,6 +723,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
             {scene === 'station' && <StationInterior />}
             {scene === 'prisma' && <PrismaInterior />}
             {scene === 'gym' && <GymInterior pairs={gymPairs} active={gymActive} outfit={outfit} clockRef={clockRef} />}
+            {scene === 'alepa' && <AlepaInterior />}
             {scene === 'pool' && <PoolInterior swimT0={swimT0} clockRef={clockRef} outfit={outfit} />}
             {scene === 'prison' && (
               <>
@@ -758,6 +820,31 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
           <label className="bus-hud__dodge">
             <input type="checkbox" checked={dodge} onChange={(e) => setDodge(e.target.checked)} /> Matkusta pummilla (ilmainen, mutta tarkastaja voi heittää ulos)
           </label>
+        </div>
+      )}
+      {!cutscene && inWorld && atTrain && !trainRide && (
+        <div className="gym-hud bus-hud">
+          <div className="gym-hud__title">🚆 {atTrain.name}: lähijunat</div>
+          <div className="gym-hud__label">Lippu {TRAIN_FARE} € · rahaa {money} €</div>
+          <div className="bus-hud__list">
+            {trainStops
+              .filter((t) => t.id !== atTrain.id)
+              .map((t) => (
+                <button key={t.id} type="button" className="bus-hud__dest" onClick={() => rideTrain(atTrain)}>
+                  {t.name} (n. 3 min)
+                </button>
+              ))}
+          </div>
+          <label className="bus-hud__dodge">
+            <input type="checkbox" checked={dodge} onChange={(e) => setDodge(e.target.checked)} /> Matkusta pummilla (tarkastusmaksu {TRAIN_FINE} €, jos jäät kiinni)
+          </label>
+        </div>
+      )}
+      {trainRide && (
+        <div className="train-ride">
+          <div className="train-ride__title">{trainRide}</div>
+          <div className="train-ride__bar"><span /></div>
+          <div className="muted">Seuraava asema…</div>
         </div>
       )}
       {dialogue && <DialogueBox view={dialogue} />}

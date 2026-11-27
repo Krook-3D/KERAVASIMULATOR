@@ -34,7 +34,7 @@ function Spheres({ items }: { items: { p: V3; r: number; c: string; sy?: number 
   );
 }
 
-function Shopper({ p, yaw, outfit, phone, sway = 0 }: { p: [number, number]; yaw: number; outfit: Outfit; phone?: boolean; sway?: number }) {
+export function Shopper({ p, yaw, outfit, phone, sway = 0 }: { p: [number, number]; yaw: number; outfit: Outfit; phone?: boolean; sway?: number }) {
   const bones = useRef<HumanBones | null>(null);
   useFrame(({ clock }) => {
     const b = bones.current;

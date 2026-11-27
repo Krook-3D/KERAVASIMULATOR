@@ -6,11 +6,11 @@ import type { WorldXZ } from '../world/projection';
  * the floor at y = 0. Exits link to a door in the world or to another
  * interior's exit.
  */
-export type InteriorId = 'tunnel' | 'station' | 'prisma' | 'prison' | 'gym' | 'pool';
+export type InteriorId = 'tunnel' | 'station' | 'prisma' | 'prison' | 'gym' | 'pool' | 'alepa';
 export type SceneId = 'world' | InteriorId;
 
 /** Doors placed in the 3D town (positions are worked out at runtime). */
-export type WorldDoorId = 'tunnel-town' | 'tunnel-east' | 'station-platform' | 'station-town' | 'prisma' | 'prison-yard' | 'gym' | 'pool';
+export type WorldDoorId = 'tunnel-town' | 'tunnel-east' | 'station-platform' | 'station-town' | 'prisma' | 'prison-yard' | 'gym' | 'pool' | 'alepa';
 
 export interface Rect {
   minX: number;
@@ -221,7 +221,24 @@ const pool: InteriorDef = {
   exits: [{ id: 'main', at: [-11, 11.4], spawn: [-11, 9.4], yaw: Math.PI, label: 'Ulos', to: { scene: 'world', door: 'pool' } }],
 };
 
-export const INTERIORS: Record<InteriorId, InteriorDef> = { tunnel, station, prisma, prison, gym, pool };
+// ------------------------------------------------------------ Alepa (Savio)
+export const ALEPA_HALL = R(-10, 10, -7, 7);
+export const ALEPA_SHELF_XS = [-5.5, -1.5, 2.5];
+const alepa: InteriorDef = {
+  id: 'alepa',
+  name: 'Alepa Savio',
+  floor: ALEPA_HALL,
+  solids: [
+    ...roomWalls(ALEPA_HALL, 0.4, [['s', -6.5, 2.4]]),
+    ...ALEPA_SHELF_XS.map((x) => R(x - 0.55, x + 0.55, -4.5, 2.5)),
+    R(-10, 10, -7, -6.1), // fridges
+    R(6.5, 10, -6, 1), // bread and veg corner
+    R(3.6, 7.6, 4.0, 5.1), // checkout counter
+  ],
+  exits: [{ id: 'main', at: [-6.5, 6.4], spawn: [-6.5, 4.6], yaw: Math.PI, label: 'Ulos', to: { scene: 'world', door: 'alepa' } }],
+};
+
+export const INTERIORS: Record<InteriorId, InteriorDef> = { tunnel, station, prisma, prison, gym, pool, alepa };
 
 export const inRect = (r: Rect, [x, z]: WorldXZ, pad = 0) => x >= r.minX - pad && x <= r.maxX + pad && z >= r.minZ - pad && z <= r.maxZ + pad;
 

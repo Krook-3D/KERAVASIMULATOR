@@ -67,7 +67,8 @@ export interface WorldData {
  * Default playable area: central Kerava plus a stretch towards Talma
  * (north-east) so the map reaches the first forests.
  */
-export const DEFAULT_BOUNDS: Bounds = { minX: -700, maxX: 2000, minZ: -1400, maxZ: 700 };
+/** Kerava centre, Talma to the north-east and Savio down the line to the south. */
+export const DEFAULT_BOUNDS: Bounds = { minX: -700, maxX: 2000, minZ: -1400, maxZ: 2900 };
 
 export function worldBounds(w: Pick<WorldData, 'bounds' | 'radius'>): Bounds {
   return w.bounds ?? { minX: -w.radius, maxX: w.radius, minZ: -w.radius, maxZ: w.radius };

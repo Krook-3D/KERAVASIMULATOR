@@ -10,6 +10,9 @@ import { pointInPolygon } from './collision';
  * the station at the origin, a street grid on both sides, Keravanjoki on the
  * west side, and fields, small houses and forests along the road to Talma.
  */
+/** Savio station along the main line (world z, metres south of Kerava station). */
+export const SAVIO_Z = 2450;
+
 export function createPlaceholderWorld(): WorldData {
   const radius = 500;
   const B = DEFAULT_BOUNDS;
@@ -24,7 +27,16 @@ export function createPlaceholderWorld(): WorldData {
     { kind: 'path', points: [[700, -260], [760, -520], [900, -760], [1150, -1000], [1500, -1150], [1720, -1180]] },
     { kind: 'path', points: [[1480, -860], [1640, -760], [1800, -520], [1900, -300]] },
     // Keravanjoki
-    { kind: 'river', points: [[-470, B.minZ], [-430, -1050], [-520, -760], [-455, -430], [-540, -120], [-480, 180], [-575, 480], [-540, B.maxZ]] },
+    { kind: 'river', points: [[-470, B.minZ], [-430, -1050], [-520, -760], [-455, -430], [-540, -120], [-480, 180], [-575, 480], [-540, 900], [-610, 1400], [-560, 1900], [-640, 2400], [-600, B.maxZ]] },
+    // Road south to Savio, and Savio's own streets
+    { kind: 'major', points: [[320, radius], [360, 900], [380, 1400], [330, 1900], [260, 2300], [240, B.maxZ]] },
+    { kind: 'major', points: [[-380, SAVIO_Z - 160], [520, SAVIO_Z - 160]] },
+    { kind: 'street', points: [[-380, SAVIO_Z + 40], [520, SAVIO_Z + 40]] },
+    { kind: 'street', points: [[-380, SAVIO_Z + 220], [520, SAVIO_Z + 220]] },
+    { kind: 'street', points: [[40, SAVIO_Z - 160], [40, SAVIO_Z + 220]] },
+    { kind: 'street', points: [[-200, SAVIO_Z - 160], [-200, SAVIO_Z + 220]] },
+    { kind: 'street', points: [[-200, SAVIO_Z - 160], [-160, 1700], [-260, 1200], [-200, radius]] },
+    { kind: 'path', points: [[12, SAVIO_Z - 20], [40, SAVIO_Z - 20]] },
     { kind: 'street', points: [[-radius, -500], [-200, -560], [0, -560]] },
     { kind: 'major', points: [[-radius, -180], [radius, -180]] },
     { kind: 'major', points: [[-radius, 220], [radius, 220]] },
@@ -79,6 +91,20 @@ export function createPlaceholderWorld(): WorldData {
     }
   }
 
+  // Savio: low-rise flats near the station, detached houses further out.
+  for (let bx = -370; bx < 510; bx += 30) {
+    for (const [z0, z1] of [[SAVIO_Z - 148, SAVIO_Z + 28], [SAVIO_Z + 52, SAVIO_Z + 208]] as const) {
+      for (let bz = z0; bz < z1 - 14; bz += 30) {
+        if (rand() < 0.4) continue;
+        if (Math.abs(bx - 40) < 16 || Math.abs(bx + 200) < 16) continue;
+        const near = Math.abs(bx) < 160 && Math.abs(bz - SAVIO_Z) < 120;
+        const w = near ? 16 + rand() * 12 : 9 + rand() * 5, d = near ? 12 + rand() * 8 : 8 + rand() * 4;
+        buildings.push({ footprint: rect(bx, bz, w, d), height: near ? 8 + rand() * 7 : 4 + rand() * 2.5, kind: near ? undefined : 'house' });
+      }
+    }
+  }
+  buildings.push({ footprint: rect(60, SAVIO_Z - 10, 26, 18), height: 5, kind: 'alepa' });
+
   const forests: Area[] = [
     { outline: [[620, -560], [860, -620], [1100, -820], [1010, -1000], [870, -1300], [640, -1180], [480, -900]] },
     { outline: [[1180, -900], [1420, -1020], [1660, -1160], [1600, -1400], [1100, -1400], [1020, -1200]] },
@@ -88,6 +114,11 @@ export function createPlaceholderWorld(): WorldData {
     { outline: [[-700, -1400], [-250, -1400], [-180, -1100], [-380, -900], [-700, -950]] },
     { outline: [[560, 380], [900, 330], [1050, 560], [900, 700], [560, 700]] },
     { outline: [[-700, 560], [-420, 520], [-330, 700], [-700, 700]] },
+    // between Kerava and Savio
+    { outline: [[-700, 760], [-60, 720], [-40, 1500], [-120, 2150], [-700, 2200]] },
+    { outline: [[30, 820], [300, 700], [330, 1300], [290, 2120], [40, 2160]] },
+    { outline: [[420, 720], [2000, 760], [2000, 2900], [560, 2900], [430, 1800]] },
+    { outline: [[-700, 2700], [-300, 2690], [-100, 2900], [-700, 2900]] },
   ];
 
   // Keep buildings off the tracks, the river and the Prisma block.
@@ -122,7 +153,10 @@ export function createPlaceholderWorld(): WorldData {
       { outline: rect(-60, -330, 50, 60) },
     ],
     forests,
-    landmarks: [{ name: 'Prisma Kerava', x: prismaCentre[0], z: prismaCentre[1] }],
+    landmarks: [
+      { name: 'Prisma Kerava', x: prismaCentre[0], z: prismaCentre[1] },
+      { name: 'Alepa Savio', x: 73, z: SAVIO_Z - 1 },
+    ],
   };
 }
 

@@ -608,3 +608,18 @@ html, body, #root {
 }
 .bus-hud__dest:hover { background: #24304a; border-color: #ffd23f; }
 .bus-hud__dodge { font-size: 0.82rem; display: flex; gap: 6px; align-items: center; }
+.train-ride {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 14px;
+  text-align: center;
+  z-index: 40;
+  color: #f4efe2;
+  background: radial-gradient(circle at 50% 40%, #1d2738, #090b10);
+}
+.train-ride__title { font-size: 1.6rem; font-weight: 900; color: var(--yellow, #ffd23f); }
+.train-ride__bar { width: min(360px, 80vw); height: 10px; border-radius: 6px; background: #ffffff22; overflow: hidden; }
+.train-ride__bar span { display: block; height: 100%; width: 100%; background: #ffd23f; transform-origin: left; animation: train-ride 3.2s linear forwards; }
+@keyframes train-ride { from { transform: scaleX(0); } to { transform: scaleX(1); } }

@@ -80,7 +80,8 @@ Vaiheet: ks. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#8-kehitysjärjestys).
 - [x] Kuntosali: penkki, kyykky, maastaveto, levyjen lastaus, voimarajat
 
 ## Seuraavaksi (jono)
-- [ ] Joukkoliikenne: bussipysäkit, määränpäävalikko, bussi hakee
+- [x] Joukkoliikenne: bussipysäkit, määränpäävalikko, bussi hakee
+- [x] Savio: asema, lähijuna Kerava ↔ Savio, Alepa
 - [ ] SHERWOOD-alkuvalikko, taustalla ilmakuva Keravasta
 - [ ] Hahmoeditori ja parturi
 - [ ] Kokkaus raaka-aineilla, Art-skilli graffiteilla

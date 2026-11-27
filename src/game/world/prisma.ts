@@ -96,7 +96,10 @@ export function findEntrance(fp: WorldXZ[], roads: WorldData['roads'], height: n
  * at a spot, clearing whatever stood there, and finds its entrance.
  */
 export function placeBlock(buildings: Building[], roads: WorldData['roads'], lngLat: [number, number], w: number, d: number, h: number, kind: string): { buildings: Building[]; site: PrismaSite } {
-  const c = lngLatToWorld(lngLat);
+  return placeBlockAt(buildings, roads, lngLatToWorld(lngLat), w, d, h, kind);
+}
+
+export function placeBlockAt(buildings: Building[], roads: WorldData['roads'], c: WorldXZ, w: number, d: number, h: number, kind: string): { buildings: Building[]; site: PrismaSite } {
   const fp = prismaRect(c, w, d);
   const clear = prismaRect(c, w + 14, d + 14);
   const kept = buildings.filter((b) => !b.footprint.some((q) => pointInPolygon(q, clear)) && !pointInPolygon(centroid(b.footprint), fp));

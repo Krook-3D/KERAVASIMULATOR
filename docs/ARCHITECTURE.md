@@ -316,7 +316,7 @@ Pomot antavat questeja, ja niiden välinen suhde muuttuu pelaajan valintojen muk
 | Alue | Katupomo | Kyttäpomo | Naapurustopomo | Teema |
 | --- | --- | --- | --- | --- |
 | Asema ja keskusta | "Laituri-Lasse", hallitsee tunnelia ja aseman kulmia | Ylikonstaapeli Kärkkäinen, pikkutarkka ja sääntöjen mies | Kioskin Raija, kuulee kaiken ensimmäisenä | Lähtöalue, opetusquestit, Jonne-ketju |
-| Savio (radan itäpuoli) | "Pomo-Pirkko", vanha konkari | Komisario Lindqvist, väsynyt mutta reilu | Taloyhtiön pj Heikkinen | Vanhat teollisuushallit, varastot, ensimmäiset ratsiat |
+| Savio (etelässä radan varrella, oma asema ja Alepa) | "Pomo-Pirkko", vanha konkari | Komisario Lindqvist, väsynyt mutta reilu | Taloyhtiön pj Heikkinen | Vanhat teollisuushallit, varastot, ensimmäiset ratsiat |
 | Kaleva ja joenvarsi | "Joki-Jape", kasvattajien välikäsi | Vanhempi konstaapeli Mäkelä, lahjottava? | Kalastusseuran Eino | Kalastus, joenvarren piilopaikat |
 | Talma (metsät ja pellot) | "Mehtäläinen", eristäytynyt kasvattaja | Maaseutupartio Hyvönen | Kyläyhdistyksen Marjatta | Maastokätköt, kasvattajien talot, metsäjahdit |
 | Ahjo ja Kaskela | "Kaskelan Kuningas", nuori ja kunnianhimoinen | Rikoskomisario Salo, iso kala | Omakotiyhdistyksen Pekka | Myöhäisen pelin alue, isot diilit |

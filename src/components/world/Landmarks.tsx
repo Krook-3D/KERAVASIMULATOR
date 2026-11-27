@@ -79,3 +79,32 @@ export function BlockExterior({ site, ground, sign, color, sub }: { site: Prisma
     </group>
   );
 }
+
+/** Savio halt: a long low platform with a shelter, benches and name signs. */
+export function SavioStationModel({ centre, dir, side, ground }: { centre: WorldXZ; dir: WorldXZ; side: WorldXZ; ground: number }) {
+  const yaw = Math.atan2(dir[0], dir[1]); // local +z along the track (north), +x … west or east
+  const sx = side[0] * Math.cos(yaw) - side[1] * Math.sin(yaw) >= 0 ? 1 : -1; // which local x is the platform side
+  return (
+    <group position={[centre[0], ground, centre[1]]} rotation-y={yaw}>
+      <Box p={[sx * 6.2, 0.06, 0]} s={[5, 0.12, 120]} color="#b9b4aa" rough={0.9} />
+      <Box p={[sx * 3.8, 0.13, 0]} s={[0.3, 0.02, 120]} color="#ffd23f" cast={false} />
+      {/* shelter */}
+      <Box p={[sx * 7.6, 1.3, 0]} s={[0.1, 2.4, 9]} color="#cfe6f2" opacity={0.45} cast={false} />
+      <Box p={[sx * 6.8, 2.6, 0]} s={[2.4, 0.14, 10]} color="#2b3038" />
+      {[-4.5, 4.5].map((z) => (
+        <Box key={z} p={[sx * 7.6, 1.3, z]} s={[0.1, 2.6, 0.1]} color="#2b3038" metal={0.6} />
+      ))}
+      {[-2, 2].map((z) => (
+        <Box key={z} p={[sx * 7.2, 0.5, z]} s={[0.45, 0.08, 1.8]} color="#8a5a32" />
+      ))}
+      {[-30, 30].map((z) => (
+        <group key={z} position={[sx * 6.2, 0, z]}>
+          <Box p={[0, 1.4, 0]} s={[0.1, 2.8, 0.1]} color="#8a8f96" metal={0.7} />
+          <TextPanel p={[0, 2.6, 0]} rotY={sx * Math.PI / 2} w={2.6} h={0.5} text="SAVIO" bg="#1f3f8f" />
+          <TextPanel p={[0, 2.6, 0]} rotY={-sx * Math.PI / 2} w={2.6} h={0.5} text="SAVIO" bg="#1f3f8f" />
+        </group>
+      ))}
+      <TextPanel p={[sx * 7.53, 1.9, 0]} rotY={-sx * Math.PI / 2} w={3.2} h={0.6} text="🚆 Lähijunat · Kerava ⬆" bg="#0d1118" fg="#ffb43c" />
+    </group>
+  );
+}
