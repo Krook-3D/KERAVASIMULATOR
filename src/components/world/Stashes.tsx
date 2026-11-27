@@ -90,6 +90,18 @@ function Glint() {
 
 const COP: Outfit = { top: '#1f2a44', legs: '#1b2233', shoes: '#111', hair: '#3a2a1e', hairStyle: 'buzz', hat: 'cap', hatColor: '#1f2a44', accent: '#c8d0e0', style: 'jacket' };
 const THUG: Outfit = { top: '#1f1f24', legs: '#2a2a2a', shoes: '#f2f2f2', hair: '#1a1410', hairStyle: 'buzz', facialHair: 'stubble', hat: 'beanie', hatColor: '#14171f', accent: '#c8312b', style: 'hoodie', build: 1.12 };
+/** A crew member running at you, in the crew's colour. */
+export const crewThug = (colour: string, i: number): Outfit => ({
+  ...THUG,
+  top: ['#1f1f24', '#2a2a2a', '#3c4a63', '#f2f2f2'][i % 4]!,
+  hat: i % 3 === 1 ? 'cap' : i % 3 === 2 ? 'none' : 'beanie',
+  hatColor: colour,
+  accent: colour,
+  hair: ['#1a1410', '#6b4a2b', '#d8b67a', '#2a2a2a'][i % 4]!,
+  hairStyle: i % 2 ? 'short' : 'buzz',
+  facialHair: i % 2 ? 'none' : 'stubble',
+  build: 1 + (i % 3) * 0.06,
+});
 const HIKER: Outfit = { top: '#f28c28', legs: '#3c4a63', shoes: '#5a3a22', hair: '#a8794a', hairStyle: 'ponytail', hat: 'cap', hatColor: '#2e9e5b', accent: '#ffd23f', style: 'jacket', backpack: true, glasses: true };
 
 function Runner({ from, offset, outfit, playerRef, t0, clockRef, groundAt }: {
@@ -132,15 +144,17 @@ function Runner({ from, offset, outfit, playerRef, t0, clockRef, groundAt }: {
 }
 
 /** The stash owners coming for you. */
-export function Pursuers({ owner, from, t0, playerRef, clockRef, groundAt }: {
-  owner: PlacedStash['owner'];
+export function Pursuers({ owner, outfits, from, t0, playerRef, clockRef, groundAt }: {
+  owner?: PlacedStash['owner'];
+  /** Explicit outfits (a crew coming at you); otherwise picked by `owner`. */
+  outfits?: Outfit[];
   from: WorldXZ;
   t0: number;
   playerRef: MutableRefObject<THREE.Vector3>;
   clockRef: MutableRefObject<number>;
   groundAt: (x: number, z: number) => number;
 }) {
-  const crew = useMemo(() => (owner === 'police' ? [COP, { ...COP, hairStyle: 'short' as const }] : owner === 'criminals' ? [THUG, { ...THUG, top: '#3c4a63', hat: 'cap' as const }] : [HIKER]), [owner]);
+  const crew = useMemo(() => outfits ?? (owner === 'police' ? [COP, { ...COP, hairStyle: 'short' as const }] : owner === 'criminals' ? [THUG, { ...THUG, top: '#3c4a63', hat: 'cap' as const }] : [HIKER]), [owner, outfits]);
   return (
     <group>
       {crew.map((o, i) => (

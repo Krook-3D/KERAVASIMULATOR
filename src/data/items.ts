@@ -94,6 +94,11 @@ const defs: Record<string, Def> = {
   palautin: { name: 'Peptidi P-17 "Palautin"', description: 'Kylmälaukussa säilytettävä ampulli. Fiktiivinen.', category: 'drug', value: 0, rarity: 'uncommon', stackable: true, harm: 1, icon: '🧪' },
   tuplaus: { name: 'GH-Tuplaus', description: 'Kallein kaikista. Pete kutsuu tätä "kultakaivokseksi". Fiktiivinen.', category: 'drug', value: 0, rarity: 'epic', stackable: true, harm: 3, icon: '⚗️' },
   leikkuri: { name: 'Leikkuri-T', description: 'Pete sanoo että tämä "tasoittaa". Fiktiivinen.', category: 'drug', value: 0, rarity: 'uncommon', stackable: true, harm: 1, icon: '💠' },
+  // ---- street goods (fictional, see game/street/streetDeals.ts)
+  jokivihrea: { name: 'Jokivarren Vihreä', description: 'Pieni minigrip-pussi, jossa jotain vihreää. Fiktiivinen katukama.', category: 'drug', value: 0, rarity: 'uncommon', stackable: true, harm: 3, icon: '🌿' },
+  asemanpolly: { name: 'Asemanpölly', description: 'Taiteltu paperinpala. Fiktiivinen katukama.', category: 'drug', value: 0, rarity: 'rare', stackable: true, harm: 4, icon: '🧂' },
+  lahijunasieni: { name: 'Lähijunasieni', description: 'Kuivattuja "sieniä" rasiassa. Fiktiivinen katukama.', category: 'drug', value: 0, rarity: 'rare', stackable: true, harm: 3, icon: '🍄' },
+  feikkipussi: { name: 'Feikkipussi', description: 'Oreganoa ja talkkia. Sinua huijattiin.', category: 'misc', value: 0, rarity: 'common', stackable: true, icon: '🫙' },
   oljy: { name: 'Moottoriöljy', description: 'Litra 5W-30.', category: 'material', value: 4, rarity: 'common', stackable: true, price: 12, icon: '🛢️' },
 };
 
@@ -106,7 +111,7 @@ export const RARITY_NAMES: Record<Rarity, string> = { common: 'Tavallinen', unco
 export const RARITY_COLORS: Record<Rarity, string> = { common: '#c8ccd2', uncommon: '#5ee07a', rare: '#3a9bff', epic: '#c084fc', legendary: '#ffb43c' };
 
 /** Items that can turn up lying around the map, weighted by rarity. */
-export const WORLD_LOOT = Object.values(ITEMS).filter((i) => i.category !== 'quest' && i.category !== 'food' && i.category !== 'drug' && !i.price && i.id !== 'oljy');
+export const WORLD_LOOT = Object.values(ITEMS).filter((i) => i.category !== 'quest' && i.category !== 'food' && i.category !== 'drug' && !i.price && i.id !== 'oljy' && i.id !== 'feikkipussi');
 export const RARITY_WEIGHT: Record<Rarity, number> = { common: 60, uncommon: 26, rare: 10, epic: 3.4, legendary: 0.6 };
 
 /** Paint colour of each spray can. */

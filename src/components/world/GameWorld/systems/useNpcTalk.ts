@@ -7,6 +7,7 @@ import type { STASH_DEFS } from '../../../../game/quests/stashes';
 import type { NpcLive } from '../../npc/Crowd';
 import { dist } from '../constants';
 import type { GameCtx } from '../gameWorld.types';
+import { useCrewStreet } from './useCrewStreet';
 
 type StashDef = (typeof STASH_DEFS)[number];
 
@@ -29,15 +30,18 @@ export function useNpcTalk(
   const { npcs, npcLive, blocked, walkTo, stash } = opts;
   const [talkingId, setTalkingId] = useState<string | null>(null);
   const pendingTalk = useRef<string | null>(null);
+  const street = useCrewStreet(ctx);
 
   useEffect(() => {
     if (!dialogue) setTalkingId(null);
   }, [dialogue]);
   const runTalk = (npc: Npc, tree: TalkTree, nodeId = 'start') => {
     const node = tree[nodeId] ?? tree.start;
-    say(speakerName(npc), node.text, node.options.map((o) => ({ text: o.text, onPick: () => pickTalk(npc, tree, o) })));
+    const opts = node.options.map((o) => ({ text: o.text, onPick: () => pickTalk(npc, tree, o) }));
+    say(speakerName(npc), node.text, nodeId === 'start' ? [...opts, ...street.crewOptions(npc)] : opts);
   };
   const pickTalk = (npc: Npc, tree: TalkTree, o: TalkOption) => {
+    if (o.provoke && street.registerProvoke(npc)) return;
     if (o.next) return runTalk(npc, tree, o.next);
     const hustle = levelFromXp(player?.skills.hustling?.xp ?? 0);
     const ok = o.hustle === undefined || hustle >= o.hustle;
@@ -71,7 +75,7 @@ export function useNpcTalk(
     runTalk(npc, talkTreeFor(npc));
   };
   const onNpcClick = (npc: Npc) => {
-    if (cutscene || dialogue || fading || blocked) return;
+    if (cutscene || dialogue || fading || blocked || street.gang) return;
     const at = npcLive.current.get(npc.id)?.p ?? npc.at;
     if (!at) return;
     const here: WorldXZ = [positionRef.current.x, positionRef.current.z];
@@ -92,5 +96,5 @@ export function useNpcTalk(
     }
   };
 
-  return { talkingId, pendingTalk, onNpcClick, arrived };
+  return { talkingId, pendingTalk, onNpcClick, arrived, gang: street.gang };
 }

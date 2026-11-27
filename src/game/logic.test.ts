@@ -8,6 +8,8 @@ import { artXp, spotQuality, witnessReaction } from './art/graffiti';
 import { buffMultipliers, strainEffect } from './gym/roina';
 import type { Player } from '../types/game';
 import { moveDir } from '../components/world/controls';
+import { CHECK_LEVEL, dealPrice, resolveDeal, scamChance } from './street/streetDeals';
+import { ATTACK_MAX, ATTACK_MIN, freshMood, provoke } from './street/provoke';
 
 const fresh = (): GameState => ({ player: createPlayer('Testi') });
 const run = (s: GameState, ...actions: Parameters<typeof gameReducer>[1][]) => actions.reduce(gameReducer, s);
@@ -220,5 +222,43 @@ describe('keyboard steering', () => {
     expect(dir(0)).toEqual([0, 0]);
     const [x, z] = moveDir({ yaw: 0, keys: new Set(['w', 'd']) });
     expect(Math.hypot(x, z)).toBeCloseTo(1);
+  });
+});
+
+describe('crew provocations', () => {
+  it('attacks on a random 3rd to 5th provocation, then starts over', () => {
+    for (const roll of [0, 0.4, 0.99]) {
+      let mood = freshMood(roll);
+      expect(mood.attackAt).toBeGreaterThanOrEqual(ATTACK_MIN);
+      expect(mood.attackAt).toBeLessThanOrEqual(ATTACK_MAX);
+      let n = 0, attack = false;
+      while (!attack) {
+        const r = provoke(mood, roll, 0.5);
+        mood = r.mood;
+        attack = r.attack;
+        n++;
+      }
+      expect(n).toBe(freshMood(roll).attackAt);
+      expect(mood.count).toBe(0);
+    }
+  });
+});
+
+describe('street deals', () => {
+  it('scams beginners far more often than experienced hustlers', () => {
+    expect(scamChance(1)).toBeGreaterThan(0.4);
+    expect(scamChance(10)).toBeLessThan(0.15);
+    expect(scamChance(30)).toBeGreaterThanOrEqual(0.04);
+  });
+  it('checking the goods with enough Hustlaus spots the scam', () => {
+    expect(resolveDeal(1, false, 0.01, 0.1)).toBe('fake');
+    expect(resolveDeal(1, false, 0.01, 0.9)).toBe('ripoff');
+    expect(resolveDeal(1, true, 0.01, 0.1)).toBe('fake');
+    expect(resolveDeal(CHECK_LEVEL, true, 0.01, 0.1)).toBe('spotted');
+    expect(resolveDeal(1, false, 0.99, 0.1)).toBe('ok');
+  });
+  it('haggles at most 25 % off', () => {
+    expect(dealPrice(20, 1)).toBe(20);
+    expect(dealPrice(20, 99)).toBe(15);
   });
 });

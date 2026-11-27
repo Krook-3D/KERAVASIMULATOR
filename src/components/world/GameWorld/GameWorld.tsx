@@ -211,7 +211,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
 
   // ------------------------------------------------------------ clicks and arrival
   /** Clicks, keys and steering are ignored while true (cutscene, dialogue, training, riding, painting, chase). */
-  const inputLocked = cutscene || !!dialogue || fading || training.busy || transit.riding || !!graffiti.painting || !!stash.chase;
+  const inputLocked = cutscene || !!dialogue || fading || training.busy || transit.riding || !!graffiti.painting || !!stash.chase || !!talk.gang;
   /** Close all open panels when the player walks off. */
   const closePanels = () => {
     transit.setAtBusStop(null);
@@ -338,6 +338,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
               w={w}
               jailStep={jailStep}
               chase={stash.chase}
+              gang={talk.gang}
               cutscene={cutscene}
               playerRef={positionRef}
               clockRef={clockRef}

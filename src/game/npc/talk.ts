@@ -40,6 +40,8 @@ export interface TalkOption {
   hustle?: number;
   failReply?: string;
   failEffect?: TalkEffect;
+  /** Provokes the NPC's crew (counts toward the crew attacking you). */
+  provoke?: boolean;
 }
 
 export interface TalkNode {
@@ -56,7 +58,7 @@ const crewTrees = (crewName: string, area: string): TalkTree[] => [
       options: [
         { text: 'Chillaa bro, mä vaan kävelen ohi.', next: 'chill' },
         { text: 'Mä etin hommia. Tiedätteks jotain?', next: 'work' },
-        { text: 'Teidän mesta? Ei täällä oo kenenkään mestoja.', next: 'tough' },
+        { text: 'Teidän mesta? Ei täällä oo kenenkään mestoja.', next: 'tough', provoke: true },
       ],
     },
     chill: {
@@ -84,7 +86,7 @@ const crewTrees = (crewName: string, area: string): TalkTree[] => [
       text: 'Mitä sä sanoit? Toista se.',
       options: [
         { text: 'Sori, huono vitsi.', reply: 'Niin olikin. Häivy.', effect: { hustlingXp: 2 } },
-        { text: 'Kuulit kyllä.', reply: '*Tönäisee sinut maahan* Ei tänne tulla aukomaan.', effect: { health: -8, toast: '🤕 Sait tönäisyn. −8 HP' } },
+        { text: 'Kuulit kyllä.', provoke: true, reply: '*Tönäisee sinut maahan* Ei tänne tulla aukomaan.', effect: { health: -8, toast: '🤕 Sait tönäisyn. −8 HP' } },
         { text: '[Hustlaus 8] Rauhottukaa. Mä en oo kenenkään puolella.', hustle: 8, reply: 'Hmm. Sulla on munaa. Okei, mee.', effect: { hustlingXp: 30 }, failReply: '*Nauraa* Joo varmaan. Mee ny vaan.', failEffect: { hustlingXp: 5 } },
       ],
     },
@@ -95,7 +97,7 @@ const crewTrees = (crewName: string, area: string): TalkTree[] => [
       options: [
         { text: 'Ei kiitos, mä en käytä.', reply: 'Okei, okei. Ei paineita, bro.', effect: { karma: 1 } },
         { text: 'Mitä se on?', next: 'what' },
-        { text: 'Mä voin soittaa poliisit.', next: 'snitch' },
+        { text: 'Mä voin soittaa poliisit.', next: 'snitch', provoke: true },
       ],
     },
     what: {
