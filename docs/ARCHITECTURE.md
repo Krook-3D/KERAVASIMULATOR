@@ -70,6 +70,7 @@ src/
   App.tsx               pääruudun asettelu
   components/           UI-komponentit (HUD, paneelit, napit)
     world/              3D-scene: maailma, pelaaja, kamera
+      GameWorld/        pelinäkymän orkestroija, systems/-hookit, hud/
   pages/                kokonaiset näkymät (GamePage, CharacterCreatePage)
   game/
     player/             pelaajan luonti, health/energy
@@ -360,7 +361,7 @@ Ratsiat nostavat heatia, ja katupomo voi kostaa (questi alkaa).
 
 ## 14. Pelijärjestelmät (toteutettu marraskuu 2026)
 
-Kaikki pelaajan tila on reducerissa (`src/game/store/gameReducer.ts`) ja tallentuu localStorageen (`kerava-sim:save`). Satunnaisuus ja ajastimet ovat `GameWorld.tsx`:ssä, puhtaat säännöt `src/game/*`-moduuleissa.
+Kaikki pelaajan tila on reducerissa (`src/game/store/gameReducer.ts`) ja tallentuu localStorageen (`kerava-sim:save`). Satunnaisuus ja ajastimet ovat `src/components/world/GameWorld/systems/`-hookeissa, puhtaat säännöt `src/game/*`-moduuleissa.
 
 | Järjestelmä | Säännöt | Näkymä |
 | --- | --- | --- |
@@ -376,5 +377,21 @@ Kaikki pelaajan tila on reducerissa (`src/game/store/gameReducer.ts`) ja tallent
 | Salin roina | `src/game/gym/roina.ts`: fiktiiviset parodiatuotteet, pelilliset vaikutukset (XP-kertoimet, energia), rasitus laskee 3 / min ja korkealla syö terveyttä | buff-palkki HUDissa |
 
 Grafiikka: vesi ja vaahto shaderina (`materials.ts`), lumpeet ja kaislat (`WaterDetails`), ruoho ja kukat pelaajan lähellä (`GroundDetail`), puut korkeusvarjostuksella ja tuulessa huojuen (`Trees`), linnut (`Birds`), kasvojen yksityiskohdat (`humanoid/buildHumanoid.ts`), jälkikäsittely (`Effects`).
+
+### GameWorld-kansio (refaktoroitu marraskuu 2026)
+
+`GameWorld.tsx` oli 1 557 riviä; nyt se on noin 380-rivinen orkestroija kansiossa `src/components/world/GameWorld/`. Logiikkaa ei muutettu, vain siirretty.
+
+| Tiedosto | Vastuu |
+| --- | --- |
+| `GameWorld.tsx` | jaettu tila (reitti, scene, dialogi, fade, toast), `GameCtx`-olion kokoaminen, hookien kutsujärjestys, Canvas + HUD |
+| `gameWorld.types.ts`, `constants.ts` | `GameCtx`, `WorldDoor`, `Spot`, `TrainStop`; vakiot (vankila, hotspot-säteet, kyltit) |
+| `useWorldSetup.ts` | kartta: maailman lataus, maasto ja törmäys, ovet, loot, NPC:t, pysäkit, kätköt, seinät |
+| `systems/use*.ts` | pelijärjestelmät hookeina: kauppa ja putka, graffiti, kätköt, kokkaus, sali ja uimahalli, bussi ja juna, vankilapako, roina, parturi, poliisipartio, NPC-puhe, klikkaukset ja hotspotit |
+| `GameMap.tsx`, `NPCLayer.tsx`, `WorldObjects.tsx`, `QuestLayer.tsx`, `InteriorScene.tsx`, `Player.tsx` | pelkkä 3D-renderöinti propsien perusteella |
+| `GameHUD.tsx`, `hud/*` | 2D-overlayt (intro, liikenne, sali/uima/parturi, kauppa, art, buffit) |
+| `useDebugHook.ts` | `window.__kerava` (`?debug=1`) |
+
+Jokainen järjestelmähook saa `GameCtx`-olion (player, dispatch, scene, teleport, say…) ja palauttaa tilansa ja toimintonsa. Moninpelissä nämä toiminnot ovat luonteva paikka vaihtaa paikallinen `dispatch` palvelimelle lähetettäviksi intenteiksi.
 
 Moninpeli: palvelin on omassa haarassaan (PR #2, `server/` ja `shared/`), suunnitelma ja tila tiedostossa `docs/MULTIPLAYER.md`.
