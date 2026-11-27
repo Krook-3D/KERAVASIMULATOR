@@ -100,10 +100,12 @@ export function MainMenu({ onPlay }: { onPlay: () => void }) {
               <>
                 <h2>Ohjaimet</h2>
                 <ul className="menu__list">
-                  <li><b>Klikkaa maata</b>: kävele</li>
-                  <li><b>Klikkaa ovea, pysäkkiä tai ihmistä</b>: käytä tai puhu</li>
-                  <li><b>Raahaa hiirellä / nuolinäppäimet</b>: käännä kameraa</li>
-                  <li><b>Rulla</b>: zoomaa</li>
+                  <li><b>Klikkaa peliä</b>: hiiri lukittuu ruudun keskelle</li>
+                  <li><b>Nuolinäppäimet / WASD</b>: liiku</li>
+                  <li><b>Hiiri</b>: käännä kameraa hahmon takana</li>
+                  <li><b>Tähtää ja klikkaa</b>: kävele, käytä ovea tai puhu ihmiselle</li>
+                  <li><b>E</b>: käytä lähintä kohdetta</li>
+                  <li><b>Rulla</b>: zoomaa · <b>Esc</b>: vapauta hiiri</li>
                   <li><b>Välilyönti</b>: viilaa (vankilassa)</li>
                 </ul>
               </>

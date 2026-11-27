@@ -7,6 +7,7 @@ import { burnChance, canCook, RECIPES, resolveCook } from './cooking/recipes';
 import { artXp, spotQuality, witnessReaction } from './art/graffiti';
 import { buffMultipliers, strainEffect } from './gym/roina';
 import type { Player } from '../types/game';
+import { moveDir } from '../components/world/controls';
 
 const fresh = (): GameState => ({ player: createPlayer('Testi') });
 const run = (s: GameState, ...actions: Parameters<typeof gameReducer>[1][]) => actions.reduce(gameReducer, s);
@@ -201,5 +202,23 @@ describe('gym roina (fictional)', () => {
     const s = run(fresh(), { type: 'addItem', itemId: 'massamix', quantity: 2 }, { type: 'addItem', itemId: 'pulla' }, { type: 'confiscateDrugs' });
     expect(qty(s.player, 'massamix')).toBe(0);
     expect(qty(s.player, 'pulla')).toBe(1);
+  });
+});
+
+describe('keyboard steering', () => {
+  const dir = (yaw: number, ...keys: string[]) => moveDir({ yaw, keys: new Set(keys) }).map((v) => +v.toFixed(3) + 0);
+  it('moves away from the camera and sideways relative to it', () => {
+    // camera south of the player (yaw 0) looks north (−z)
+    expect(dir(0, 'arrowup')).toEqual([0, -1]);
+    expect(dir(0, 's')).toEqual([0, 1]);
+    expect(dir(0, 'arrowleft')).toEqual([-1, 0]);
+    expect(dir(0, 'd')).toEqual([1, 0]);
+    // camera east of the player looks west
+    expect(dir(Math.PI / 2, 'w')).toEqual([-1, 0]);
+  });
+  it('is still when no key is held and normalised on diagonals', () => {
+    expect(dir(0)).toEqual([0, 0]);
+    const [x, z] = moveDir({ yaw: 0, keys: new Set(['w', 'd']) });
+    expect(Math.hypot(x, z)).toBeCloseTo(1);
   });
 });

@@ -413,7 +413,7 @@ export function buildHumanoid(outfit: Outfit): { mesh: THREE.SkinnedMesh; bones:
       limbWeights(fo, up, ha, 0.06),
     );
     // hand: palm faces the thigh (thin along x), thumb toward the front
-    const hand = at(roundedBox(0.038, 0.1, 0.086, 0.017), wr.x + sx * 0.002, wr.y - 0.062, wr.z + 0.004);
+    const hand = at(roundedBox(0.046, 0.12, 0.1, 0.02), wr.x + sx * 0.002, wr.y - 0.062, wr.z + 0.004);
     add(hand, solid(skin), limbWeights(ha, fo, null, 0.04));
     const fingers = at(roundedBox(0.033, 0.08, 0.08, 0.015), wr.x + sx * 0.008, wr.y - 0.135, wr.z + 0.006, 0, 0, sx * 0.12);
     add(fingers, solid(skin), only(ha));
@@ -462,7 +462,7 @@ export function buildHumanoid(outfit: Outfit): { mesh: THREE.SkinnedMesh; bones:
   // Head parts are modelled around headC and then scaled up a little (HS)
   // and moved to headPos, so the head reads well from the game camera.
   const headC = new THREE.Vector3(0, 1.69, 0.008);
-  const HS = 1.1;
+  const HS = 1.18;
   const headPos = new THREE.Vector3(0, 1.668, 0.008);
   const headStart = parts.length + 1; // index after the neck
   add(

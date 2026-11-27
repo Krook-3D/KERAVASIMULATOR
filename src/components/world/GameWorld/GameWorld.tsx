@@ -33,6 +33,7 @@ import { usePolicePatrol } from './systems/usePolicePatrol';
 import { useNpcTalk } from './systems/useNpcTalk';
 import { useBarber } from './systems/useBarber';
 import { useInteraction } from './systems/useInteraction';
+import { createControls } from '../controls';
 import { GameMap } from './GameMap';
 import { WorldObjects } from './WorldObjects';
 import { NPCLayer } from './NPCLayer';
@@ -209,6 +210,20 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
   }, [scene, shop.basket]);
 
   // ------------------------------------------------------------ clicks and arrival
+  /** Clicks, keys and steering are ignored while true (cutscene, dialogue, training, riding, painting, chase). */
+  const inputLocked = cutscene || !!dialogue || fading || training.busy || transit.riding || !!graffiti.painting || !!stash.chase;
+  /** Close all open panels when the player walks off. */
+  const closePanels = () => {
+    transit.setAtBusStop(null);
+    transit.setAtTrain(null);
+    barber.setBarberDraft(null);
+    training.setAtStation(null);
+    training.setAtPool(false);
+    training.setCarrying(null);
+    shop.setAtShelf(null);
+    shop.setPicked(null);
+    shop.setAtTill(false);
+  };
   const interaction = useInteraction(
     ctx,
     w,
@@ -234,18 +249,8 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       talkAtPoliceDesk: () => shop.talkAtPoliceDesk(stash.policeDeskOptions),
     },
     {
-      locked: cutscene || !!dialogue || fading || training.busy || transit.riding || !!graffiti.painting || !!stash.chase,
-      closePanels: () => {
-        transit.setAtBusStop(null);
-        transit.setAtTrain(null);
-        barber.setBarberDraft(null);
-        training.setAtStation(null);
-        training.setAtPool(false);
-        training.setCarrying(null);
-        shop.setAtShelf(null);
-        shop.setPicked(null);
-        shop.setAtTill(false);
-      },
+      locked: inputLocked,
+      closePanels,
       route,
       onMove,
       onArrived: talk.arrived,
@@ -253,6 +258,44 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
   );
   const { onGroundClick } = interaction;
   groundClickRef.current = onGroundClick;
+
+  // ------------------------------------------------------------ keyboard + mouse-look controls
+  const controlRef = useRef(createControls());
+  const [pointerLocked, setPointerLocked] = useState(false);
+  const [nearSpot, setNearSpot] = useState(false);
+  const useNearestRef = useRef(interaction.useNearest);
+  useNearestRef.current = interaction.useNearest;
+  const nearestRef = useRef(interaction.nearest);
+  nearestRef.current = interaction.nearest;
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key.toLowerCase() === 'e') useNearestRef.current();
+    };
+    window.addEventListener('keydown', key);
+    const id = window.setInterval(() => setNearSpot(!!nearestRef.current()), 300);
+    return () => {
+      window.removeEventListener('keydown', key);
+      window.clearInterval(id);
+    };
+  }, []);
+  // Give the mouse back whenever a menu, panel or dialogue needs it.
+  useEffect(() => {
+    const UI = '.dialogue, .gym-hud, .shop-hud, .shelf-pop, .cook-list, .bus-hud, .panel, .graffiti, .ctx-menu';
+    const check = () => {
+      if (document.pointerLockElement && document.querySelector(UI)) document.exitPointerLock();
+    };
+    const obs = new MutationObserver(check);
+    obs.observe(document.body, { childList: true, subtree: true });
+    return () => obs.disconnect();
+  }, []);
+  const onSteerStart = useCallback(() => {
+    setRoute([]);
+    closePanels();
+  }, [closePanels]);
+  const onSteerEnd = (p: WorldXZ) => {
+    if (scene === 'world') onMove(worldToLngLat(p));
+  };
 
   // ------------------------------------------------------------ player
   const interiorCollider = useMemo(() => {
@@ -356,8 +399,15 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
           markerY={inWorld ? positionRef.current.y : 0}
           held={{ handL: player?.equipment.handL, handR: player?.equipment.handR }}
           onArrive={interaction.onArrive}
+          controlRef={controlRef}
+          canSteer={!inputLocked}
+          onSteerStart={onSteerStart}
+          onSteerEnd={onSteerEnd}
+          onLockChange={setPointerLocked}
         />
       </Canvas>
+      {pointerLocked && !cutscene && <div className="crosshair" aria-hidden />}
+      {!cutscene && nearSpot && !inputLocked && <div className="use-prompt"><kbd>E</kbd> Käytä</div>}
 
       <GameHUD
         world={w.world}

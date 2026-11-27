@@ -58,7 +58,7 @@ export function GamePage({ player, onMenu }: { player: Player; onMenu?: () => vo
           <PanelContent id={panel} player={player} />
         </Panel>
       ) : (
-        <div className="hint">Klikkaa maata kävelläksesi · raahaa tai nuolet kääntävät kameraa</div>
+        <div className="hint">Klikkaa peliä lukitaksesi hiiren · nuolet tai WASD liikkuu · hiiri kääntää · E käyttää · Esc vapauttaa hiiren</div>
       )}
       {player.introDone && <BottomNav active={panel} onSelect={setPanel} />}
     </div>

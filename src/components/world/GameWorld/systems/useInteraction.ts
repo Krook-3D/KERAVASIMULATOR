@@ -132,5 +132,25 @@ export function useInteraction(
     opts.onArrived(p);
   };
 
-  return { spots, onGroundClick, onArrive, lootTaken };
+  /** Closest hotspot within reach of the player (for the E key), or null. */
+  const nearest = (): Spot | null => {
+    const here: WorldXZ = [positionRef.current.x, positionRef.current.z];
+    let best: Spot | null = null, bd = HOTSPOT_SNAP;
+    for (const sp of spots) {
+      const d = dist(sp.at, here);
+      if (d < bd) { best = sp; bd = d; }
+    }
+    return best;
+  };
+  /** E key: walk the last step to the nearest hotspot and use it. */
+  const useNearest = () => {
+    if (opts.locked) return false;
+    const sp = nearest();
+    if (!sp) return false;
+    opts.closePanels();
+    setRoute([sp.at]);
+    return true;
+  };
+
+  return { spots, onGroundClick, onArrive, lootTaken, nearest, useNearest };
 }

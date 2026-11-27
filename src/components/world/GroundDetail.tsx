@@ -114,7 +114,7 @@ export function GroundDetail({ data, terrain, blocked, playerRef }: {
         q.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, tufts[o + 3]!);
         m.compose(p.set(tufts[o]!, tufts[o + 1]!, tufts[o + 2]!), q, s.setScalar(tufts[o + 4]!));
         g.setMatrixAt(i, m);
-        g.setColorAt(i, c.setHSL(0.24 + (tufts[o + 3]! % 0.06), 0.45, 0.28 + (tufts[o + 4]! - 0.7) * 0.12));
+        g.setColorAt(i, c.setHSL(0.25 + (tufts[o + 3]! % 0.06), 0.58, 0.28 + (tufts[o + 4]! - 0.7) * 0.12));
       }
       g.count = count;
       g.instanceMatrix.needsUpdate = true;

@@ -28,8 +28,8 @@ function Sun({ followRef, shadowMapSize }: { followRef: MutableRefObject<THREE.V
   return (
     <directionalLight
       ref={light}
-      color="#fff1d9"
-      intensity={2.6}
+      color="#ffe6bf"
+      intensity={2.9}
       castShadow
       shadow-mapSize={[shadowMapSize, shadowMapSize]}
       shadow-camera-left={-80}
@@ -49,11 +49,11 @@ export function Atmosphere({ followRef, high, indoor = false, aerial = false }: 
     <>
       {indoor ? <color attach="background" args={['#101215']} /> : <SkyDome />}
       {/* Image-based lighting rendered from the same sky: soft fill and reflections. */}
-      <Environment resolution={64} frames={1} environmentIntensity={0.4}>
+      <Environment resolution={64} frames={1} environmentIntensity={0.55}>
         <SkyDome />
       </Environment>
       {indoor ? <fog attach="fog" args={['#101215', 60, 160]} /> : <fog attach="fog" args={[FOG_COLOR, aerial ? 500 : 160, aerial ? 2600 : 620]} />}
-      <hemisphereLight args={indoor ? ['#fff6e8', '#5a5650', 1.1] : ['#dfeeff', '#4d5f3a', 0.45]} />
+      <hemisphereLight args={indoor ? ['#fff6e8', '#5a5650', 1.1] : ['#d6ecff', '#5d7a3a', 0.75]} />
       <Sun followRef={followRef} shadowMapSize={high ? 4096 : 1024} />
     </>
   );

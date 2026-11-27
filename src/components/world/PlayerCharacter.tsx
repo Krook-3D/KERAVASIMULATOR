@@ -4,13 +4,15 @@ import * as THREE from 'three';
 import type { WorldXZ } from '../../game/world/projection';
 import { ARRIVE_EPSILON, WALK_SPEED } from '../../game/world/movement';
 
-/** Longest single move between collision checks, in metres (thinnest wall + padding is 0.84 m). */
-const MAX_SUBSTEP = 0.2;
 import { Humanoid, type HumanBones, type Outfit } from './humanoid/Humanoid';
 import { poseFlail, poseLocomotion, resetPose } from './humanoid/animate';
 import { defaultAppearance, type Appearance } from '../../game/player/appearance';
 import { ITEMS } from '../../data/items';
 import { buildItemModel, disposeItemModel } from './items/itemModels';
+import { moveDir, type ControlState } from './controls';
+
+/** Longest single move between collision checks, in metres (thinnest wall + padding is 0.84 m). */
+const MAX_SUBSTEP = 0.2;
 
 /** Scripted control used by cutscenes: when active, normal movement is paused. */
 export interface ScriptedPose {
@@ -37,17 +39,26 @@ interface PlayerCharacterProps {
   scriptRef: MutableRefObject<ScriptedPose>;
   /** Item ids held in the left / right hand (a 2-handed item sits in both). */
   held?: { handL?: string; handR?: string };
+  /** Arrow keys / WASD steer the player relative to the camera. */
+  controlRef?: MutableRefObject<ControlState>;
+  /** Keyboard steering is allowed (no dialogue, cutscene, training…). */
+  canSteer?: boolean;
+  /** Keyboard steering started: drop any click-to-walk route. */
+  onSteerStart?: () => void;
+  /** Keyboard steering ended at this point. */
+  onSteerEnd?: (point: WorldXZ) => void;
 }
 
 
 /** The player: skinned humanoid with click-to-move, wall sliding and procedural run/idle animation. */
-export function PlayerCharacter({ color, appearance, positionRef, target, collider, onArrive, groundHeight, extraBlocked, visible, scriptRef, held }: PlayerCharacterProps) {
+export function PlayerCharacter({ color, appearance, positionRef, target, collider, onArrive, groundHeight, extraBlocked, visible, scriptRef, held, controlRef, canSteer, onSteerStart, onSteerEnd }: PlayerCharacterProps) {
   const root = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
   const bones = useRef<HumanBones | null>(null);
   const run = useRef(0);
   const walkPhase = useRef(0);
   const arrivedFor = useRef<WorldXZ | null>(null);
+  const steering = useRef(false);
 
   useFrame((_, dt) => {
     const g = root.current;
@@ -70,7 +81,33 @@ export function PlayerCharacter({ color, appearance, positionRef, target, collid
     }
     if (body.current) body.current.rotation.x = 0;
 
-    if (target && arrivedFor.current !== target) {
+    const blocked = (x: number, z: number) => !!collider?.isBlocked([x, z]) || !!extraBlocked?.([x, z], [pos.x, pos.z]);
+    const [kx, kz] = canSteer && controlRef ? moveDir(controlRef.current) : [0, 0];
+    if (kx || kz) {
+      if (!steering.current) {
+        steering.current = true;
+        onSteerStart?.();
+      }
+      const step = WALK_SPEED * dt;
+      const subs = Math.max(1, Math.ceil(step / MAX_SUBSTEP));
+      const sx = (kx * step) / subs, sz = (kz * step) / subs;
+      for (let i = 0; i < subs; i++) {
+        if (!blocked(pos.x + sx, pos.z + sz)) {
+          pos.x += sx;
+          pos.z += sz;
+        } else if (!blocked(pos.x + sx, pos.z)) pos.x += sx;
+        else if (!blocked(pos.x, pos.z + sz)) pos.z += sz;
+        else break;
+      }
+      const wantYaw = Math.atan2(kx, kz);
+      let diff = wantYaw - g.rotation.y;
+      diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+      g.rotation.y += diff * Math.min(1, dt * 14);
+      moving = true;
+    } else if (steering.current) {
+      steering.current = false;
+      onSteerEnd?.([pos.x, pos.z]);
+    } else if (target && arrivedFor.current !== target) {
       const dx = target[0] - pos.x;
       const dz = target[1] - pos.z;
       const dist = Math.hypot(dx, dz);
@@ -79,7 +116,6 @@ export function PlayerCharacter({ color, appearance, positionRef, target, collid
         onArrive(target);
       } else {
         const step = Math.min(dist, WALK_SPEED * dt);
-        const blocked = (x: number, z: number) => !!collider?.isBlocked([x, z]) || !!extraBlocked?.([x, z], [pos.x, pos.z]);
         // Move in short sub-steps so a slow frame (long dt) can't carry the
         // player through a thin wall, such as the holding cell dividers.
         const subs = Math.max(1, Math.ceil(step / MAX_SUBSTEP));

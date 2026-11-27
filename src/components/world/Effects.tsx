@@ -12,7 +12,7 @@ export function Effects() {
       <N8AO aoRadius={3} distanceFalloff={1.2} intensity={2.2} quality="medium" halfRes />
       <Bloom mipmapBlur luminanceThreshold={0.9} luminanceSmoothing={0.25} intensity={0.42} />
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-      <HueSaturation saturation={0.12} />
+      <HueSaturation saturation={0.22} />
       <BrightnessContrast brightness={0.01} contrast={0.06} />
       <Vignette offset={0.25} darkness={0.42} />
       <SMAA />

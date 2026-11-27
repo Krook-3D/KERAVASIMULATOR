@@ -7,6 +7,7 @@ import { PlayerCharacter, type ScriptedPose } from '../PlayerCharacter';
 import { KarmaAura } from '../KarmaAura';
 import { ClickMarker } from '../ClickMarker';
 import { CameraRig } from '../CameraRig';
+import type { ControlState } from '../controls';
 
 /** Places the camera once the station is known: a view from the platform towards the train. */
 export function PlaceCamera({ offset, follow }: { offset: THREE.Vector3; follow: MutableRefObject<THREE.Vector3> }) {
@@ -34,6 +35,11 @@ export function Player(props: {
   markerY: number;
   held: { handL?: string; handR?: string };
   onArrive: (p: WorldXZ) => void;
+  controlRef: MutableRefObject<ControlState>;
+  canSteer: boolean;
+  onSteerStart: () => void;
+  onSteerEnd: (p: WorldXZ) => void;
+  onLockChange: (locked: boolean) => void;
 }) {
   const { route, positionRef } = props;
   const target = route[0] ?? null;
@@ -51,10 +57,14 @@ export function Player(props: {
         scriptRef={props.scriptRef}
         onArrive={props.onArrive}
         held={{ handL: props.held.handL, handR: props.held.handR }}
+        controlRef={props.controlRef}
+        canSteer={props.canSteer}
+        onSteerStart={props.onSteerStart}
+        onSteerEnd={props.onSteerEnd}
       />
       <KarmaAura karma={props.karma} followRef={positionRef} visible={props.auraVisible} />
       {target && <ClickMarker point={route[route.length - 1] ?? target} y={props.markerY} />}
-      <CameraRig followRef={positionRef} />
+      <CameraRig followRef={positionRef} controlRef={props.controlRef} onLockChange={props.onLockChange} />
     </>
   );
 }
