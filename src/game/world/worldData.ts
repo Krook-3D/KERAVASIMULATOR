@@ -15,6 +15,8 @@ export interface Building {
 export interface Road {
   points: WorldXZ[];
   kind: RoadKind;
+  /** OSM bridge / tunnel tag: this way goes over or under what it crosses. */
+  level?: 'bridge' | 'tunnel';
 }
 
 export interface Area {

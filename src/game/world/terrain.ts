@@ -2,6 +2,8 @@ import { pointInPolygon } from './collision';
 import { landformHeight, landformsFor } from './landforms';
 import type { WorldXZ } from './projection';
 import { toLocal, type StationLayout } from './station';
+import { findSavioStation } from './savio';
+import { crossingLift, crossingReach, findCrossings, underBridge, type Crossing } from './crossings';
 import { ROAD_WIDTH, worldBounds, type Area, type Bounds, type ElevationGrid, type Road, type WorldData } from './worldData';
 
 /**
@@ -23,6 +25,10 @@ export class Terrain {
   readonly h: Float32Array;
   /** Ground before carving water: roads use it so they bridge over rivers. */
   readonly surface: Float32Array;
+  /** Ground for the rails: no road ramps or underpass cuts, so rails cross over underpasses. */
+  readonly rail: Float32Array;
+  /** Road–rail crossings (bridges, underpasses, roads ending at the station yard). */
+  crossings: Crossing[] = [];
 
   constructor(
     readonly minX: number,
@@ -35,9 +41,11 @@ export class Terrain {
     /** Water surface height per world.water entry. */
     readonly waterLevels: number[],
     readonly bounds: Bounds,
+    rail?: Float32Array,
   ) {
     this.h = h;
     this.surface = surface;
+    this.rail = rail ?? surface;
   }
 
   get maxX() {
@@ -64,9 +72,32 @@ export class Terrain {
     return this.sample(this.h, x, z);
   }
 
-  /** Height for road surfaces (ignores river carving, so roads bridge water). */
+  /**
+   * Height for road surfaces and walking (ignores river carving, so roads
+   * bridge water). Bridge ramps and underpasses are worked out exactly from
+   * the crossing, not from the coarse grid, so roads stay flat across.
+   */
   surfaceAt(x: number, z: number): number {
-    return this.sample(this.surface, x, z);
+    if (!this.crossings.length) return this.sample(this.surface, x, z);
+    let v = this.sample(this.rail, x, z);
+    let hit = false;
+    for (const c of this.crossings) {
+      if (c.kind === 'end') continue;
+      const r = c.span + c.ramp + crossingReach(c);
+      if (Math.abs(x - c.at[0]) > r || Math.abs(z - c.at[1]) > r) continue;
+      const l = crossingLift(c, [x, z]);
+      if (l === 0) continue;
+      const w = l / c.lift;
+      const t = v + (c.base + c.lift - v) * w;
+      v = c.kind === 'over' ? Math.max(v, t) : Math.min(v, t);
+      hit = true;
+    }
+    return hit ? v : this.sample(this.surface, x, z);
+  }
+
+  /** Height for rails (no road ramps or underpass cuts). */
+  railAt(x: number, z: number): number {
+    return this.sample(this.rail, x, z);
   }
 }
 
@@ -255,7 +286,53 @@ export function createTerrain(world: WorldData, layout: StationLayout | null): T
       }
   }
 
-  const surface = h.slice();
+  // Road–rail crossings: ramps up to bridges and down into underpasses. The
+  // rails keep their own height, so they cross over the underpass cut; under a
+  // road bridge the ground stays at rail level and the road deck spans it.
+  const rail = h.slice();
+  const yardPad = 30;
+  // Savio platform: about 120 m along the track either way from its centre
+  const savio = findSavioStation(world);
+  const nearSavio = (p: WorldXZ) => {
+    const v: WorldXZ = [p[0] - savio.centre[0], p[1] - savio.centre[1]];
+    return Math.abs(v[0] * savio.dir[0] + v[1] * savio.dir[1]) < 90 && Math.abs(v[0] * savio.side[0] + v[1] * savio.side[1]) < 40;
+  };
+  const crossings = findCrossings(world, {
+    inYard: (p) => {
+      if (nearSavio(p)) return true;
+      if (!layout) return false;
+      const [lx, lz] = toLocal(layout, p);
+      return lx > STATION_FLAT.minX - yardPad && lx < STATION_FLAT.maxX + yardPad && lz > STATION_FLAT.minZ - yardPad && lz < STATION_FLAT.maxZ + yardPad;
+    },
+  });
+  const walk = h.slice();
+  for (const c of crossings) {
+    if (c.kind === 'end') continue;
+    const reach = crossingReach(c);
+    const a: WorldXZ = [c.at[0] - c.dir[0] * (c.span + c.ramp), c.at[1] - c.dir[1] * (c.span + c.ramp)];
+    const e: WorldXZ = [c.at[0] + c.dir[0] * (c.span + c.ramp), c.at[1] + c.dir[1] * (c.span + c.ramp)];
+    // the deck/road level follows the ground at the tracks
+    const base = sampleHeights(rail, g, c.at[0], c.at[1]);
+    c.base = base;
+    forNodesNearSegment(g, a, e, reach, (k) => {
+      const p: WorldXZ = [minX + (k % cols) * step, minZ + Math.floor(k / cols) * step];
+      const l = crossingLift(c, p, true);
+      if (l === 0) return;
+      // ramp from the local ground towards base + lift
+      const target = base + c.lift;
+      const w = l / c.lift;
+      const v = rail[k]! + (target - rail[k]!) * w;
+      if (c.kind === 'over') {
+        walk[k] = Math.max(walk[k]!, v);
+        if (!underBridge(c, p)) h[k] = Math.max(h[k]!, v);
+      } else {
+        walk[k] = Math.min(walk[k]!, v);
+        h[k] = Math.min(h[k]!, v);
+      }
+    });
+  }
+
+  const surface = walk;
 
   // Rivers: a channel ~1.8 m deep with sloping banks.
   for (const road of world.roads) {
@@ -281,7 +358,9 @@ export function createTerrain(world: WorldData, layout: StationLayout | null): T
     return level;
   });
 
-  return new Terrain(minX, minZ, step, cols, rows, h, surface, waterLevels, b);
+  const t = new Terrain(minX, minZ, step, cols, rows, h, surface, waterLevels, b, rail);
+  t.crossings = crossings;
+  return t;
 }
 
 function sampleHeights(arr: Float32Array, g: Grid, x: number, z: number): number {

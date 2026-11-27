@@ -5,6 +5,7 @@ import { loadWorldData, worldBounds, type Building, type WorldData } from '../..
 import { createTerrain } from '../../../game/world/terrain';
 import { placeTrees, RoadIndex } from '../../../game/world/vegetation';
 import { placePlots, type Plot } from '../../../game/world/plots';
+import { liftProfile } from '../../../game/world/crossings';
 import { lngLatToWorld } from '../../../game/world/projection';
 import { placeStreetProps } from '../../../game/world/streetProps';
 import { PropCollider } from '../../../game/world/propCollider';
@@ -234,8 +235,19 @@ export function useWorldSetup(scene: SceneId) {
       c.boxIn(ox, oz, yaw, 0, 0.45, 1.2, 0.2);
       c.boxIn(ox, oz, yaw, -2.3, -0.6, 0.06, 0.06);
     }
+    // bridge parapets and ramp / underpass retaining walls (see buildCrossingGeometry)
+    for (const cr of terrain?.crossings ?? []) {
+      if (cr.kind === 'end') continue;
+      const yaw = Math.atan2(cr.dir[0], cr.dir[1]);
+      const edge = cr.halfWidth + 0.25;
+      for (let s = -(cr.span + cr.ramp); s < cr.span + cr.ramp; s += 5) {
+        const sm = s + 2.5;
+        if (Math.abs(cr.lift * liftProfile(cr, sm)) < 1) continue;
+        for (const side of [-1, 1]) c.boxIn(cr.at[0], cr.at[1], yaw, side * edge, sm, 0.2, 2.6);
+      }
+    }
     return c;
-  }, [streetProps, trees, busStops]);
+  }, [streetProps, trees, busStops, terrain]);
   propColRef.current = propCollider;
 
   return {

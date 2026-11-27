@@ -42,6 +42,7 @@ export function useDebugHook(d: {
   transit: ReturnType<typeof useTransit>;
   stash: ReturnType<typeof useStashes>;
   openContextAt: (p: WorldXZ, x: number, y: number) => void;
+  controlRef: MutableRefObject<{ yaw: number; pitch: number; dist: number }>;
 }) {
   useEffect(() => {
     if (!new URLSearchParams(window.location.search).has('debug')) return;
@@ -52,6 +53,8 @@ export function useDebugHook(d: {
       teleport: d.teleport,
       talkToJonne: d.talkToJonne,
       setRoute: d.setRoute,
+      /** Camera looking along (dx, dz) from behind the player. */
+      cam: (dx: number, dz: number, pitch = 0.36, dist = 5.6) => Object.assign(d.controlRef.current, { yaw: Math.atan2(-dx, -dz), pitch, dist }),
       pos: () => [positionRef.current.x, positionRef.current.z],
       ctx: (x: number, z: number) => d.openContextAt([x, z], 400, 300),
       lamps: () => w.streetProps.lamps.slice(0, 400).map((l) => [l.x, l.z]),
@@ -68,6 +71,7 @@ export function useDebugHook(d: {
       cookSpots: () => w.cookSpots,
       give: (id: string, n = 1) => d.dispatch({ type: 'addItem', itemId: id, quantity: n }),
       eat: (id: string) => d.dispatch({ type: 'eatItem', itemId: id }),
+      crossings: () => (w.terrain?.crossings ?? []).map((c) => ({ kind: c.kind, at: c.at.map(Math.round), dir: c.dir, road: c.road, span: Math.round(c.span) })),
       plots: () => w.plots.map((p) => ({ id: p.id, at: p.at, sign: p.sign, size: p.size, price: p.price, zone: p.zone, d: Math.round(Math.hypot(p.at[0], p.at[1])) })),
       stats: (money = 0, energy = 0) => d.dispatch({ type: 'adjustStats', money, energy }),
       xp: (skill: string, n: number) => d.dispatch({ type: 'grantReward', reward: { skillXp: { [skill]: n } } }),

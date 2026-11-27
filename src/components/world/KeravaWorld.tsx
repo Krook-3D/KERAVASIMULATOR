@@ -5,7 +5,7 @@ import type { WorldData } from '../../game/world/worldData';
 import type { WorldXZ } from '../../game/world/projection';
 import type { BuildingCollider } from '../../game/world/collision';
 import type { Tree } from '../../game/world/vegetation';
-import { buildAreaGeometry, buildBuildingsGeometry, buildRoadLayers, buildTerrainGeometry } from '../../game/world/geometry';
+import { buildAreaGeometry, buildBuildingsGeometry, buildCrossingGeometry, buildRoadLayers, buildTerrainGeometry } from '../../game/world/geometry';
 import type { Terrain } from '../../game/world/terrain';
 import { paintGroundMap } from './groundMap';
 import { createBuildingMaterial, createGrainMaterial, createGroundMaterial, createWaterMaterial, type XrayUniforms } from './materials';
@@ -55,6 +55,7 @@ export function KeravaWorld({ data, terrain, onGroundClick, playerRef, xray, tre
       marking: offset(new THREE.MeshStandardMaterial({ color: '#f2efe6', roughness: 0.6 }), -3),
       sleeper: new THREE.MeshStandardMaterial({ color: '#4a3527', roughness: 0.9 }),
       rail: new THREE.MeshStandardMaterial({ color: '#b9bcc2', roughness: 0.3, metalness: 0.9 }),
+      concrete: createGrainMaterial('#b3b0a8', 0.12),
     }),
     [xray, groundMap],
   );
@@ -65,6 +66,7 @@ export function KeravaWorld({ data, terrain, onGroundClick, playerRef, xray, tre
       buildings: buildBuildingsGeometry(data.buildings, terrain),
       roads: buildRoadLayers(data.roads, terrain),
       water: buildAreaGeometry(data.water, terrain.waterLevels),
+      crossings: buildCrossingGeometry(terrain),
     }),
     [data, terrain],
   );
@@ -75,6 +77,7 @@ export function KeravaWorld({ data, terrain, onGroundClick, playerRef, xray, tre
       geos.terrain.dispose();
       geos.buildings?.dispose();
       geos.water?.dispose();
+      geos.crossings?.dispose();
       Object.values(geos.roads).forEach((g) => g?.dispose());
     },
     [geos],
@@ -126,6 +129,7 @@ export function KeravaWorld({ data, terrain, onGroundClick, playerRef, xray, tre
       {flat(r.ballast, materials.ballast)}
       {flat(r.sleepers, materials.sleeper)}
       {flat(r.rails, materials.rail)}
+      {geos.crossings && <mesh geometry={geos.crossings} material={materials.concrete} castShadow receiveShadow />}
       {geos.buildings && <mesh geometry={geos.buildings} material={materials.building} castShadow receiveShadow />}
       <WaterDetails data={data} terrain={terrain} />
       <Trees trees={trees} playerRef={playerRef} />

@@ -384,7 +384,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
   useDebugHook({
     w, scene, cutscene, dispatch, positionRef, jailLive, holdingRef, npcLive, goTo, teleport, setRoute,
     talkToJonne: jailbreak.talkToJonne, onGroundClick, onNpcClick: talk.onNpcClick, spots: interaction.spots, lootTaken: interaction.lootTaken,
-    shop, graffiti, transit, stash, openContextAt,
+    shop, graffiti, transit, stash, openContextAt, controlRef,
   });
 
   const speaker = line?.speaker === 'inspector' ? INSPECTOR_NAME : line?.speaker === 'player' ? playerName : null;

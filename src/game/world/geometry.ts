@@ -4,6 +4,7 @@ import type { WorldXZ } from './projection';
 import { hash2 } from './random';
 import { ROAD_WIDTH, type Area, type Building, type Road, type RoadKind } from './worldData';
 import { densify, type Terrain } from './terrain';
+import { inEndGap, WIDE_FADE, WIDE_FULL } from './crossings';
 
 /**
  * Builds merged meshes from world data. Everything of one kind becomes a
@@ -174,7 +175,9 @@ function addRibbon(out: Ribbons, points: WorldXZ[], half: number, y: number, off
     const px = -uz, pz = ux;
     const ox = px * offset, oz = pz * offset;
     const nx = px * half, nz = pz * half;
-    const ex = ux * half * extend, ez = uz * half * extend;
+    // same overlap for every ribbon width, so layered ribbons (sidewalk under asphalt) follow the ground alike on slopes
+    const ext = Math.min(half * extend, 2.6);
+    const ex = ux * ext, ez = uz * ext;
     const base = out.positions.length / 3;
     out.positions.push(
       ax - ex + ox + nx, y, az - ez + oz + nz,
@@ -240,9 +243,27 @@ export function buildRoadLayers(roads: Road[], terrain: Terrain | null = null): 
   const rails = newRibbons(), river = newRibbons();
   const half = (k: RoadKind) => ROAD_WIDTH[k] / 2;
 
+  const ends = terrain?.crossings.filter((c) => c.kind === 'end') ?? [];
   for (const raw of roads) {
     // Short segments so the ribbons follow the ground.
     const r = terrain ? { ...raw, points: densify(raw.points, 5) } : raw;
+    // roads stop short of the tracks at the station yard: draw each remaining piece
+    if (ends.length && r.kind !== 'rail' && r.kind !== 'river') {
+      const pieces: WorldXZ[][] = [[]];
+      for (const p of r.points) {
+        if (ends.some((c) => inEndGap(c, p))) {
+          if (pieces[pieces.length - 1]!.length) pieces.push([]);
+        } else pieces[pieces.length - 1]!.push(p);
+      }
+      const kept = pieces.filter((q) => q.length >= 2);
+      if (kept.length !== 1 || kept[0]!.length !== r.points.length) {
+        for (const q of kept) addRoad({ ...r, points: q });
+        continue;
+      }
+    }
+    addRoad(r);
+  }
+  function addRoad(r: Road) {
     switch (r.kind) {
       case 'major':
       case 'street':
@@ -266,14 +287,15 @@ export function buildRoadLayers(roads: Road[], terrain: Terrain | null = null): 
     }
   }
   const d: Drape = terrain ? (x, z) => terrain.surfaceAt(x, z) : null;
+  const dr: Drape = terrain ? (x, z) => terrain.railAt(x, z) : null;
   return {
     sidewalk: toGeometry(sidewalk, d),
     asphalt: toGeometry(asphalt, d),
     markings: toGeometry(markings, d),
     path: toGeometry(path, d),
-    ballast: toGeometry(ballast, d),
-    sleepers: toGeometry(sleepers, d),
-    rails: toGeometry(rails, d),
+    ballast: toGeometry(ballast, dr),
+    sleepers: toGeometry(sleepers, dr),
+    rails: toGeometry(rails, dr),
     river: toGeometry(river, d),
   };
 }
@@ -338,4 +360,84 @@ export function buildTerrainGeometry(t: Terrain): THREE.BufferGeometry {
   geo.setIndex(new THREE.BufferAttribute(idx, 1));
   geo.computeBoundingSphere();
   return geo;
+}
+
+// ---------------------------------------------------------------- road–rail crossings
+
+/**
+ * Concrete for the road–rail crossings: bridge decks, parapets and abutments,
+ * the rail bridge over each underpass, and retaining walls along the ramps.
+ */
+export function buildCrossingGeometry(terrain: Terrain): THREE.BufferGeometry | null {
+  const parts: THREE.BufferGeometry[] = [];
+  /** Box of size (w across, h, l along) centred at (x, y, z), turned so its length runs along dir. */
+  const box = (x: number, y: number, z: number, w: number, h: number, l: number, dir: WorldXZ) => {
+    if (h <= 0.05 || l <= 0.05) return;
+    const g = new THREE.BoxGeometry(w, h, l);
+    g.rotateY(Math.atan2(dir[0], dir[1]));
+    g.translate(x, y, z);
+    parts.push(g.index ? g.toNonIndexed() : g);
+  };
+  const STEP = 5;
+  for (const c of terrain.crossings) {
+    if (c.kind === 'end') continue;
+    const [ux, uz] = c.dir;
+    const px = -uz, pz = ux;
+    const at = (s: number, d: number): WorldXZ => [c.at[0] + ux * s + px * d, c.at[1] + uz * s + pz * d];
+    const edge = c.halfWidth + 0.25;
+    if (c.kind === 'over') {
+      const deckTop = terrain.surfaceAt(c.at[0], c.at[1]);
+      const len = c.span * 2 + 2;
+      box(c.at[0], deckTop - 0.6, c.at[1], c.halfWidth * 2 + 0.8, 1.1, len, c.dir);
+      for (const side of [-1, 1]) {
+        const [x, z] = at(0, side * edge);
+        box(x, deckTop + 0.55, z, 0.35, 1.1, len, c.dir);
+      }
+      // abutments at both ends, down to the ground under the bridge
+      for (const end of [-1, 1]) {
+        const [x, z] = at(end * (c.span + 0.5), 0);
+        const ground = terrain.railAt(x, z) - 0.5;
+        const top = terrain.surfaceAt(x, z) - 0.1;
+        box(x, (ground + top) / 2, z, c.halfWidth * 2 + 1.6, top - ground, 1.4, c.dir);
+      }
+    } else {
+      // the rail bridge over the underpass
+      const sin = Math.max(0.35, Math.abs(c.dir[0] * c.railDir[1] - c.dir[1] * c.railDir[0]));
+      const top = terrain.railAt(c.at[0], c.at[1]) - 0.04;
+      const across = (c.halfWidth * 2 + 3) / sin;
+      box(c.at[0], top - 0.55, c.at[1], c.span * 2 * sin, 1.1, across, c.railDir);
+      // parapets along both sides of the rail bridge
+      const rpx = -c.railDir[1], rpz = c.railDir[0];
+      for (const side of [-1, 1]) {
+        const off = c.span * sin - 0.2;
+        box(c.at[0] + rpx * off * side, top + 0.5, c.at[1] + rpz * off * side, 0.3, 1.0, across, c.railDir);
+      }
+    }
+    // retaining walls along the ramps (and the cut), where the road is well off the old ground
+    for (let s = -(c.span + c.ramp); s < c.span + c.ramp; s += STEP) {
+      if (c.kind === 'over' && Math.abs(s + STEP / 2) < c.span) continue;
+      const sm = s + STEP / 2;
+      for (const side of [-1, 1]) {
+        const [x, z] = at(sm, side * edge);
+        const road = terrain.surfaceAt(x, z);
+        const old = terrain.railAt(x, z);
+        if (Math.abs(road - old) < 0.4) continue;
+        if (c.kind === 'over') {
+          box(x, (Math.min(road, old) - 0.4 + road + 1.0) / 2, z, 0.35, road + 1.4 - Math.min(road, old), STEP + 0.05, c.dir);
+        } else {
+          // a solid wall block from the road edge out over the carved ground (the coarse grid carves wider than the road)
+          const T = WIDE_FULL + WIDE_FADE;
+          const [bx, bz] = at(sm, side * (edge + T / 2 - 0.2));
+          const under = Math.abs(sm) < c.span + 1;
+          const hi = under ? old - 0.45 : Math.max(old, terrain.railAt(bx, bz)) + 0.35;
+          const lo = road - 0.4;
+          box(bx, (lo + hi) / 2, bz, T, hi - lo, STEP + 0.05, c.dir);
+        }
+      }
+    }
+  }
+  if (!parts.length) return null;
+  const merged = mergeGeometries(parts);
+  parts.forEach((p) => p.dispose());
+  return merged;
 }

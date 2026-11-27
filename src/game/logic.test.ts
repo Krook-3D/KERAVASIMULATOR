@@ -16,6 +16,7 @@ import { DRILLS, drillXp } from './gym/drills';
 import { CHECK_LEVEL, dealPrice, resolveDeal, scamChance } from './street/streetDeals';
 import { BUILD_STAGES, placePlots, plotPrice, plotResale, plotSize, pricePerM2 } from './world/plots';
 import { escapeChance } from './street/escape';
+import { crossingLift, findCrossings } from './world/crossings';
 import { ATTACK_MAX, ATTACK_MIN, freshMood, provoke } from './street/provoke';
 
 const fresh = (): GameState => ({ player: createPlayer('Testi') });
@@ -410,5 +411,29 @@ describe('space-mash escapes', () => {
   it('skill helps a bit, harder pursuers hurt', () => {
     expect(escapeChance(20, 3, 10)).toBeGreaterThan(escapeChance(20, 3, 0));
     expect(escapeChance(20, 3, 0, 1.5)).toBeLessThan(escapeChance(20, 3, 0, 0.7));
+  });
+});
+
+describe('road–rail crossings', () => {
+  const rail = { kind: 'rail' as const, points: [[0, -500], [0, 500]] as [number, number][] };
+  it('main roads go over, streets go under, roads stop at the station yard', () => {
+    const cs = findCrossings(
+      { roads: [rail, { kind: 'major', points: [[-200, -300], [200, -300]] }, { kind: 'street', points: [[-200, 300], [200, 300]] }, { kind: 'street', points: [[-200, 0], [200, 0]] }] },
+      { inYard: ([, z]) => Math.abs(z) < 100 },
+    );
+    expect(cs.map((c) => c.kind)).toEqual(['over', 'under', 'end']);
+    expect(crossingLift(cs[0]!, [0, -300])).toBeGreaterThan(6);
+    expect(crossingLift(cs[1]!, [0, 300])).toBeLessThan(-4);
+    // the ramp eases out and nothing changes far from the crossing
+    expect(Math.abs(crossingLift(cs[0]!, [-60, -300]))).toBeLessThan(crossingLift(cs[0]!, [-20, -300]));
+    expect(crossingLift(cs[0]!, [-180, -300])).toBe(0);
+    expect(crossingLift(cs[0]!, [0, -250])).toBe(0);
+  });
+  it('OSM tags win, and parallel tracks make one crossing', () => {
+    const rail2 = { kind: 'rail' as const, points: [[12, -500], [12, 500]] as [number, number][] };
+    const cs = findCrossings({ roads: [rail, rail2, { kind: 'major', level: 'tunnel', points: [[-200, 200], [200, 200]] }] });
+    expect(cs.length).toBe(1);
+    expect(cs[0]!.kind).toBe('under');
+    expect(cs[0]!.span).toBeGreaterThan(9);
   });
 });

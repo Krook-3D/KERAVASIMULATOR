@@ -101,6 +101,14 @@ const ROAD_KINDS = {
   pedestrian: 'path', footway: 'path', cycleway: 'path', path: 'path', steps: 'path',
 };
 
+/** Bridges and tunnels, so the game takes roads over or under the railway like in reality. */
+const levelOf = (tags) => {
+  const yes = (v) => v && v !== 'no';
+  if (yes(tags.bridge) || parseInt(tags.layer, 10) > 0) return { level: 'bridge' };
+  if (yes(tags.tunnel) || tags.covered === 'yes' || parseInt(tags.layer, 10) < 0) return { level: 'tunnel' };
+  return {};
+};
+
 const inside = ([x, z]) => x >= BOUNDS.minX - 50 && x <= BOUNDS.maxX + 50 && z >= BOUNDS.minZ - 50 && z <= BOUNDS.maxZ + 50;
 
 const data = await overpass();
@@ -144,9 +152,9 @@ for (const el of data.elements) {
     if (tags.building) {
       if (pts.length >= 4) world.buildings.push({ footprint: pts.slice(0, -1), height: buildingHeight(tags), kind: tags.building });
     } else if (tags.highway && ROAD_KINDS[tags.highway]) {
-      world.roads.push({ points: pts, kind: ROAD_KINDS[tags.highway] });
+      world.roads.push({ points: pts, kind: ROAD_KINDS[tags.highway], ...levelOf(tags) });
     } else if (tags.railway === 'rail') {
-      world.roads.push({ points: pts, kind: 'rail' });
+      world.roads.push({ points: pts, kind: 'rail', ...levelOf(tags) });
     } else if (tags.waterway) {
       world.roads.push({ points: pts, kind: 'river' });
     } else if (tags.natural === 'water') {
