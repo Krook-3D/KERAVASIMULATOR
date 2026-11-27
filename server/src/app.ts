@@ -13,6 +13,8 @@ import { World } from './presence/world';
 import { TradeManager } from './trade/manager';
 import { Gateway } from './ws/gateway';
 import { TokenBucket } from './ws/rateLimit';
+import { MarketError, MarketService } from './market/service';
+import { MARKET } from '../../shared/economy';
 
 export interface App {
   http: FastifyInstance;
@@ -21,6 +23,7 @@ export interface App {
   trades: TradeManager;
   auth: AuthService;
   characters: CharacterService;
+  market: MarketService;
   close(): Promise<void>;
 }
 
@@ -33,6 +36,9 @@ declare module 'fastify' {
 const registerBody = z.object({ email: z.string().max(254), password: z.string().max(200), adult: z.boolean() });
 const loginBody = z.object({ email: z.string().max(254), password: z.string().max(200) });
 const characterBody = z.object({ name: z.string().max(40), color: z.string().max(7) });
+const itemId = z.string().min(1).max(64);
+const orderBody = z.object({ itemId, side: z.enum(['buy', 'sell']), price: z.number().int().positive(), quantity: z.number().int().positive() });
+const npcBody = z.object({ itemId, quantity: z.number().int().positive() });
 
 /** Simple per-key limiter for REST endpoints (single process). */
 function keyedLimiter(rate: number, burst: number) {
@@ -59,6 +65,24 @@ export async function buildApp(config: Config, db: Db): Promise<App> {
   const trades = new TradeManager({ db, world, canTrade: (id) => gateway.canTrade(id) });
   gateway = new Gateway({ auth, characters, world, trades, allowedOrigins: config.allowedOrigins, maxPlayers: config.maxPlayers, maxQueue: config.maxQueue, log: (m, e) => http.log.error({ err: e }, m) });
 
+  /** At the Pörssi counter: in the world scene, within reach of the pavilion, per the server's own position. */
+  const atMarket = (id: string) => {
+    const p = world.players.get(id);
+    return !!p && (p.scene ?? 'world') === 'world' && Math.hypot(p.x - MARKET.at.x, p.z - MARKET.at.z) <= MARKET.reachM;
+  };
+  const market = new MarketService({
+    db,
+    atMarket,
+    notify: (id, m) => gateway.sendTo(id, { t: 'market.filled', ...m }),
+    minLevel: config.marketMinLevel,
+    minAccountAgeMs: config.marketMinAccountAgeMs,
+  });
+  const marketJobs = [
+    setInterval(() => void market.expire().catch((e) => http.log.error(e)), 60_000),
+    setInterval(() => void market.updateGuidePrices().catch((e) => http.log.error(e)), 3600_000),
+  ];
+  const marketLimit = keyedLimiter(2, 10);
+
   const registerLimit = keyedLimiter(config.registerPerHour / 3600, config.registerPerHour);
 
   // CSRF: state-changing requests must come from an allowed origin (cookies are SameSite=Strict too).
@@ -79,6 +103,10 @@ export async function buildApp(config: Config, db: Db): Promise<App> {
     if (err instanceof AuthError) {
       const status = { invalid: 400, taken: 409, rate_limited: 429, banned: 403, weak_password: 400, not_adult: 400 }[err.code];
       return reply.code(err.code === 'invalid' && _req.url.endsWith('/login') ? 401 : status).send({ error: err.code, message: err.message });
+    }
+    if (err instanceof MarketError) {
+      const status = { not_found: 404, not_allowed: 403, invalid: 400, insufficient: 409, too_far: 409, limit: 409 }[err.code];
+      return reply.code(status).send({ error: err.code, message: err.message });
     }
     if (err instanceof CharacterError) {
       return reply.code(err.code === 'name_taken' || err.code === 'limit' ? 409 : 400).send({ error: err.code, message: err.message });
@@ -140,6 +168,41 @@ export async function buildApp(config: Config, db: Db): Promise<App> {
     return { items: await characters.inventory(req.params.id) };
   });
 
+  // ---- Kerava-Pörssi and the Torikauppias. Reads work anywhere, actions only at the counter.
+  /** The account's character (one per account for now). */
+  const myCharacter = async (req: FastifyRequest, reply: FastifyReply) => {
+    const c = (await characters.listForAccount(req.account!.id))[0];
+    if (!c) return reply.code(404).send({ error: 'not_found', message: 'Luo ensin verkkohahmo.' });
+    if (!marketLimit(c.id)) return reply.code(429).send({ error: 'rate_limited', message: 'Liian nopeasti.' });
+    (req as FastifyRequest & { characterId?: string }).characterId = c.id;
+  };
+  const cid = (req: FastifyRequest) => (req as FastifyRequest & { characterId: string }).characterId;
+  const authed = { preHandler: [requireAccount, myCharacter] };
+
+  http.get('/api/market', async () => ({ items: await market.overview() }));
+  http.get<{ Params: { itemId: string } }>('/api/market/items/:itemId', async (req) => market.book(itemId.parse(req.params.itemId)));
+  http.get('/api/market/me', authed, async (req) => ({ ...(await market.mine(cid(req))), here: atMarket(cid(req)) }));
+  http.post('/api/market/orders', authed, async (req, reply) => {
+    const body = orderBody.parse(req.body);
+    const key = req.headers['idempotency-key'];
+    const order = await market.place(cid(req), { ...body, idempotencyKey: typeof key === 'string' ? key.slice(0, 64) : undefined });
+    return reply.code(201).send(order);
+  });
+  http.post<{ Params: { id: string } }>('/api/market/orders/:id/cancel', authed, async (req) => {
+    await market.cancel(cid(req), z.coerce.number().int().positive().parse(req.params.id));
+    return { ok: true };
+  });
+  http.post('/api/market/collect', authed, async (req) => market.collect(cid(req)));
+  http.post('/api/npc/buy', authed, async (req) => {
+    const b = npcBody.parse(req.body);
+    await market.npcBuy(cid(req), b.itemId, b.quantity);
+    return { ok: true };
+  });
+  http.post('/api/npc/sell', authed, async (req) => {
+    const b = npcBody.parse(req.body);
+    return { ok: true, money: await market.npcSell(cid(req), b.itemId, b.quantity) };
+  });
+
   http.server.on('upgrade', (req, socket, head) => {
     if (new URL(req.url ?? '/', 'http://localhost').pathname !== '/ws') return socket.destroy();
     void gateway.handleUpgrade(req, socket, head);
@@ -152,7 +215,9 @@ export async function buildApp(config: Config, db: Db): Promise<App> {
     trades,
     auth,
     characters,
+    market,
     async close() {
+      marketJobs.forEach(clearInterval);
       await gateway.stop();
       await http.close();
     },

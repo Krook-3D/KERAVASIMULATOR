@@ -46,8 +46,8 @@ describe('message validation', () => {
   it('rejects negative, fractional and huge amounts', () => {
     const base = { t: 'trade.offer', tradeId: '00000000-0000-4000-8000-000000000000' };
     for (const offer of [
-      { items: [{ itemId: 'perch', quantity: -1 }], money: 0 },
-      { items: [{ itemId: 'perch', quantity: 1.5 }], money: 0 },
+      { items: [{ itemId: 'kahvi', quantity: -1 }], money: 0 },
+      { items: [{ itemId: 'kahvi', quantity: 1.5 }], money: 0 },
       { items: [], money: -100 },
       { items: [], money: 2 ** 40 },
     ]) {

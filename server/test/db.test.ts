@@ -87,10 +87,10 @@ describe.skipIf(!ok)('database', () => {
     });
 
     it('cannot take more items than owned and removes empty stacks', async () => {
-      const c = await makeCharacter(db, { items: { perch: 3 } });
-      await expect(withTx(db, (tx) => takeItem(tx, c.id, 'perch', 4, 'npc_sell'))).rejects.toBeInstanceOf(InsufficientError);
-      await withTx(db, (tx) => takeItem(tx, c.id, 'perch', 3, 'npc_sell'));
-      expect(await qty(db, c.id, 'perch')).toBe(0);
+      const c = await makeCharacter(db, { items: { kahvi: 3 } });
+      await expect(withTx(db, (tx) => takeItem(tx, c.id, 'kahvi', 4, 'npc_sell'))).rejects.toBeInstanceOf(InsufficientError);
+      await withTx(db, (tx) => takeItem(tx, c.id, 'kahvi', 3, 'npc_sell'));
+      expect(await qty(db, c.id, 'kahvi')).toBe(0);
       expect(await auditCharacter(db, c.id)).toEqual([]);
     });
 
@@ -108,73 +108,73 @@ describe.skipIf(!ok)('database', () => {
     });
 
     it('moves items and money atomically and records the trade', async () => {
-      const a = await makeCharacter(db, { items: { perch: 10 } });
+      const a = await makeCharacter(db, { items: { kahvi: 10 } });
       const b = await makeCharacter(db);
-      const r = await commitTrade(db, { tradeId: crypto.randomUUID(), a: { id: a.id, offer: offerOf({ perch: 4 }) }, b: { id: b.id, offer: offerOf({}, 1200) }, createdAt: Date.now() });
+      const r = await commitTrade(db, { tradeId: crypto.randomUUID(), a: { id: a.id, offer: offerOf({ kahvi: 4 }) }, b: { id: b.id, offer: offerOf({}, 1200) }, createdAt: Date.now() });
       expect(r).toEqual({ ok: true });
-      expect(await qty(db, a.id, 'perch')).toBe(6);
-      expect(await qty(db, b.id, 'perch')).toBe(4);
+      expect(await qty(db, a.id, 'kahvi')).toBe(6);
+      expect(await qty(db, b.id, 'kahvi')).toBe(4);
       expect(await money(db, a.id)).toBe(6200);
       expect(await money(db, b.id)).toBe(3800);
       for (const id of [a.id, b.id]) expect(await auditCharacter(db, id)).toEqual([]);
     });
 
     it('rolls back everything if one side no longer has the goods', async () => {
-      const a = await makeCharacter(db, { items: { perch: 2 } });
-      const b = await makeCharacter(db, { items: { coffee: 5 } });
+      const a = await makeCharacter(db, { items: { kahvi: 2 } });
+      const b = await makeCharacter(db, { items: { energiajuoma: 5 } });
       const r = await commitTrade(db, {
         tradeId: crypto.randomUUID(),
-        a: { id: a.id, offer: offerOf({ perch: 2 }) },
-        b: { id: b.id, offer: offerOf({ coffee: 6 }) }, // only has 5
+        a: { id: a.id, offer: offerOf({ kahvi: 2 }) },
+        b: { id: b.id, offer: offerOf({ energiajuoma: 6 }) }, // only has 5
         createdAt: Date.now(),
       });
       expect(r).toEqual({ ok: false, reason: 'items_changed' });
-      expect(await qty(db, a.id, 'perch')).toBe(2);
-      expect(await qty(db, b.id, 'perch')).toBe(0);
-      expect(await qty(db, b.id, 'coffee')).toBe(5);
+      expect(await qty(db, a.id, 'kahvi')).toBe(2);
+      expect(await qty(db, b.id, 'kahvi')).toBe(0);
+      expect(await qty(db, b.id, 'energiajuoma')).toBe(5);
     });
 
-    it('dupe attempt: the same 5 perch offered in two simultaneous trades goes out only once', async () => {
-      const a = await makeCharacter(db, { items: { perch: 5 } });
+    it('dupe attempt: the same 5 kahvi offered in two simultaneous trades goes out only once', async () => {
+      const a = await makeCharacter(db, { items: { kahvi: 5 } });
       const b = await makeCharacter(db);
       const c = await makeCharacter(db);
       const [r1, r2] = await Promise.all([
-        commitTrade(db, { tradeId: crypto.randomUUID(), a: { id: a.id, offer: offerOf({ perch: 5 }) }, b: { id: b.id, offer: offerOf({}) }, createdAt: Date.now() }),
-        commitTrade(db, { tradeId: crypto.randomUUID(), a: { id: a.id, offer: offerOf({ perch: 5 }) }, b: { id: c.id, offer: offerOf({}) }, createdAt: Date.now() }),
+        commitTrade(db, { tradeId: crypto.randomUUID(), a: { id: a.id, offer: offerOf({ kahvi: 5 }) }, b: { id: b.id, offer: offerOf({}) }, createdAt: Date.now() }),
+        commitTrade(db, { tradeId: crypto.randomUUID(), a: { id: a.id, offer: offerOf({ kahvi: 5 }) }, b: { id: c.id, offer: offerOf({}) }, createdAt: Date.now() }),
       ]);
       expect([r1.ok, r2.ok].filter(Boolean)).toHaveLength(1);
-      expect((await qty(db, b.id, 'perch')) + (await qty(db, c.id, 'perch'))).toBe(5);
-      expect(await qty(db, a.id, 'perch')).toBe(0);
+      expect((await qty(db, b.id, 'kahvi')) + (await qty(db, c.id, 'kahvi'))).toBe(5);
+      expect(await qty(db, a.id, 'kahvi')).toBe(0);
     });
 
     it('replaying a committed trade id never applies it twice', async () => {
-      const a = await makeCharacter(db, { items: { perch: 10 } });
+      const a = await makeCharacter(db, { items: { kahvi: 10 } });
       const b = await makeCharacter(db);
-      const input = { tradeId: crypto.randomUUID(), a: { id: a.id, offer: offerOf({ perch: 1 }) }, b: { id: b.id, offer: offerOf({}) }, createdAt: Date.now() };
+      const input = { tradeId: crypto.randomUUID(), a: { id: a.id, offer: offerOf({ kahvi: 1 }) }, b: { id: b.id, offer: offerOf({}) }, createdAt: Date.now() };
       expect((await commitTrade(db, input)).ok).toBe(true);
       expect((await commitTrade(db, input)).ok).toBe(false);
-      expect(await qty(db, b.id, 'perch')).toBe(1);
+      expect(await qty(db, b.id, 'kahvi')).toBe(1);
     });
 
     it('opposite trades between the same two players do not deadlock', async () => {
-      const a = await makeCharacter(db, { items: { perch: 50 } });
-      const b = await makeCharacter(db, { items: { coffee: 50 } });
+      const a = await makeCharacter(db, { items: { kahvi: 50 } });
+      const b = await makeCharacter(db, { items: { energiajuoma: 50 } });
       const runs = Array.from({ length: 10 }, (_, i) =>
         i % 2
-          ? commitTrade(db, { tradeId: crypto.randomUUID(), a: { id: a.id, offer: offerOf({ perch: 1 }) }, b: { id: b.id, offer: offerOf({ coffee: 1 }) }, createdAt: Date.now() })
-          : commitTrade(db, { tradeId: crypto.randomUUID(), a: { id: b.id, offer: offerOf({ coffee: 1 }) }, b: { id: a.id, offer: offerOf({ perch: 1 }) }, createdAt: Date.now() }),
+          ? commitTrade(db, { tradeId: crypto.randomUUID(), a: { id: a.id, offer: offerOf({ kahvi: 1 }) }, b: { id: b.id, offer: offerOf({ energiajuoma: 1 }) }, createdAt: Date.now() })
+          : commitTrade(db, { tradeId: crypto.randomUUID(), a: { id: b.id, offer: offerOf({ energiajuoma: 1 }) }, b: { id: a.id, offer: offerOf({ kahvi: 1 }) }, createdAt: Date.now() }),
       );
       const results = await Promise.all(runs);
       expect(results.every((r) => r.ok)).toBe(true);
-      expect(await qty(db, a.id, 'perch')).toBe(40);
-      expect(await qty(db, b.id, 'perch')).toBe(10);
+      expect(await qty(db, a.id, 'kahvi')).toBe(40);
+      expect(await qty(db, b.id, 'kahvi')).toBe(10);
     });
 
     it('new accounts can give only a limited value per day, but can always receive', async () => {
-      const fresh = await makeCharacter(db, { veteran: false, items: { kerava_hoodie: 5 } }); // 60 € each
+      const fresh = await makeCharacter(db, { veteran: false, items: { hopearasia: 5 } }); // 60 € each
       const vet = await makeCharacter(db);
       const give = (n: number) =>
-        commitTrade(db, { tradeId: crypto.randomUUID(), a: { id: fresh.id, offer: offerOf({ kerava_hoodie: n }) }, b: { id: vet.id, offer: offerOf({}) }, createdAt: Date.now() });
+        commitTrade(db, { tradeId: crypto.randomUUID(), a: { id: fresh.id, offer: offerOf({ hopearasia: n }) }, b: { id: vet.id, offer: offerOf({}) }, createdAt: Date.now() });
       expect((await give(3)).ok).toBe(true); // 180 €
       expect(await give(1)).toEqual({ ok: false, reason: 'not_allowed' }); // would be 240 € > 200 €
       const receive = await commitTrade(db, { tradeId: crypto.randomUUID(), a: { id: vet.id, offer: offerOf({}, 4000) }, b: { id: fresh.id, offer: offerOf({}) }, createdAt: Date.now() });
@@ -182,17 +182,17 @@ describe.skipIf(!ok)('database', () => {
     });
 
     it('trade-banned players cannot trade', async () => {
-      const a = await makeCharacter(db, { items: { perch: 1 } });
+      const a = await makeCharacter(db, { items: { kahvi: 1 } });
       const b = await makeCharacter(db);
       await db.query(`UPDATE accounts SET status = 'trade_banned' WHERE id = $1`, [a.accountId]);
-      const r = await commitTrade(db, { tradeId: crypto.randomUUID(), a: { id: a.id, offer: offerOf({ perch: 1 }) }, b: { id: b.id, offer: offerOf({}) }, createdAt: Date.now() });
+      const r = await commitTrade(db, { tradeId: crypto.randomUUID(), a: { id: a.id, offer: offerOf({ kahvi: 1 }) }, b: { id: b.id, offer: offerOf({}) }, createdAt: Date.now() });
       expect(r).toEqual({ ok: false, reason: 'not_allowed' });
     });
 
     it('street goods raise both players heat', async () => {
-      const a = await makeCharacter(db, { items: { street_green: 3 } });
+      const a = await makeCharacter(db, { items: { jokivihrea: 3 } });
       const b = await makeCharacter(db);
-      await commitTrade(db, { tradeId: crypto.randomUUID(), a: { id: a.id, offer: offerOf({ street_green: 3 }) }, b: { id: b.id, offer: offerOf({}, 100) }, createdAt: Date.now() });
+      await commitTrade(db, { tradeId: crypto.randomUUID(), a: { id: a.id, offer: offerOf({ jokivihrea: 3 }) }, b: { id: b.id, offer: offerOf({}, 100) }, createdAt: Date.now() });
       const { rows } = await db.query('SELECT heat FROM characters WHERE id = ANY($1)', [[a.id, b.id]]);
       expect(rows.map((r) => r.heat)).toEqual([8, 8]);
     });

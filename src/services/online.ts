@@ -4,6 +4,7 @@
  * server, so the httpOnly session cookie works without CORS.
  */
 import { PROTOCOL_VERSION, type ClientMessage, type ServerMessage, type WorldInfo } from '../../shared/protocol';
+import type { MarketBook, MarketItemSummary, MarketMine, MarketOrderView, MarketSide } from '../../shared/market';
 
 export interface OnlineCharacter {
   id: string;
@@ -42,13 +43,13 @@ const ERROR_TEXT: Record<string, string> = {
   offline: 'Palvelimeen ei saada yhteyttä.',
 };
 
-async function api<T>(path: string, body?: unknown): Promise<T> {
+async function api<T>(path: string, body?: unknown, headers?: Record<string, string>): Promise<T> {
   let res: Response;
   try {
     res = await fetch(path, {
       method: body === undefined ? 'GET' : 'POST',
       credentials: 'same-origin',
-      headers: body === undefined ? undefined : { 'content-type': 'application/json' },
+      headers: body === undefined ? headers : { 'content-type': 'application/json', ...headers },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
@@ -70,6 +71,15 @@ export const onlineApi = {
   logout: () => api<{ ok: true }>('/api/auth/logout', {}),
   createCharacter: (name: string, color: string) => api<OnlineCharacter>('/api/characters', { name, color }),
   worlds: () => api<{ worlds: WorldInfo[] }>('/api/worlds'),
+  market: () => api<{ items: MarketItemSummary[] }>('/api/market'),
+  marketItem: (itemId: string) => api<MarketBook>(`/api/market/items/${encodeURIComponent(itemId)}`),
+  marketMine: () => api<MarketMine & { here: boolean }>('/api/market/me'),
+  placeOrder: (o: { itemId: string; side: MarketSide; price: number; quantity: number }) =>
+    api<MarketOrderView>('/api/market/orders', o, { 'idempotency-key': crypto.randomUUID() }),
+  cancelOrder: (id: number) => api<{ ok: true }>(`/api/market/orders/${id}/cancel`, {}),
+  collect: () => api<{ money: number; items: { itemId: string; quantity: number }[] }>('/api/market/collect', {}),
+  npcBuy: (itemId: string, quantity: number) => api<{ ok: true }>('/api/npc/buy', { itemId, quantity }),
+  npcSell: (itemId: string, quantity: number) => api<{ ok: true; money: number }>('/api/npc/sell', { itemId, quantity }),
   inventory: (characterId: string) =>
     api<{ items: { itemId: string; location: 'pack' | 'home'; quantity: number }[] }>(`/api/characters/${characterId}/inventory`),
 };

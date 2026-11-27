@@ -438,7 +438,7 @@ Kansio `server/` (oma npm-paketti) ja `shared/`:
 - **Läsnäolo**: ruudukkopohjainen näkyvyysalue, join/leave/move-viestit, liikkeen nopeustarkistus ja korjaus, lähichat.
 - **Kauppa**: koko tilakone (pyyntö, tarjous, hyväksyntä, vahvistus, peruutukset, aikarajat, etäisyys), atominen commit rivilukoilla, kauppahistoria.
 - **Pörssin täsmäytysmoottori** puhtaana funktiona (`market/matching.ts`): hinta–aika-prioriteetti, osittaiset täsmäykset, vero, palautukset. Tietokantaintegraatio on vaihe M7.
-- Testit (`npm test` kansiossa `server/`, 58 kpl): salasanat, viestien validointi, nopeusrajat, näkyvyysalueet, liikkeen huijausesto, täsmäysmoottori (myös rahan säilyminen), kirjanpito (20 rinnakkaista ostoa samalla rahalla), kaupan dupetusyritykset (sama tavara kahteen kauppaan yhtä aikaa, kaupan uusinta, ristikkäiset kaupat ilman deadlockia), uusien tilien rajat, ja koko kauppa päästä päähän kahdella oikealla WebSocket-yhteydellä.
+- Testit (`npm test` kansiossa `server/`, 69 kpl): salasanat, viestien validointi, nopeusrajat, näkyvyysalueet, liikkeen huijausesto, täsmäysmoottori (myös rahan säilyminen), kirjanpito (20 rinnakkaista ostoa samalla rahalla), kaupan dupetusyritykset (sama tavara kahteen kauppaan yhtä aikaa, kaupan uusinta, ristikkäiset kaupat ilman deadlockia), uusien tilien rajat, ja koko kauppa päästä päähän kahdella oikealla WebSocket-yhteydellä.
 
 **M5, clientin online-tila (tehty)**:
 
@@ -449,5 +449,16 @@ Kansio `server/` (oma npm-paketti) ja `shared/`:
 - Lähichat: Enter avaa, viesti näkyy chat-ikkunassa ja puhekuplana.
 - Kauppa: oikea klikkaus (tai klikkaus) toiseen pelaajaan → Käy kauppaa. Ikkunassa oma tarjous (raha ja verkkorepun tavarat), toisen tarjous, muutokset vilkkuvat punaisena, hyväksyntä ja 2 s jälkeen vahvistus.
 - Rajaus: verkkokaupassa liikkuu **palvelimen** lompakko ja reppu (aloitusraha 50 €). Yksinpelin paikallinen tallennus ei vielä siirry palvelimelle; se on seuraava vaihe (M5b/M6), koska se vaatii aktiviteettien siirtämistä palvelimelle (luku 4).
+
+**M7, Kerava-Pörssi (tehty)**:
+
+- Verkkotavarat ovat nyt **samat kuin pelin omat** (`shared/items.ts` rakentuu `src/data/items.ts`:stä): samat id:t, nimet ja ikonit. Kaupattavuus johdetaan kategoriasta: quest-esineet ovat sidottuja, katukama ja salin roina vain kasvokkain (ei Pörssiin), arvottomat vain kasvokkain, kaikki muu Pörssiin. NPC-hinta tulee kaupan hinnasta.
+- `server/src/market/service.ts`: tarjous ja sen escrow samassa transaktiossa per-item advisory lockin alla, täsmäys samassa transaktiossa (hinta–aika, kauppahinta on kirjassa olleen tarjouksen hinta, erotus palautuu ostajalle), vero 2 % myyjältä, noutolaatikko, peruminen, vanheneminen (ajastus minuutin välein), ohjehinta tunnin välein (`guidePrice`), hintakaista ±30 %, 6 tarjousta, ostoraja 4 h, Idempotency-Key. Täyttymisestä lähtee `market.filled` WebSocketilla.
+- Sijainti: tarjoukset ja nouto vain Pörssin tiskillä torilla (`MARKET.at`, säde 16 m), palvelin tarkistaa oman sijaintitietonsa perusteella. Hintoja voi katsoa mistä vain.
+- **Torikauppias** paviljongin vieressä: myy kauppojen tavallisia tarvikkeita kaupan hintaan (rahanielu) ja ostaa tavaraa 40 %:lla arvosta, enintään 50 kpl / tavara / vrk (rahalähde). Pörssissä saa siis yleensä paremman hinnan kuin NPC:ltä.
+- Pörssin käyttöraja (taso 5, tili 24 h) on päällä tuotannossa (`NODE_ENV=production`, säädettävissä `MARKET_MIN_LEVEL` ja `MARKET_MIN_ACCOUNT_AGE_H`), kehityksessä pois.
+- REST: `GET /api/market`, `GET /api/market/items/:id`, `GET /api/market/me`, `POST /api/market/orders`, `POST /api/market/orders/:id/cancel`, `POST /api/market/collect`, `POST /api/npc/buy`, `POST /api/npc/sell`.
+- Client: paviljonki torilla (lasikatos, välittäjät pukeissa, iso hintataulu, Torikauppiaan koju), Pörssi-ikkuna: hintataulu, tavaran tarjouskirja 5 tasoa, 30 päivän käyrä, osto/myynti, omat tarjoukset ja noutolaatikko, Torikauppias.
+- Testit: dupetusyritys (20 ostajaa samoille 5 kappaleelle), tuplalähetys samalla avaimella, peruutus, vanheneminen, kaista, paikat, sijainti, oma tarjous ei täsmää omaan, NPC-katto, kirjanpidon tarkastus jokaisen jälkeen.
 
 Käynnistys: ks. `server/README.md`.

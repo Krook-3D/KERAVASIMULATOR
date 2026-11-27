@@ -11,7 +11,7 @@ const mk = () => {
 describe('TradeSession', () => {
   it('goes offer → confirm → commit with double acceptance', () => {
     const s = mk();
-    s.setOffer('a', { items: [{ itemId: 'perch', quantity: 3 }], money: 0 });
+    s.setOffer('a', { items: [{ itemId: 'kahvi', quantity: 3 }], money: 0 });
     s.setOffer('b', { items: [], money: 500 });
     expect(s.accept('a', 'offer', 10)).toBe('waiting');
     expect(s.accept('b', 'offer', 10)).toBe('confirm');
@@ -25,10 +25,10 @@ describe('TradeSession', () => {
 
   it('any change resets both acceptances and reports what changed', () => {
     const s = mk();
-    s.setOffer('a', { items: [{ itemId: 'perch', quantity: 3 }], money: 0 });
+    s.setOffer('a', { items: [{ itemId: 'kahvi', quantity: 3 }], money: 0 });
     s.accept('b', 'offer', 0);
-    const changed = s.setOffer('a', { items: [{ itemId: 'perch', quantity: 1 }], money: 0 });
-    expect(changed).toEqual(['perch']);
+    const changed = s.setOffer('a', { items: [{ itemId: 'kahvi', quantity: 1 }], money: 0 });
+    expect(changed).toEqual(['kahvi']);
     expect(s.accepted).toEqual({ a: false, b: false });
   });
 
@@ -51,15 +51,15 @@ describe('TradeSession', () => {
   it('refuses empty trades and bound items', () => {
     const s = mk();
     expect(() => s.accept('a', 'offer', 0)).toThrow();
-    expect(() => s.setOffer('a', { items: [{ itemId: 'mystic_key', quantity: 1 }], money: 0 })).toThrow();
+    expect(() => s.setOffer('a', { items: [{ itemId: 'viila', quantity: 1 }], money: 0 })).toThrow();
     expect(() => s.setOffer('a', { items: [{ itemId: 'no_such_item', quantity: 1 }], money: 0 })).toThrow();
   });
 
   it('merges duplicate stacks so the same item cannot be counted twice', () => {
-    expect(normaliseOffer({ items: [{ itemId: 'perch', quantity: 2 }, { itemId: 'coffee', quantity: 1 }, { itemId: 'perch', quantity: 3 }], money: 0 })).toEqual({
+    expect(normaliseOffer({ items: [{ itemId: 'kahvi', quantity: 2 }, { itemId: 'energiajuoma', quantity: 1 }, { itemId: 'kahvi', quantity: 3 }], money: 0 })).toEqual({
       items: [
-        { itemId: 'coffee', quantity: 1 },
-        { itemId: 'perch', quantity: 5 },
+        { itemId: 'energiajuoma', quantity: 1 },
+        { itemId: 'kahvi', quantity: 5 },
       ],
       money: 0,
     });

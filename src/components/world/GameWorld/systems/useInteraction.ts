@@ -1,3 +1,4 @@
+import { PORSSI_COUNTER, PORSSI_STALL } from '../../PorssiPavilion';
 import type { DrillId } from '../../../../game/gym/drills';
 import { FIGHT_SPOTS } from '../../../../game/interiors/interiors';
 import { useMemo } from 'react';
@@ -45,6 +46,7 @@ export interface SpotActions {
   setAtTill: (v: boolean) => void;
   talkAtPoliceDesk: () => void;
   usePlot: (p: Plot) => void;
+  openPorssi: (tab: 'board' | 'npc') => void;
   plotsOwned: Record<string, unknown>;
 }
 
@@ -94,6 +96,8 @@ export function useInteraction(
       for (const t of trainStops) list.push({ at: t.at, label: `🚆 ${t.name}`, info: `Lähijunan laituri: ${t.name}.`, use: () => a.setAtTrain(t) });
       for (const st of stashes) if (!a.stashTaken.has(st.id)) list.push({ at: st.at, label: '❓ Jotain maassa', info: 'Sammaleen alla näkyy jotain. Joku on piilottanut tänne jotain.', use: () => a.takeStash(st) });
       for (const c of cookSpots) list.push({ at: c.at, label: `🔥 ${c.name}`, info: `${c.name}: täällä voi kokata raaka-aineista ruokaa.`, use: () => a.setAtCook(c) });
+      list.push({ at: PORSSI_COUNTER, label: '📈 Kerava-Pörssi', info: 'Kerava-Pörssi: pelaajien kauppapaikka. Jätä osto- ja myyntitarjouksia, nouda kaupat. Vaatii verkkopelin.', use: () => a.openPorssi('board') });
+      list.push({ at: PORSSI_STALL, label: '🧺 Torikauppias', info: 'Torikauppias myy tavallisia tarvikkeita ja ostaa tavaraa halvalla.', use: () => a.openPorssi('npc') });
       for (const pl of w.plots) {
         const mine = !!a.plotsOwned[pl.id];
         list.push({ at: pl.sign, label: mine ? '🏗️ Oma tontti' : `🪧 Tontti ${pl.price.toLocaleString('fi-FI')} €`, info: mine ? `Oma tonttisi (${pl.size} × ${pl.size} m). Rakenna talo Motonetin tarvikkeilla.` : `Myytävä rakennustontti: ${pl.zone}, ${pl.size} × ${pl.size} m, ${pl.price.toLocaleString('fi-FI')} €.`, use: () => a.usePlot(pl) });

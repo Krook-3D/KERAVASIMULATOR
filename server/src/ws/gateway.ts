@@ -95,6 +95,12 @@ export class Gateway {
     return { name: this.deps.world.name, online: this.online, capacity: this.deps.maxPlayers, queued: this.queue.length };
   }
 
+  /** Sends to a character if they are online (admitted). */
+  sendTo(characterId: string, msg: ServerMessage): void {
+    const c = this.conns.get(characterId);
+    if (c?.admitted) this.send(c, msg);
+  }
+
   canTrade(characterId: string): boolean {
     const c = this.conns.get(characterId);
     return !!c && c.account.status !== 'trade_banned' && c.account.status !== 'banned';

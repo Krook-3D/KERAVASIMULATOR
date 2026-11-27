@@ -46,7 +46,7 @@ function ChatBox({ online }: { online: OnlineApi }) {
     // Enter opens the chat (outside other inputs and dialogues)
     const key = (e: KeyboardEvent) => {
       if (e.key !== 'Enter' || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (document.querySelector('.dialogue, .trade-win')) return;
+      if (document.querySelector('.dialogue, .trade-win, .porssi')) return;
       e.preventDefault();
       if (document.pointerLockElement) document.exitPointerLock();
       setOpen(true);

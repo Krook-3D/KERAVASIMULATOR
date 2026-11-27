@@ -1,8 +1,9 @@
 /**
- * Server-side item registry: what can be traded where.
- * Display data (descriptions, icons) lives in the client's src/data.
- * Ids must match the client's item ids.
+ * Server-side item registry: what can be traded where. Built from the
+ * game's own catalogue (src/data/items.ts), so online items are the same
+ * items as in the single-player game: same ids, names and icons.
  */
+import { ITEMS as GAME_ITEMS } from '../src/data/items';
 
 /**
  * free       – player trade and Pörssi
@@ -21,31 +22,38 @@ export interface ServerItemDef {
   tradeability: Tradeability;
   /** Max units one character may buy on the Pörssi per buy-limit window. */
   marketBuyLimit?: number;
+  /** NPC shop price in cents (the Torikauppias sells only these). */
+  npcPriceCents?: number;
+  icon?: string;
 }
 
-export const ITEMS: readonly ServerItemDef[] = [
-  { id: 'coffee', name: 'Kahvi', valueCents: 250, stackable: true, tradeability: 'free', marketBuyLimit: 1000 },
-  { id: 'energy_drink', name: 'Energiajuoma', valueCents: 300, stackable: true, tradeability: 'free', marketBuyLimit: 1000 },
-  { id: 'karelian_pie', name: 'Karjalanpiirakka', valueCents: 150, stackable: true, tradeability: 'free', marketBuyLimit: 2000 },
-  { id: 'perch', name: 'Ahven', valueCents: 400, stackable: true, tradeability: 'free', marketBuyLimit: 2000 },
-  { id: 'cooked_perch', name: 'Paistettu ahven', valueCents: 900, stackable: true, tradeability: 'free', marketBuyLimit: 2000 },
-  { id: 'sneakers', name: 'Lenkkarit', valueCents: 4500, stackable: false, tradeability: 'free', marketBuyLimit: 20 },
-  { id: 'fishing_rod', name: 'Kalastusvapa', valueCents: 2500, stackable: false, tradeability: 'free', marketBuyLimit: 20 },
-  { id: 'kerava_hoodie', name: 'Kerava Hoodie', valueCents: 6000, stackable: false, tradeability: 'free', marketBuyLimit: 10 },
-  { id: 'old_nokia', name: 'Vanha Nokia', valueCents: 1500, stackable: false, tradeability: 'free', marketBuyLimit: 50 },
-  { id: 'shopping_bag', name: 'Ostoskassi', valueCents: 50, stackable: true, tradeability: 'free', marketBuyLimit: 500 },
-  { id: 'rare_kerava_item', name: 'Harvinainen Kerava-item', valueCents: 50000, stackable: false, tradeability: 'trade_only' },
-  { id: 'arena_vr_ticket', name: 'Areenan VR-lippu', valueCents: 20000, stackable: false, tradeability: 'trade_only' },
-  { id: 'gym_card', name: 'Kuntosalikortti', valueCents: 3000, stackable: false, tradeability: 'bound' },
-  { id: 'bus_card', name: 'Bussikortti', valueCents: 1000, stackable: false, tradeability: 'bound' },
-  { id: 'kerava_map', name: 'Keravan kartta', valueCents: 0, stackable: false, tradeability: 'bound' },
-  { id: 'mystic_key', name: 'Mystinen avain', valueCents: 0, stackable: false, tradeability: 'bound' },
-  { id: 'centre_receipt', name: 'Keskustan kuitti', valueCents: 0, stackable: false, tradeability: 'bound' },
-  // Fictional street goods (docs/ARCHITECTURE.md section 10).
-  { id: 'street_green', name: 'Jokivarren Vihreä', valueCents: 2000, stackable: true, tradeability: 'street' },
-  { id: 'street_dust', name: 'Asemanpölly', valueCents: 3500, stackable: true, tradeability: 'street' },
-  { id: 'street_mushroom', name: 'Lähijunasieni', valueCents: 5000, stackable: true, tradeability: 'street' },
-];
+/** Fictional street goods and gym roina: face to face only, raises heat, never on the Pörssi. */
+const STREET = new Set(['jokivihrea', 'asemanpolly', 'lahijunasieni', 'feikkipussi', 'tankkioljy', 'massamix', 'kuivatin', 'palautin', 'tuplaus', 'leikkuri']);
+
+function tradeabilityOf(id: string, category: string, valueCents: number): Tradeability {
+  if (category === 'quest') return 'bound';
+  if (STREET.has(id) || category === 'drug') return 'street';
+  // no NPC value means no guide price, so no Pörssi
+  if (valueCents <= 0) return 'trade_only';
+  return 'free';
+}
+
+const buyLimit = (valueCents: number) => (valueCents < 500 ? 2000 : valueCents < 5000 ? 200 : 20);
+
+export const ITEMS: readonly ServerItemDef[] = Object.values(GAME_ITEMS).map((d) => {
+  const valueCents = Math.round(d.value * 100);
+  const tradeability = tradeabilityOf(d.id, d.category, valueCents);
+  return {
+    id: d.id,
+    name: d.name,
+    valueCents,
+    stackable: d.stackable,
+    tradeability,
+    marketBuyLimit: tradeability === 'free' ? buyLimit(valueCents) : undefined,
+    npcPriceCents: d.price !== undefined && tradeability === 'free' ? Math.round(d.price * 100) : undefined,
+    icon: d.icon,
+  };
+});
 
 const BY_ID = new Map(ITEMS.map((i) => [i.id, i]));
 
@@ -61,3 +69,6 @@ export function canPlayerTrade(id: string): boolean {
 export function canListOnMarket(id: string): boolean {
   return BY_ID.get(id)?.tradeability === 'free';
 }
+
+/** What the Torikauppias sells (items with a shop price). */
+export const NPC_STOCK: readonly ServerItemDef[] = ITEMS.filter((i) => i.npcPriceCents !== undefined);

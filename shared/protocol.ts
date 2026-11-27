@@ -134,5 +134,7 @@ export type ServerMessage =
   | { t: 'trade.cancelled'; tradeId: string; reason: TradeCancelReason }
   | { t: 'kicked'; reason: 'logged_in_elsewhere' | 'protocol_abuse' | 'banned' }
   | { t: 'server.shutdown'; inSeconds: number }
+  /** One of your Pörssi orders (partly) filled; the goods wait in the collect box. */
+  | { t: 'market.filled'; itemId: string; side: 'buy' | 'sell'; quantity: number; price: number }
   | { t: 'ok'; rid: string }
   | { t: 'error'; code: ErrorCode; message: string; rid?: string };

@@ -479,3 +479,13 @@ describe('starting outfit', () => {
     expect(defaultAppearance()).toMatchObject({ topStyle: 'suit', hat: 'none', backpack: false });
   });
 });
+
+describe('Kerava-Pörssi location', () => {
+  it('the server-side counter position is the tori on the map', async () => {
+    const { MARKET } = await import('../../shared/economy');
+    const { lngLatToWorld } = await import('./world/projection');
+    const { TORI_LNGLAT } = await import('../components/world/GameWorld/constants');
+    const [x, z] = lngLatToWorld(TORI_LNGLAT);
+    expect(Math.hypot(x - MARKET.at.x, z - MARKET.at.z)).toBeLessThan(1);
+  });
+});

@@ -51,6 +51,8 @@ import { Player, PlaceCamera } from './Player';
 import { GameHUD } from './GameHUD';
 import { useOnline } from './systems/useOnline';
 import { OnlineHud } from './hud/OnlineHud';
+import { PorssiWindow } from './hud/PorssiWindow';
+import { PorssiPavilion, PORSSI_COUNTER, PORSSI_STALL } from '../PorssiPavilion';
 import { RemotePlayers, SelfBubble, appearanceToLook } from '../RemotePlayers';
 import { useOnlineAccount } from '../../../game/online/OnlineProvider';
 import { TRADE } from '../../../../shared/economy';
@@ -179,6 +181,8 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
 
   // ------------------------------------------------------------ game systems
   const escapeMash = useEscapeMash(setDialogue);
+  /** Open Kerava-Pörssi window and its tab. */
+  const [porssi, setPorssi] = useState<'board' | 'npc' | null>(null);
   const ctx: GameCtx = {
     player,
     dispatch,
@@ -227,7 +231,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
 
   // ------------------------------------------------------------ clicks and arrival
   /** Clicks, keys and steering are ignored while true (cutscene, dialogue, training, riding, painting, chase). */
-  const inputLocked = cutscene || !!dialogue || fading || training.busy || transit.riding || !!graffiti.painting || !!stash.chase || !!talk.gang || !!building.job || !!escapeMash.mash;
+  const inputLocked = !!porssi || cutscene || !!dialogue || fading || training.busy || transit.riding || !!graffiti.painting || !!stash.chase || !!talk.gang || !!building.job || !!escapeMash.mash;
   /** Close all open panels when the player walks off. */
   const closePanels = () => {
     transit.setAtBusStop(null);
@@ -266,6 +270,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       setAtTill: shop.setAtTill,
       talkAtPoliceDesk: () => shop.talkAtPoliceDesk(stash.policeDeskOptions),
       usePlot: building.usePlot,
+      openPorssi: setPorssi,
       plotsOwned: building.owned,
     },
     {
@@ -301,7 +306,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
   }, []);
   // Give the mouse back whenever a menu, panel or dialogue needs it.
   useEffect(() => {
-    const UI = '.dialogue, .mash, .gym-hud, .shop-hud, .shelf-pop, .cook-list, .bus-hud, .panel, .graffiti, .ctx-menu';
+    const UI = '.dialogue, .porssi, .trade-win, .mash, .gym-hud, .shop-hud, .shelf-pop, .cook-list, .bus-hud, .panel, .graffiti, .ctx-menu';
     const check = () => {
       if (document.pointerLockElement && document.querySelector(UI)) document.exitPointerLock();
     };
@@ -436,6 +441,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
           <group visible={inWorld}>
             <GameMap w={w} clouds={clouds} xray={xray} highQuality={highQuality} cutscene={cutscene} playerRef={positionRef} clockRef={clockRef} busRun={transit.busRun} onGroundClick={onGroundClick} />
             <NPCLayer npcs={w.npcs} live={npcLive} terrain={terrain!} cutscene={cutscene} clockRef={clockRef} playerRef={positionRef} talkingId={talk.talkingId} onTalk={talk.onNpcClick} />
+            <PorssiPavilion groundAt={remoteGround} playerRef={positionRef} onUse={(tab) => interaction.onGroundClick(tab === 'npc' ? PORSSI_STALL : PORSSI_COUNTER)} />
             <WorldObjects w={w} pieces={graffiti.pieces} stashTaken={stash.stashTaken} lootTaken={interaction.lootTaken} owned={building.owned} cutscene={cutscene} playerRef={positionRef} onGroundClick={onGroundClick} />
             <QuestLayer
               w={w}
@@ -537,6 +543,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       )}
       {!cutscene && nearSpot && !inputLocked && <div className="use-prompt"><kbd>E</kbd> Käytä</div>}
 
+      {porssi && <PorssiWindow online={online} tab={porssi} onClose={() => setPorssi(null)} />}
       {!cutscene && <OnlineHud online={online} playerCount={online.roster.filter((id) => online.live.current.get(id)?.scene === scene).length} />}
       <GameHUD
         world={w.world}

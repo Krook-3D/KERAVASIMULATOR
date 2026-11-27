@@ -36,6 +36,19 @@ export const MARKET = {
   orderSlots: 6,
   orderLifetimeMs: 7 * 24 * 3600_000,
   buyLimitWindowMs: 4 * 3600_000,
+  /** The Pörssi pavilion on Keravan tori, world metres from the station (+x east, +z south). */
+  at: { x: 49.4, z: 33.4 },
+  /** How close to the counter you must stand to place orders and collect. */
+  reachM: 16,
+} as const;
+
+/** Torikauppias, the NPC stall beside the Pörssi. */
+export const NPC_SHOP = {
+  /** NPC buys back at this share of the item's value. */
+  buybackRate: 0.4,
+  /** Units of one item the NPC buys from one character per 24 h. */
+  dailySellCap: 50,
+  maxPerPurchase: 100,
 } as const;
 
 /** Tax for one matched sale, rounded down, cents. */

@@ -106,7 +106,8 @@ Vaiheet: ks. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#8-kehitysjärjestys).
 - [x] M5 Client online-tilaan: kirjautuminen, muut pelaajat, chat, kauppaikkuna
 - [ ] M5b Online-lompakko ja yksinpelin tallennus yhteen (nyt verkkokaupassa liikkuu palvelimen raha ja reppu, ei paikallinen tallennus)
 - [ ] M6 Aktiviteetit, NPC-kaupat ja questit palvelimelle
-- [ ] M7 Kerava-Pörssi torilla: tietokantaintegraatio (täsmäysmoottori valmis), noutolaatikko, hintahistoria
+- [x] M7 Kerava-Pörssi torilla: tietokantaintegraatio, escrow, noutolaatikko, ohjehinta, hintahistoria, Torikauppias (NPC), paviljonki ja Pörssi-ikkuna
+- [ ] Online-tavaroiden lähteet palvelimelle (M6): kokkaus, löydöt, työt, jotta muutakin kuin kaupan tavaraa liikkuu
 - [ ] M8 Talouden mittarit, admin-työkalut, moderointi, varmuuskopiot
 - [ ] M9 Katukauppa ja poliisi palvelimella, Areena PvP
 

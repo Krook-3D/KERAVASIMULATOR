@@ -18,6 +18,9 @@ export interface Config {
   maxPlayers: number;
   /** Max players waiting in the queue; beyond this new connections are refused. */
   maxQueue: number;
+  /** Who may use the Pörssi: character level and account age (0 in development). */
+  marketMinLevel: number;
+  marketMinAccountAgeMs: number;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -37,5 +40,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     worldName: env.WORLD_NAME ?? 'Kerava 1',
     maxPlayers: Number(env.MAX_PLAYERS ?? 20),
     maxQueue: Number(env.MAX_QUEUE ?? 50),
+    marketMinLevel: Number(env.MARKET_MIN_LEVEL ?? (env.NODE_ENV === 'production' ? 5 : 0)),
+    marketMinAccountAgeMs: Number(env.MARKET_MIN_ACCOUNT_AGE_H ?? (env.NODE_ENV === 'production' ? 24 : 0)) * 3600_000,
   };
 }

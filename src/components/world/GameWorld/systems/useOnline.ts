@@ -81,6 +81,8 @@ export function useOnline(opts: {
   const [trade, setTrade] = useState<TradeView | null>(null);
   const [incoming, setIncoming] = useState<{ tradeId: string; name: string } | null>(null);
   const [wallet, setWallet] = useState<Wallet | null>(null);
+  /** Bumps when one of your Pörssi orders fills, so an open Pörssi window reloads. */
+  const [marketTick, setMarketTick] = useState(0);
   const sceneRef = useRef(opts.scene);
   sceneRef.current = opts.scene;
   const lookRef = useRef(opts.look);
@@ -213,6 +215,10 @@ export function useOnline(opts: {
           setIncoming((i) => (i?.tradeId === msg.tradeId ? null : i));
           toastRef.current(REASONS[msg.reason] ?? 'Kauppa peruttiin.');
           return;
+        case 'market.filled':
+          toastRef.current(`📈 Pörssi: ${msg.side === 'buy' ? 'ostit' : 'myit'} ${itemLabel(msg.itemId)} ×${msg.quantity} (${(msg.price / 100).toLocaleString('fi-FI')} €/kpl). Nouda torilta.`);
+          setMarketTick((n) => n + 1);
+          return;
         case 'server.shutdown':
           toastRef.current(`⚠️ Palvelin käynnistyy uudelleen ${msg.inSeconds} s päästä.`);
           return;
@@ -297,7 +303,7 @@ export function useOnline(opts: {
     },
   };
 
-  return { status, queue, note, live, roster, chat, trade, incoming, wallet, myBubble, refreshWallet, ...api };
+  return { status, queue, note, live, roster, chat, trade, incoming, wallet, myBubble, refreshWallet, marketTick, character, ...api };
 }
 
 export type OnlineApi = ReturnType<typeof useOnline>;

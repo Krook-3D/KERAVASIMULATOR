@@ -30,6 +30,8 @@ import { placeLoot } from '../../../game/world/loot';
 import { placeCookSpots } from '../../../game/world/grills';
 import { populate } from '../../../game/npc/population';
 import { placeStashes } from '../../../game/quests/stashes';
+import { MARKET } from '../../../../shared/economy';
+import { PORSSI_LAYOUT } from '../PorssiPavilion';
 import { JONNE_LOCAL, PRISON_AT, TORI_LNGLAT, PRISON_FOOTPRINT, dist } from './constants';
 import type { TrainStop, WorldDoor } from './gameWorld.types';
 
@@ -39,6 +41,8 @@ import type { TrainStop, WorldDoor } from './gameWorld.types';
  * colliders, doors, NPCs, loot, grills, stashes, bus and train stops.
  * Everything here is deterministic for a given world.
  */
+const PORSSI_AT: WorldXZ = [MARKET.at.x, MARKET.at.z];
+
 export function useWorldSetup(scene: SceneId) {
   const [rawWorld, setRawWorld] = useState<WorldData | null>(null);
   useEffect(() => {
@@ -53,7 +57,8 @@ export function useWorldSetup(scene: SceneId) {
   const prisma = useMemo(() => (rawWorld ? placePrisma(rawWorld) : null), [rawWorld]);
   const placed = useMemo(() => {
     if (!rawWorld || !layout || !prisma) return null;
-    const near = (b: Building) => b.footprint.some((q) => dist(q, PRISON_AT) < 55);
+    // the prison yard and the Pörssi on the tori stay free of buildings
+    const near = (b: Building) => b.footprint.some((q) => dist(q, PRISON_AT) < 55 || dist(q, PORSSI_AT) < 26);
     let buildings = clearStationArea(layout, prisma.buildings).filter((b) => !near(b));
     const gym = placeBlock(buildings, rawWorld.roads, SITES.gym.lngLat, SITES.gym.w, SITES.gym.d, SITES.gym.h, SITES.gym.kind);
     buildings = gym.buildings;
@@ -115,10 +120,10 @@ export function useWorldSetup(scene: SceneId) {
   }, [world, collider, terrain, layout]);
   const inPlot = useCallback((p: WorldXZ) => plots.some((pl) => Math.abs(p[0] - pl.at[0]) < pl.size / 2 + 1 && Math.abs(p[1] - pl.at[1]) < pl.size / 2 + 1), [plots]);
   const excludeTrees = useCallback(
-    (p: WorldXZ) => (layout ? isInStationClearZone(layout, p) : false) || dist(p, PRISON_AT) < 45 || inPlot(p),
+    (p: WorldXZ) => (layout ? isInStationClearZone(layout, p) : false) || dist(p, PRISON_AT) < 45 || dist(p, PORSSI_AT) < 24 || inPlot(p),
     [layout, inPlot],
   );
-  const grassBlocked = useCallback((p: WorldXZ) => !!collider?.isBlocked(p, 0.6) || (layout ? isTrackBlocked(layout, p) || isInStationClearZone(layout, p) : false), [collider, layout]);
+  const grassBlocked = useCallback((p: WorldXZ) => !!collider?.isBlocked(p, 0.6) || (Math.abs(p[0] - PORSSI_AT[0]) < 10.5 && Math.abs(p[1] - PORSSI_AT[1]) < 7.5) || (layout ? isTrackBlocked(layout, p) || isInStationClearZone(layout, p) : false), [collider, layout]);
   const clampToWorld = ([x, z]: WorldXZ): WorldXZ => {
     if (!world) return [x, z];
     const b = worldBounds(world);
@@ -234,6 +239,15 @@ export function useWorldSetup(scene: SceneId) {
       c.boxIn(ox, oz, yaw, 1.85, 0.2, 0.05, 0.5);
       c.boxIn(ox, oz, yaw, 0, 0.45, 1.2, 0.2);
       c.boxIn(ox, oz, yaw, -2.3, -0.6, 0.06, 0.06);
+    }
+    // Kerava-Pörssi: canopy posts, brokers' counter, price board, Torikauppias stall (see PorssiPavilion)
+    {
+      const { canopy, counter, stall } = PORSSI_LAYOUT;
+      const [x, z] = PORSSI_AT;
+      for (const px of [-canopy.w / 2, 0, canopy.w / 2]) for (const pz of [-canopy.d / 2, canopy.d / 2]) c.circle(x + px, z + pz, 0.25);
+      c.box(x + counter.x, z + counter.z, counter.w / 2, counter.d / 2, 0);
+      c.box(x, z - canopy.d / 2 + 0.3, 4.5, 0.2, 0);
+      c.box(x + stall.x, z + stall.z, stall.w / 2, stall.d / 2, 0);
     }
     // bridge parapets and ramp / underpass retaining walls (see buildCrossingGeometry)
     for (const cr of terrain?.crossings ?? []) {

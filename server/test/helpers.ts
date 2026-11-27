@@ -35,14 +35,14 @@ let cachedHash: string | undefined;
 
 /** Creates an account + character directly (fast path for tests). */
 export async function makeCharacter(db: Db, opts: { name?: string; items?: Record<string, number>; veteran?: boolean } = {}) {
-  counter++;
+  const n = ++counter;
   cachedHash ??= await hashPassword('testisalasana-123');
   const { rows } = await db.query(
     `INSERT INTO accounts (email, password_hash, adult_confirmed_at, terms_version) VALUES ($1, $2, now(), 1) RETURNING id`,
-    [`p${counter}-${Date.now()}@example.com`, cachedHash],
+    [`p${n}-${Date.now()}@example.com`, cachedHash],
   );
   const chars = new CharacterService(db, 1);
-  const c = await chars.create(rows[0].id, { name: opts.name ?? `Pelaaja${counter}`, color: '#ffd23f' });
+  const c = await chars.create(rows[0].id, { name: opts.name ?? `Pelaaja${n}`, color: '#ffd23f' });
   if (opts.veteran !== false) {
     // Past the new-account trade limits.
     await db.query('UPDATE characters SET xp = 1000, play_seconds = 100000 WHERE id = $1', [c.id]);

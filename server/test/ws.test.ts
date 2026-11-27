@@ -61,7 +61,7 @@ describe.skipIf(!ok)('websocket gateway (end to end)', () => {
   it('players see each other, move, chat, and trade with double confirmation', async () => {
     const alice = await signup('Aliisa');
     const bob = await signup('Pertti');
-    await withTx(db, (tx) => addItem(tx, alice.id, 'perch', 10, 'admin_restore'));
+    await withTx(db, (tx) => addItem(tx, alice.id, 'kahvi', 10, 'admin_restore'));
 
     const a = await connect(alice.cookie);
     const welcomeA = await a.next('welcome');
@@ -85,8 +85,8 @@ describe.skipIf(!ok)('websocket gateway (end to end)', () => {
     await a.next('trade.update');
     await b.next('trade.update');
 
-    a.send({ t: 'trade.offer', tradeId: req.tradeId, offer: { items: [{ itemId: 'perch', quantity: 4 }], money: 0 } });
-    expect((await b.next('trade.update', (m) => m.trade.them.offer.items.length > 0)).trade.changed).toEqual(['perch']);
+    a.send({ t: 'trade.offer', tradeId: req.tradeId, offer: { items: [{ itemId: 'kahvi', quantity: 4 }], money: 0 } });
+    expect((await b.next('trade.update', (m) => m.trade.them.offer.items.length > 0)).trade.changed).toEqual(['kahvi']);
     b.send({ t: 'trade.offer', tradeId: req.tradeId, offer: { items: [], money: 2000 } });
     await a.next('trade.update', (m) => m.trade.them.offer.money === 2000);
 
@@ -97,7 +97,7 @@ describe.skipIf(!ok)('websocket gateway (end to end)', () => {
     a.send({ t: 'trade.accept', tradeId: req.tradeId, stage: 'offer' });
     b.send({ t: 'trade.accept', tradeId: req.tradeId, stage: 'offer' });
     const confirm = await a.next('trade.update', (m) => m.trade.stage === 'confirm');
-    expect(confirm.trade.you.offer.items).toEqual([{ itemId: 'perch', quantity: 4 }]);
+    expect(confirm.trade.you.offer.items).toEqual([{ itemId: 'kahvi', quantity: 4 }]);
 
     // Too early: refused (anti-misclick delay).
     a.send({ t: 'trade.accept', tradeId: req.tradeId, stage: 'confirm', rid: 'early' });
@@ -110,7 +110,7 @@ describe.skipIf(!ok)('websocket gateway (end to end)', () => {
     expect(doneA.received.money).toBe(2000);
     await b.next('trade.completed');
 
-    expect(await qty(db, bob.id, 'perch')).toBe(4);
+    expect(await qty(db, bob.id, 'kahvi')).toBe(4);
     expect(await money(db, alice.id)).toBe(7000);
     expect(await money(db, bob.id)).toBe(3000);
 
