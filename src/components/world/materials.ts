@@ -159,6 +159,10 @@ export function createGroundMaterial(map?: { texture: THREE.Texture; min: THREE.
   vec3 dry = vec3(0.62, 0.60, 0.38);
   vec3 col = mix(g1, g2, big);
   col = mix(col, dry, smoothstep(0.72, 0.95, big) * 0.3);
+  // lush, darker grass in low wet ground; drier, paler grass up on the hills
+  float hgt = vWorldPos.y;
+  col = mix(col, col * vec3(0.82, 0.95, 0.80), smoothstep(1.5, -4.0, hgt) * 0.6);
+  col = mix(col, mix(col, dry, 0.5), smoothstep(8.0, 22.0, hgt) * 0.45);
   vec2 muv = (p - uMapMin) / uMapSize;
   vec3 cover = texture2D(uGroundMap, muv).rgb;
   if (muv.x < 0.0 || muv.y < 0.0 || muv.x > 1.0 || muv.y > 1.0) cover = vec3(0.0);

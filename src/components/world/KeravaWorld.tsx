@@ -5,7 +5,7 @@ import type { WorldData } from '../../game/world/worldData';
 import type { WorldXZ } from '../../game/world/projection';
 import type { BuildingCollider } from '../../game/world/collision';
 import type { Tree } from '../../game/world/vegetation';
-import { buildAreaGeometry, buildBuildingsGeometry, buildCrossingGeometry, buildRoadLayers, buildTerrainGeometry } from '../../game/world/geometry';
+import { buildAreaGeometry, buildBuildingsGeometry, buildCatenaryGeometry, buildCrossingGeometry, buildRoadLayers, buildTerrainGeometry } from '../../game/world/geometry';
 import type { Terrain } from '../../game/world/terrain';
 import { paintGroundMap } from './groundMap';
 import { createBuildingMaterial, createGrainMaterial, createGroundMaterial, createWaterMaterial, type XrayUniforms } from './materials';
@@ -38,7 +38,7 @@ function offset<M extends THREE.Material>(m: M, units: number): M {
 /** Max pointer travel (px) for a press to count as a click rather than a camera drag. */
 const CLICK_TOLERANCE_PX = 6;
 
-export function KeravaWorld({ data, terrain, onGroundClick, playerRef, xray, trees, props }: KeravaWorldProps) {
+export function KeravaWorld({ data, terrain, onGroundClick, playerRef, xray, trees, props, excludeTrees }: KeravaWorldProps) {
   const groundMap = useMemo(() => paintGroundMap(data, terrain), [data, terrain]);
   useEffect(() => () => groundMap.texture.dispose(), [groundMap]);
 
@@ -56,6 +56,8 @@ export function KeravaWorld({ data, terrain, onGroundClick, playerRef, xray, tre
       sleeper: new THREE.MeshStandardMaterial({ color: '#4a3527', roughness: 0.9 }),
       rail: new THREE.MeshStandardMaterial({ color: '#b9bcc2', roughness: 0.3, metalness: 0.9 }),
       concrete: createGrainMaterial('#b3b0a8', 0.12),
+      mast: new THREE.MeshStandardMaterial({ color: '#8d949c', roughness: 0.45, metalness: 0.7 }),
+      wire: new THREE.MeshStandardMaterial({ color: '#3b2f26', roughness: 0.5, metalness: 0.6 }),
     }),
     [xray, groundMap],
   );
@@ -67,8 +69,9 @@ export function KeravaWorld({ data, terrain, onGroundClick, playerRef, xray, tre
       roads: buildRoadLayers(data.roads, terrain),
       water: buildAreaGeometry(data.water, terrain.waterLevels),
       crossings: buildCrossingGeometry(terrain),
+      catenary: buildCatenaryGeometry(data.roads, terrain, excludeTrees ?? (() => false)),
     }),
-    [data, terrain],
+    [data, terrain, excludeTrees],
   );
 
 
@@ -78,6 +81,8 @@ export function KeravaWorld({ data, terrain, onGroundClick, playerRef, xray, tre
       geos.buildings?.dispose();
       geos.water?.dispose();
       geos.crossings?.dispose();
+      geos.catenary.masts?.dispose();
+      geos.catenary.wires?.dispose();
       Object.values(geos.roads).forEach((g) => g?.dispose());
     },
     [geos],
@@ -130,6 +135,8 @@ export function KeravaWorld({ data, terrain, onGroundClick, playerRef, xray, tre
       {flat(r.sleepers, materials.sleeper)}
       {flat(r.rails, materials.rail)}
       {geos.crossings && <mesh geometry={geos.crossings} material={materials.concrete} castShadow receiveShadow />}
+      {geos.catenary.masts && <mesh geometry={geos.catenary.masts} material={materials.mast} castShadow />}
+      {geos.catenary.wires && <mesh geometry={geos.catenary.wires} material={materials.wire} />}
       {geos.buildings && <mesh geometry={geos.buildings} material={materials.building} castShadow receiveShadow />}
       <WaterDetails data={data} terrain={terrain} />
       <Trees trees={trees} playerRef={playerRef} />

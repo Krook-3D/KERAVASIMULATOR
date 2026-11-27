@@ -40,6 +40,15 @@ export function paintGroundMap(world: WorldData, terrain: Terrain): GroundMap {
   (world.forests ?? []).forEach((a) => poly(a.outline, 'rgb(0,255,0)'));
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
+  // gravel and bare earth along the railway embankment
+  for (const r of world.roads) {
+    if (r.kind !== 'rail') continue;
+    ctx.strokeStyle = 'rgb(0,0,150)';
+    ctx.lineWidth = (ROAD_WIDTH.rail + 7) * scale;
+    ctx.beginPath();
+    r.points.forEach((p, i) => (i ? ctx.lineTo(...px(p)) : ctx.moveTo(...px(p))));
+    ctx.stroke();
+  }
   for (const r of world.roads) {
     if (r.kind !== 'river') continue;
     ctx.strokeStyle = 'rgb(0,0,255)';

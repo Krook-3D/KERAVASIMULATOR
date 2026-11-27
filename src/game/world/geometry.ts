@@ -441,3 +441,77 @@ export function buildCrossingGeometry(terrain: Terrain): THREE.BufferGeometry | 
   parts.forEach((p) => p.dispose());
   return merged;
 }
+
+// ---------------------------------------------------------------- overhead line
+
+/**
+ * Overhead line for the electrified railway: steel masts every ~55 m beside
+ * the track with an arm over it, and the contact wire between them.
+ * `skip` leaves out places that have their own structures (the station).
+ */
+export function buildCatenaryGeometry(roads: Road[], terrain: Terrain, skip: (p: WorldXZ) => boolean): { masts: THREE.BufferGeometry | null; wires: THREE.BufferGeometry | null } {
+  const masts: THREE.BufferGeometry[] = [], wires: THREE.BufferGeometry[] = [];
+  const placed: WorldXZ[] = [];
+  const box = (out: THREE.BufferGeometry[], x: number, y: number, z: number, w: number, h: number, l: number, yaw: number, pitch = 0) => {
+    const g = new THREE.BoxGeometry(w, h, l);
+    if (pitch) g.rotateX(pitch);
+    g.rotateY(yaw);
+    g.translate(x, y, z);
+    out.push(g.index ? g.toNonIndexed() : g);
+  };
+  const SPACING = 55, SIDE = 3.4, WIRE_H = 5.8;
+  for (const r of roads) {
+    if (r.kind !== 'rail') continue;
+    const pts = densify(r.points, 5);
+    // walk the line, dropping a mast every SPACING metres
+    const stops: { p: WorldXZ; dir: WorldXZ }[] = [];
+    let carry = SPACING / 2;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i]!, b = pts[i + 1]!;
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (len < 0.01) continue;
+      const dir: WorldXZ = [(b[0] - a[0]) / len, (b[1] - a[1]) / len];
+      for (let t = carry; t < len; t += SPACING) stops.push({ p: [a[0] + dir[0] * t, a[1] + dir[1] * t], dir });
+      carry = (carry - len) % SPACING;
+      if (carry < 0) carry += SPACING;
+    }
+    let prev: { p: WorldXZ; y: number } | null = null;
+    for (const s of stops) {
+      if (skip(s.p)) {
+        prev = null;
+        continue;
+      }
+      const y = terrain.railAt(s.p[0], s.p[1]);
+      const yaw = Math.atan2(s.dir[0], s.dir[1]);
+      const side: WorldXZ = [s.dir[1], -s.dir[0]];
+      const m: WorldXZ = [s.p[0] + side[0] * SIDE, s.p[1] + side[1] * SIDE];
+      // parallel tracks share masts: skip one right next to another
+      if (!placed.some((q) => Math.hypot(q[0] - m[0], q[1] - m[1]) < 7)) {
+        placed.push(m);
+        box(masts, m[0], y + 3.8, m[1], 0.28, 7.6, 0.28, yaw);
+        box(masts, m[0], y + 0.15, m[1], 0.7, 0.3, 0.7, yaw); // footing
+      }
+      // arm from the mast over the track, and a thin hanger down to the wire
+      box(masts, s.p[0] + side[0] * SIDE * 0.5, y + 6.9, s.p[1] + side[1] * SIDE * 0.5, SIDE + 0.2, 0.12, 0.12, yaw);
+      box(masts, s.p[0], y + (WIRE_H + 6.9) / 2, s.p[1], 0.04, 6.9 - WIRE_H, 0.04, yaw);
+      if (prev) {
+        const dx = s.p[0] - prev.p[0], dz = s.p[1] - prev.p[1];
+        const len = Math.hypot(dx, dz);
+        if (len < SPACING * 1.6) {
+          const dy = y - prev.y;
+          // contact wire and the catenary (messenger) wire above it
+          for (const hh of [WIRE_H, 6.85])
+            box(wires, (s.p[0] + prev.p[0]) / 2, (y + prev.y) / 2 + hh, (s.p[1] + prev.p[1]) / 2, 0.035, 0.035, Math.hypot(len, dy), Math.atan2(dx, dz), -Math.atan2(dy, len));
+        }
+      }
+      prev = { p: s.p, y };
+    }
+  }
+  const merge = (list: THREE.BufferGeometry[]) => {
+    if (!list.length) return null;
+    const g = mergeGeometries(list);
+    list.forEach((p) => p.dispose());
+    return g;
+  };
+  return { masts: merge(masts), wires: merge(wires) };
+}

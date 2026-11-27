@@ -148,21 +148,37 @@ export function proceduralHeight(x: number, z: number): number {
   return rolling + detail + ridge + valley + hilly * 6;
 }
 
-function sampleGrid(g: ElevationGrid, x: number, z: number): number {
+/** Catmull-Rom weights: a smooth curve through the samples (no flat spots at grid points). */
+const cr = (p0: number, p1: number, p2: number, p3: number, t: number) =>
+  p1 + 0.5 * t * (p2 - p0 + t * (2 * p0 - 5 * p1 + 4 * p2 - p3 + t * (3 * (p1 - p2) + p3 - p0)));
+
+/** Real elevation (40 m grid) with bicubic interpolation, so slopes run smoothly between samples. */
+export function sampleGrid(g: ElevationGrid, x: number, z: number): number {
   const fx = Math.max(0, Math.min(g.cols - 1.001, (x - g.minX) / g.step));
   const fz = Math.max(0, Math.min(g.rows - 1.001, (z - g.minZ) / g.step));
   const ix = Math.floor(fx), iz = Math.floor(fz);
   const tx = fx - ix, tz = fz - iz;
-  const at = (c: number, r: number) => g.heights[r * g.cols + c] ?? 0;
-  const a = at(ix, iz), b = at(ix + 1, iz), c = at(ix, iz + 1), d = at(ix + 1, iz + 1);
-  // smoothstep blend hides the 50 m grid
-  const sx = tx * tx * (3 - 2 * tx), sz = tz * tz * (3 - 2 * tz);
-  return a + (b - a) * sx + (c - a) * sz + (a - b - c + d) * sx * sz;
+  const at = (c: number, r: number) => g.heights[Math.max(0, Math.min(g.rows - 1, r)) * g.cols + Math.max(0, Math.min(g.cols - 1, c))] ?? 0;
+  const row = (r: number) => cr(at(ix - 1, r), at(ix, r), at(ix + 1, r), at(ix + 2, r), tx);
+  return cr(row(iz - 1), row(iz), row(iz + 1), row(iz + 2), tz);
+}
+
+/**
+ * Small natural relief the 40 m elevation data can't show: gentle hummocks
+ * everywhere outside the built-up centre, and knobbly, rockier ground in the
+ * forests (Finnish moraine). Roads and the station are levelled afterwards.
+ */
+export function microRelief(x: number, z: number, forest: number, urban: number): number {
+  const hummock = fbm(x * 0.018 + 41, z * 0.018 - 7, 3) * 0.9 + fbm(x * 0.06, z * 0.06, 2) * 0.3;
+  const knobs = Math.max(0, fbm(x * 0.035 - 13, z * 0.035 + 5, 3)) * 2.6 + fbm(x * 0.13, z * 0.13, 2) * 0.35;
+  return (hummock * (1 - forest) + (hummock * 0.6 + knobs) * forest) * (1 - urban * 0.8);
 }
 
 // ------------------------------------------------------------ build
 
 export const TERRAIN_STEP = 6;
+/** Height of the railway embankment above the surrounding ground. */
+const RAIL_BANK = 0.8;
 const MARGIN = 260;
 
 function densify(points: WorldXZ[], maxLen: number): WorldXZ[] {
@@ -236,6 +252,22 @@ export function createTerrain(world: WorldData, layout: StationLayout | null): T
   const origin = layout?.origin ?? [0, 0];
   const zero = base(origin[0], origin[1]);
   const forms = landformsFor(world);
+  // land cover per node: forest (for relief) and how built-up it is (for keeping the centre flat)
+  const forestW = new Float32Array(n);
+  for (const f of world.forests ?? []) if (f.outline.length >= 3) forNodesInPolygon(g, f.outline, (k) => (forestW[k] = 1));
+  const urbanW = new Float32Array(n);
+  for (const bld of world.buildings) {
+    const p = bld.footprint[0];
+    if (!p) continue;
+    const c = Math.round((p[0] - minX) / step), r = Math.round((p[1] - minZ) / step);
+    for (let dr = -4; dr <= 4; dr++)
+      for (let dc = -4; dc <= 4; dc++) {
+        const rr = r + dr, cc = c + dc;
+        if (rr < 0 || cc < 0 || rr >= rows || cc >= cols) continue;
+        const k = rr * cols + cc;
+        urbanW[k] = Math.min(1, urbanW[k]! + 0.12 * (1 - Math.hypot(dr, dc) / 6));
+      }
+  }
   for (let r = 0; r < rows; r++)
     for (let c = 0; c < cols; c++) {
       const x = minX + c * step, z = minZ + r * step;
@@ -243,7 +275,8 @@ export function createTerrain(world: WorldData, layout: StationLayout | null): T
       const out = Math.max(b.minX - x, x - b.maxX, b.minZ - z, z - b.maxZ, 0);
       const fade = 1 - smooth(MARGIN * 0.35, MARGIN * 0.9, out);
       const b0 = base(x, z) - zero;
-      h[r * cols + c] = (b0 + landformHeight(forms, x, z, b0)) * fade;
+      const k = r * cols + c;
+      h[k] = (b0 + landformHeight(forms, x, z, b0) + microRelief(x, z, forestW[k]!, urbanW[k]!)) * fade;
     }
 
   // Level beds for roads and rails, following the smoothed centre line.
@@ -272,6 +305,19 @@ export function createTerrain(world: WorldData, layout: StationLayout | null): T
     }
   }
   for (let k = 0; k < n; k++) if (flatW[k]! > 0) h[k] = h[k]! + (flatH[k]! - h[k]!) * flatW[k]!;
+
+  // The railway runs on a low embankment with sloping shoulders, like real track.
+  const bank = new Float32Array(n);
+  for (const road of world.roads) {
+    if (road.kind !== 'rail') continue;
+    const half = ROAD_WIDTH.rail / 2;
+    const pts = densify(road.points, 12);
+    for (let i = 0; i < pts.length - 1; i++)
+      forNodesNearSegment(g, pts[i]!, pts[i + 1]!, half + 8, (k, d) => {
+        bank[k] = Math.max(bank[k]!, RAIL_BANK * (1 - smooth(half + 0.5, half + 8, d)));
+      });
+  }
+  for (let k = 0; k < n; k++) h[k] = h[k]! + bank[k]!;
 
   // The station sits on a flat yard at y = 0.
   if (layout) {
