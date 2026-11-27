@@ -82,16 +82,20 @@ Vaiheet: ks. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#8-kehitysjärjestys).
 ## Seuraavaksi (jono)
 - [x] Joukkoliikenne: bussipysäkit, määränpäävalikko, bussi hakee
 - [x] Savio: asema, lähijuna Kerava ↔ Savio, Alepa
-- [ ] SHERWOOD-alkuvalikko, taustalla ilmakuva Keravasta
-- [ ] Hahmoeditori ja parturi
-- [ ] Kokkaus raaka-aineilla, Art-skilli graffiteilla
-- [ ] Karma ja aura, kaupan vartijat, poliisiasema ja putka
-- [ ] Esineet common → legendary, 30 paikan reppu, ostoskori
-- [ ] Maastokätköt, jotka aloittavat questin
+- [x] SHERWOOD-alkuvalikko, taustalla ilmakuva Keravasta
+- [x] Hahmoeditori ja parturi
+- [x] Kokkaus raaka-aineilla, Art-skilli graffiteilla
+- [x] Karma ja aura, kaupan vartijat, poliisiasema ja putka
+- [x] Esineet common → legendary, 30 paikan reppu, ostoskori
+- [x] Maastokätköt, jotka aloittavat questin
 - [ ] Tarinan pääketjut alueittain (ks. ARCHITECTURE luku 11)
-- [ ] Laaja grafiikkakierros, kasvojen yksityiskohdat
-- [ ] Esineiden 3D-mallit ja ikonit kuntoon
-- [ ] Koodin laadun tarkistus
+- [x] Laaja grafiikkakierros, kasvojen yksityiskohdat
+- [x] Esineiden 3D-mallit ja ikonit kuntoon
+- [x] Koodin laadun tarkistus (yksikkötestit `npm test`)
+- [x] Kaupungin elämä: jengit huutelevat, kansalaiset ja perheet, kaikille voi puhua (2–3 valintaa)
+- [x] Motonet (spraymaalit, työkalut), Savion Alepa samalla kauppamekaniikalla
+- [x] Salin roina-talous (fiktiiviset tuotteet, abstraktit vaikutukset)
+- [ ] GameWorld.tsx pilkotaan hookeiksi (useShop, useGraffiti, useStashes…)
 
 ## Myöhemmin
 - [ ] Backend (Node + TS, REST) ja PostgreSQL/PostGIS

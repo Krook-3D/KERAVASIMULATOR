@@ -355,4 +355,26 @@ Ratsiat nostavat heatia, ja katupomo voi kostaa (questi alkaa).
 - **Sisätilat** (`src/game/interiors/interiors.ts`, `src/components/world/interiors/`): erilliset kattomattomat näkymät omissa koordinaateissaan, ovet yhdistävät ne maailmaan. Seinät madaltuvat, kun kamera on niiden takana (cutaway). Sisätilat: asematunneli, asemahalli, Prisma, vankila, kuntosali, uimahalli.
 - **Kuntosali** (`src/game/gym/lifting.ts`): penkki, kyykky ja maastaveto. Levyt haetaan itse telineestä pareittain. Voima-taso rajaa kannettavan levyn painon ja nostettavan maksimin; lähellä maksimia onnistuminen on todennäköisyys.
 - **Vankilapako** (`src/game/quests/`): vartijat ovat ajan puhtaita funktioita (testattavat näkökartiot), viilaus tapahtuu kun kukaan ei katso.
-- **Debug**: `?debug=1` paljastaa `window.__kerava`-olion (teleport, goTo, setRoute, click, pos, local…).
+- **Debug**: `?debug=1` paljastaa `window.__kerava`-olion (teleport, goTo, setRoute, click, pos, local, loot, npcs, talk, shop, steal, wall, paint, stashes, give…).
+- **Testit**: `npm test` (vitest) ajaa pelilogiikan yksikkötestit tiedostossa `src/game/logic.test.ts`: reppu ja kädet, kauppa ja näpistys, karma, kokkaus, graffitit ja roina.
+
+## 14. Pelijärjestelmät (toteutettu marraskuu 2026)
+
+Kaikki pelaajan tila on reducerissa (`src/game/store/gameReducer.ts`) ja tallentuu localStorageen (`kerava-sim:save`). Satunnaisuus ja ajastimet ovat `GameWorld.tsx`:ssä, puhtaat säännöt `src/game/*`-moduuleissa.
+
+| Järjestelmä | Säännöt | Näkymä |
+| --- | --- | --- |
+| Esineet ja reppu | `src/data/items.ts` (~75 esinettä common → legendary), `INVENTORY_SIZE = 30`, `equipItem` vasen/oikea käsi, kahden käden esineet vievät molemmat | `InventoryPanel`, `items/itemModels.ts`, `LootField` (150 löytöpaikkaa, `game/world/loot.ts`) |
+| Kaupat | `src/game/shop/shop.ts`: Prisma, Alepa, Motonet. Ostoskori, oikea klikkaus Osta/Varasta. `catchChance = min(0.95, 0.1 + 0.11 × näpistykset + 0.003 × hälytys)` → keskimäärin joka 3.–4. jää kiinni | `shop/ShopHud.tsx` |
+| Hälytystaso | varastetut × 7 + aineet × 3, kaupassa +8 ja +6 / näpistys | `AlertMeter` |
+| Karma ja aura | −100…+100. Näpistys −2, kiinnijäänti 3 × käynnin näpistykset, graffiti alueen mukaan | `KarmaChip`, `KarmaAura` |
+| Poliisi ja putka | `toPutka(karma, syy)`: aika, takavarikko, karma. Poliisi pysäyttää aineiden kanssa keskustassa | `PoliceInterior` |
+| NPC:t | `src/game/npc/population.ts`: 6 jengiä (sekalainen porukka), 90 kävelijää (kansalaiset, perheet, lenkkeilijät, vanhukset). `talk.ts`: huudot ja 2–3 vaihtoehdon dialogit hustlaus-checkeillä | `npc/Crowd.tsx` (max 30 lähintä) |
+| Kokkaus | `src/game/cooking/recipes.ts`: 8 reseptiä, palamistodennäköisyys 33 % → 3 % tason myötä. Grillit ja nuotiot `game/world/grills.ts` | `CookHud`, `CookSpots` |
+| Art / graffiti | `src/game/art/graffiti.ts`: seinän haku, alueen laatu (rähjäinen +3, siisti −4), todistajat (45 % ei välitä, 33 % suuttuu, 22 % soittaa poliisit, jengit arvostavat), poliisi 14 s:ssa | `art/GraffitiCanvas` (vapaa hiirimaalaus), `art/GraffitiWall` (tallennus `kerava-sim:graffiti`, max 16) |
+| Maastokätköt | `src/game/quests/stashes.ts`: 8 kätköä (rikolliset, poliisi, geokätköilijä), ottaminen tuo takaa-ajajat ja questin | `Stashes`, `Pursuers` |
+| Salin roina | `src/game/gym/roina.ts`: fiktiiviset parodiatuotteet, pelilliset vaikutukset (XP-kertoimet, energia), rasitus laskee 3 / min ja korkealla syö terveyttä | buff-palkki HUDissa |
+
+Grafiikka: vesi ja vaahto shaderina (`materials.ts`), lumpeet ja kaislat (`WaterDetails`), ruoho ja kukat pelaajan lähellä (`GroundDetail`), puut korkeusvarjostuksella ja tuulessa huojuen (`Trees`), linnut (`Birds`), kasvojen yksityiskohdat (`humanoid/buildHumanoid.ts`), jälkikäsittely (`Effects`).
+
+Moninpeli: palvelin on omassa haarassaan (PR #2, `server/` ja `shared/`), suunnitelma ja tila tiedostossa `docs/MULTIPLAYER.md`.

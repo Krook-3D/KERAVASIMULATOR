@@ -122,6 +122,16 @@ const CELL_SPAWN: WorldXZ = [PLAYER_CELL_X + 0.6, -4.2];
 const HOTSPOT_SNAP = 2.6;
 const HOTSPOT_USE = 1.8;
 
+/** Shop-front signs for the town buildings placed from sites.ts. */
+const TOWN_SIGNS: { key: 'barber' | 'alepa' | 'gym' | 'motonet' | 'police' | 'pool'; sign: string; color: string; sub?: string }[] = [
+  { key: 'barber', sign: 'PARTURI', color: '#7a1f2a', sub: 'SAKSET · AJANVARAUS EI TARPEEN' },
+  { key: 'alepa', sign: 'Alepa', color: '#f28c28' },
+  { key: 'gym', sign: 'KUNTOSALI RAUTA', color: '#c8312b', sub: 'AVOINNA 24/7' },
+  { key: 'motonet', sign: 'MOTONET', color: '#d4202a', sub: 'AUTO · KOTI · VAPAA-AIKA' },
+  { key: 'police', sign: 'POLIISI', color: '#1f3f8f', sub: 'POLISEN · KERAVAN POLIISIASEMA' },
+  { key: 'pool', sign: 'UIMAHALLI', color: '#1f8fc0', sub: 'KERAVAN UIMAHALLI' },
+];
+
 function Clock({ clockRef }: { clockRef: MutableRefObject<number> }) {
   useFrame((_, dt) => {
     clockRef.current += Math.min(dt, 0.5);
@@ -1270,17 +1280,14 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
             {!cutscene &&
               busStops.map((b) => <Hotspot key={b.id} at={b.at} y={terrain!.surfaceAt(b.at[0], b.at[1])} label={`🚌 ${b.name}`} onClick={() => onGroundClick(b.at)} />)}
             {placed && <SavioStationModel centre={placed.savio.centre} dir={placed.savio.dir} side={placed.savio.side} ground={terrain!.surfaceAt(placed.savio.wait[0], placed.savio.wait[1])} />}
-            {placed && <BlockExterior site={placed.barber} ground={terrain!.surfaceAt(placed.barber.door[0], placed.barber.door[1])} sign="PARTURI" color="#7a1f2a" sub="SAKSET · AJANVARAUS EI TARPEEN" />}
-            {placed && <BlockExterior site={placed.alepa} ground={terrain!.surfaceAt(placed.alepa.door[0], placed.alepa.door[1])} sign="Alepa" color="#f28c28" />}
+            {placed && TOWN_SIGNS.map((b) => (
+              <BlockExterior key={b.key} site={placed[b.key]} ground={terrain!.surfaceAt(placed[b.key].door[0], placed[b.key].door[1])} sign={b.sign} color={b.color} sub={b.sub} />
+            ))}
             {!cutscene &&
               trainStops.map((t) => (
                 <Hotspot key={t.id} at={t.at} y={layout ? stationGroundHeight(layout, t.at, terrain!.surfaceAt(t.at[0], t.at[1])) : 0} label="🚆 Lähijuna" onClick={() => onGroundClick(t.at)} />
               ))}
             {busRun && <BusVehicle run={busRun} clockRef={clockRef} groundAt={(x, z) => terrain!.surfaceAt(x, z)} />}
-            {placed && <BlockExterior site={placed.gym} ground={terrain!.surfaceAt(placed.gym.door[0], placed.gym.door[1])} sign="KUNTOSALI RAUTA" color="#c8312b" sub="AVOINNA 24/7" />}
-            {placed && <BlockExterior site={placed.motonet} ground={terrain!.surfaceAt(placed.motonet.door[0], placed.motonet.door[1])} sign="MOTONET" color="#d4202a" sub="AUTO · KOTI · VAPAA-AIKA" />}
-            {placed && <BlockExterior site={placed.police} ground={terrain!.surfaceAt(placed.police.door[0], placed.police.door[1])} sign="POLIISI" color="#1f3f8f" sub="POLISEN · KERAVAN POLIISIASEMA" />}
-            {placed && <BlockExterior site={placed.pool} ground={terrain!.surfaceAt(placed.pool.door[0], placed.pool.door[1])} sign="UIMAHALLI" color="#1f8fc0" sub="KERAVAN UIMAHALLI" />}
             {!cutscene && npcs.length > 0 && (
               <Crowd npcs={npcs} live={npcLive} clockRef={clockRef} groundAt={(x, z) => terrain!.surfaceAt(x, z)} playerRef={positionRef} talkingId={talkingId} onTalk={onNpcClick} />
             )}
