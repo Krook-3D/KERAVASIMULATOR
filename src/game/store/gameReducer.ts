@@ -1,4 +1,5 @@
 import type { CrewMood } from '../street/provoke';
+import { fatBurn, fatFromEating, START_BODY } from '../player/body';
 import type { EquipmentSlot, LngLat, Player, Reward } from '../../types/game';
 import { ITEMS } from '../../data/items';
 import { KARMA_MAX, KARMA_MIN, STEAL_KARMA } from '../shop/shop';
@@ -27,6 +28,7 @@ export type GameAction =
   | { type: 'caughtStealing'; karma: number }
   | { type: 'adjustKarma'; amount: number }
   | { type: 'setCrewMood'; crewId: string; mood: CrewMood }
+  | { type: 'recordLift'; lift: string; kg: number }
   | { type: 'eatItem'; itemId: string }
   | { type: 'useUp'; itemId: string }
   | { type: 'useRoina'; id: RoinaId }
@@ -98,6 +100,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       for (const [id, n] of Object.entries(p.stolen ?? {})) next = removeItem(next, id, n);
       return { player: { ...next, stolen: {}, sinceCaught: 0, karma: clampKarma((p.karma ?? 0) + action.karma) } };
     }
+    case 'recordLift': {
+      const p = state.player;
+      if (!p || action.lift !== 'deadlift') return state;
+      const body = p.body ?? START_BODY;
+      return action.kg > body.deadlift ? { player: { ...p, body: { ...body, deadlift: action.kg } } } : state;
+    }
     case 'setCrewMood':
       return state.player ? { player: { ...state.player, crewMood: { ...state.player.crewMood, [action.crewId]: action.mood } } } : state;
     case 'adjustKarma':
@@ -118,7 +126,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const next = removeItem(p, action.id, 1);
       const buffs = (p.buffs ?? []).filter((b) => b.id !== action.id && b.left > 0);
       if (d.duration > 0) buffs.push({ id: action.id, left: d.duration });
-      return { player: { ...next, buffs, strain: Math.max(0, Math.min(100, (p.strain ?? 0) + d.strain)) } };
+      const body = p.body ?? START_BODY;
+      return { player: { ...next, buffs, strain: Math.max(0, Math.min(100, (p.strain ?? 0) + d.strain)), body: d.strain > 0 ? { ...body, roina: body.roina + d.strain / 100 } : body } };
     }
     case 'tickBuffs': {
       const p = state.player;
@@ -150,9 +159,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const def = ITEMS[action.itemId];
       if (!p || !def?.effects || !p.inventory.some((s) => s.itemId === action.itemId)) return state;
       const next = removeItem(p, action.itemId, 1);
+      const body = p.body ?? START_BODY;
       return {
         player: {
           ...next,
+          body: { ...body, fat: Math.min(1, body.fat + fatFromEating(p.energy, def.effects.energy ?? 0)) },
           energy: Math.min(MAX_ENERGY, next.energy + (def.effects.energy ?? 0)),
           health: Math.min(100, next.health + (def.effects.health ?? 0)),
         },
@@ -168,6 +179,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           energy: clamp(p.energy + (action.energy ?? 0), MAX_ENERGY),
           health: clamp(p.health + (action.health ?? 0), 100),
           money: Math.max(0, p.money + (action.money ?? 0)),
+          ...((action.energy ?? 0) < 0 ? { body: { ...(p.body ?? START_BODY), fat: Math.max(0, (p.body ?? START_BODY).fat - fatBurn(-(action.energy ?? 0))) } } : {}),
         },
       };
     }

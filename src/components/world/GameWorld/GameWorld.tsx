@@ -1,3 +1,5 @@
+import { levelFromXp } from '../../../game/xp/xp';
+import { bodyShape } from '../../../game/player/body';
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -308,7 +310,10 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     return new RectCollider(solids);
   }, [scene, jailStep, shop.putkaUntil]);
   const appearance = player?.appearance;
-  const outfit = useMemo(() => playerOutfit(color, appearance), [color, appearance]);
+  const strengthLv = levelFromXp(player?.skills.strength?.xp ?? 0);
+  const { fat: bodyFat, muscle: bodyMuscle } = bodyShape(player?.body, strengthLv);
+  const shape = useMemo(() => ({ fat: bodyFat, muscle: bodyMuscle }), [bodyFat, bodyMuscle]);
+  const outfit = useMemo(() => playerOutfit(color, appearance, shape), [color, appearance, shape]);
 
   useDebugHook({
     w, scene, cutscene, dispatch, positionRef, jailLive, holdingRef, npcLive, goTo, teleport, setRoute,
@@ -391,6 +396,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
         <Player
           color={color}
           appearance={appearance}
+          shape={shape}
           positionRef={positionRef}
           scriptRef={scriptRef}
           route={route}

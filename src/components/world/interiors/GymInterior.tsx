@@ -319,7 +319,7 @@ export function GymInterior({ pairs, active, outfit, clockRef }: { pairs: Record
       <Box p={[-6.4, 1.3, 7.1]} s={[0.9, 0.3, 0.6]} color="#ffd23f" />
       <TextPanel p={[-6.4, 1.6, 6.78]} rotY={Math.PI} w={1.2} h={0.25} text="Proteiinipatukat 3 €" bg="#14171f" fg="#ffd23f" font="700 34px Rubik, Arial" />
       <GymGoer p={[-8.6, 7.4]} yaw={Math.PI} outfit={{ top: '#c8312b', legs: '#1f2533', shoes: '#fff', hair: '#2a1a10', hat: 'none', hatColor: '#000', accent: '#fff', build: 1.05 }} mode="phone" />
-      <GymGoer p={[-9.3, 2.2]} yaw={Math.PI / 2} outfit={{ top: '#2a2a33', legs: '#3a3a44', shoes: '#ddd', hair: '#1a1410', hat: 'none', hatColor: '#000', accent: '#fff', build: 1.18, skin: '#c58f62' }} mode="curl" />
+      <GymGoer p={[-9.3, 2.2]} yaw={Math.PI / 2} outfit={{ top: '#2a2a33', legs: '#3a3a44', shoes: '#ddd', hair: '#1a1410', hat: 'none', hatColor: '#000', accent: '#fff', build: 1.05, muscle: 0.7, skin: '#c58f62' }} mode="curl" />
       <GymGoer p={[10.3, -1.5]} yaw={Math.PI / 2} outfit={{ top: '#ff6fa8', legs: '#14171f', shoes: '#fff', hair: '#d8b070', hat: 'none', hatColor: '#000', accent: '#fff', build: 0.9 }} mode="run" />
     </group>
   );

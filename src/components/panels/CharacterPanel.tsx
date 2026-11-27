@@ -5,6 +5,7 @@ import { MAX_ENERGY, MAX_HEALTH } from '../../game/player/createPlayer';
 import { useGame } from '../../game/store/GameProvider';
 import { ProgressBar } from '../ProgressBar';
 import { itemIcon, itemName } from '../../data/items';
+import { bodyLabel, bodyShape, START_BODY } from '../../game/player/body';
 
 const SLOTS: { id: EquipmentSlot; label: string }[] = [
   { id: 'head', label: 'Pää' },
@@ -45,6 +46,24 @@ export function CharacterPanel({ player }: { player: Player }) {
         <ProgressBar value={player.energy / MAX_ENERGY} color="var(--yellow)" label="Energia" />
       </div>
       <div className="stat__row"><span>💰 Raha</span><strong>{player.money} €</strong></div>
+      {(() => {
+        const shape = bodyShape(player.body, levelFromXp(player.skills.strength?.xp ?? 0));
+        const b = player.body ?? START_BODY;
+        return (
+          <>
+            <h3 className="section-title">Kroppa: {bodyLabel(shape)}</h3>
+            <div className="stat">
+              <div className="stat__row"><span>🍔 Rasva</span><span>{Math.round(shape.fat * 100)} %</span></div>
+              <ProgressBar value={shape.fat} color="var(--yellow)" label="Rasva" />
+            </div>
+            <div className="stat">
+              <div className="stat__row"><span>💪 Lihas</span><span>{Math.round(shape.muscle * 100)} %</span></div>
+              <ProgressBar value={shape.muscle} color="var(--red)" label="Lihas" />
+            </div>
+            <p className="muted">Maastavedon ennätys {b.deadlift} kg{b.roina > 0 ? ` · roinaa käytetty ${Math.round(b.roina * 100)} rasituspistettä` : ''}. Syöminen täydellä energialla lihottaa, treeni polttaa.</p>
+          </>
+        );
+      })()}
 
       <h3 className="section-title">Varusteet</h3>
       <div className="equip-grid">

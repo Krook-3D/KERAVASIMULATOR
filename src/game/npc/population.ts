@@ -28,6 +28,9 @@ export interface NpcLook {
   height: number;
   backpack: boolean;
   glasses: boolean;
+  /** Body fat / muscle 0–1 (see buildHumanoid). */
+  fat?: number;
+  muscle?: number;
 }
 
 export interface Npc {
@@ -205,5 +208,25 @@ export function populate(world: WorldData, ok: (p: WorldXZ) => boolean, extraHan
     }
     i++;
   }
+  for (const n of npcs) Object.assign(n.look, bodyFor(n));
   return npcs;
+}
+
+/** Varied bodies, stable per NPC: some townsfolk are heavy, some crew members hit the gym (or the roina). */
+function bodyFor(n: Npc): { fat: number; muscle: number } {
+  const h = [...n.id].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 99991);
+  const r1 = (h % 1000) / 1000, r2 = ((h >>> 10) % 1000) / 1000;
+  switch (n.kind) {
+    case 'crew':
+      return { fat: r1 < 0.2 ? 0.4 + r2 * 0.4 : r2 * 0.15, muscle: r1 > 0.75 ? 0.5 + r2 * 0.5 : r1 * 0.3 };
+    case 'citizen':
+    case 'family':
+      return { fat: r1 < 0.35 ? 0.35 + r2 * 0.6 : r2 * 0.25, muscle: r1 > 0.9 ? 0.4 + r2 * 0.3 : 0 };
+    case 'elder':
+      return { fat: r1 < 0.5 ? 0.3 + r2 * 0.5 : 0.1, muscle: 0 };
+    case 'jogger':
+      return { fat: 0, muscle: r2 * 0.3 };
+    case 'kid':
+      return { fat: r1 < 0.2 ? 0.4 : 0, muscle: 0 };
+  }
 }

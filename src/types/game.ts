@@ -186,6 +186,8 @@ export interface Player {
   strain?: number;
   /** Looks (character editor + barber). Older saves fall back to `color`. */
   appearance?: import('../game/player/appearance').Appearance;
+  /** Body fat, best deadlift and roina use (shape of the character). */
+  body?: import('../game/player/body').BodyState;
   /** Each crew's patience with you (provocations so far and when they snap). */
   crewMood?: Record<string, import('../game/street/provoke').CrewMood>;
   /** Opening cutscene (thrown off the train) has been seen. */

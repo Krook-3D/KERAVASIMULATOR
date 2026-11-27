@@ -27,6 +27,8 @@ export interface ScriptedPose {
 interface PlayerCharacterProps {
   color: string;
   appearance?: Appearance;
+  /** Body fat / muscle 0–1. */
+  shape?: { fat: number; muscle: number };
   /** Shared live position; the camera rig reads it every frame. */
   positionRef: MutableRefObject<THREE.Vector3>;
   target: WorldXZ | null;
@@ -51,7 +53,7 @@ interface PlayerCharacterProps {
 
 
 /** The player: skinned humanoid with click-to-move, wall sliding and procedural run/idle animation. */
-export function PlayerCharacter({ color, appearance, positionRef, target, collider, onArrive, groundHeight, extraBlocked, visible, scriptRef, held, controlRef, canSteer, onSteerStart, onSteerEnd }: PlayerCharacterProps) {
+export function PlayerCharacter({ color, appearance, shape, positionRef, target, collider, onArrive, groundHeight, extraBlocked, visible, scriptRef, held, controlRef, canSteer, onSteerStart, onSteerEnd }: PlayerCharacterProps) {
   const root = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
   const bones = useRef<HumanBones | null>(null);
@@ -152,7 +154,7 @@ export function PlayerCharacter({ color, appearance, positionRef, target, collid
     if (bones.current) poseLocomotion(bones.current, walkPhase.current, run.current, performance.now() / 1000);
   });
 
-  const outfit = useMemo(() => playerOutfit(color, appearance), [color, appearance]);
+  const outfit = useMemo(() => playerOutfit(color, appearance, shape), [color, appearance, shape?.fat, shape?.muscle]);
   const heldL = held?.handL, heldR = held?.handR;
   useEffect(() => {
     const bn = bones.current;
@@ -190,7 +192,8 @@ export function PlayerCharacter({ color, appearance, positionRef, target, collid
 }
 
 /** The player's look as a humanoid outfit. */
-export function playerOutfit(color: string, a?: Appearance): Outfit {
+/** The player's model outfit; `shape` (fat / muscle 0–1) comes from bodyShape(). */
+export function playerOutfit(color: string, a?: Appearance, shape?: { fat: number; muscle: number }): Outfit {
   const ap = a ?? defaultAppearance(color);
   return {
     top: ap.top,
@@ -209,5 +212,7 @@ export function playerOutfit(color: string, a?: Appearance): Outfit {
     style: ap.topStyle,
     build: ap.build,
     height: ap.height,
+    fat: shape?.fat,
+    muscle: shape?.muscle,
   };
 }

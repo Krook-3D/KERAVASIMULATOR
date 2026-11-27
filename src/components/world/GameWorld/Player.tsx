@@ -23,6 +23,7 @@ export function PlaceCamera({ offset, follow }: { offset: THREE.Vector3; follow:
 export function Player(props: {
   color: string;
   appearance: Appearance | undefined;
+  shape: { fat: number; muscle: number };
   positionRef: MutableRefObject<THREE.Vector3>;
   scriptRef: MutableRefObject<ScriptedPose>;
   route: WorldXZ[];
@@ -48,6 +49,7 @@ export function Player(props: {
       <PlayerCharacter
         color={props.color}
         appearance={props.appearance}
+        shape={props.shape}
         positionRef={positionRef}
         target={target}
         collider={props.collider}

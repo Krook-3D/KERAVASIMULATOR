@@ -35,6 +35,10 @@ export interface Outfit {
   glasses?: boolean;
   /** Overall height multiplier, 0.92–1.08 (applied by the renderer). */
   height?: number;
+  /** Body fat 0–1: belly, thicker limbs, softer face. */
+  fat?: number;
+  /** Muscle 0–1: broad shoulders and chest, traps, big arms ("roinattu" at the top end). */
+  muscle?: number;
 }
 
 
@@ -85,6 +89,8 @@ const J = {
   shinR: [-0.1, 0.5, 0.005],
   footR: [-0.105, 0.085, -0.01],
 } satisfies Record<BoneName, [number, number, number]>;
+/** Joints of the body being built (J with the arms and legs moved out for a bigger body). */
+let JT: Record<BoneName, [number, number, number]> = J;
 
 const PARENT: Partial<Record<BoneName, BoneName>> = {
   hips: 'root',
@@ -236,9 +242,9 @@ const AXIS_END: Partial<Record<BoneName, BoneName>> = {
  * measured along the bone axis (so the whole ring at a joint bends together).
  */
 function limbWeights(own: BoneName, parent: BoneName | null, child: BoneName | null, blend = 0.06): WeightFn {
-  const s = v3(J[own]);
+  const s = v3(JT[own]);
   const endName = AXIS_END[own];
-  const e = endName ? v3(J[endName]) : s.clone().add(new THREE.Vector3(0, -0.1, 0));
+  const e = endName ? v3(JT[endName]) : s.clone().add(new THREE.Vector3(0, -0.1, 0));
   const L = s.distanceTo(e);
   const dir = e.clone().sub(s).normalize();
   const tmp = new THREE.Vector3();
@@ -299,6 +305,19 @@ const solid = (hex: string | THREE.Color): ColorFn => {
 /** Build geometry + skeleton for one character. */
 export function buildHumanoid(outfit: Outfit): { mesh: THREE.SkinnedMesh; bones: HumanBones } {
   const W = outfit.build ?? 1;
+  const F = Math.min(1, Math.max(0, outfit.fat ?? 0));
+  const M = Math.min(1, Math.max(0, outfit.muscle ?? 0));
+  // a bigger body pushes the arms (and for fat, the legs) outward
+  const armOut = M * 0.075 + F * 0.035;
+  const legOut = F * 0.028 + M * 0.008;
+  JT = Object.fromEntries(
+    BONE_NAMES.map((n) => {
+      const [x, y, z] = J[n];
+      const sx = Math.sign(x);
+      const out = n.startsWith('upperArm') || n.startsWith('forearm') || n.startsWith('hand') ? armOut : n.startsWith('thigh') || n.startsWith('shin') || n.startsWith('foot') ? legOut : 0;
+      return [n, [x + sx * out, y, z]];
+    }),
+  ) as Record<BoneName, [number, number, number]>;
   const skin = new THREE.Color(outfit.skin ?? '#efc19b');
   const skinShade = skin.clone().multiplyScalar(0.86);
   const lip = skin.clone().lerp(new THREE.Color('#a4524a'), 0.45);
@@ -344,7 +363,19 @@ export function buildHumanoid(outfit: Outfit): { mesh: THREE.SkinnedMesh; bones:
     };
     for (const y of [hem - 0.037, hem - 0.033, hem - 0.002, hem + 0.002]) prof.push(lerpRing(y));
     prof.sort((p, q) => p[0] - q[0]);
-    const rings = prof.map(([y, rx, rz, oz]) => ({ y, rx: rx * W, rz, oz }));
+    const bump = (y: number, c: number, w: number) => Math.exp(-(((y - c) / w) ** 2));
+    const rings = prof.map(([y, rx, rz, oz]) => {
+      const belly = F * bump(y, 1.0, 0.13); // belly sticks out at the front
+      const hip = F * bump(y, 0.88, 0.07);
+      const chest = M * smooth(1.08, 1.3, y) * (1 - smooth(1.44, 1.51, y) * 0.55);
+      const traps = M * bump(y, 1.47, 0.04);
+      return {
+        y,
+        rx: rx * W - M * bump(y, 0.99, 0.06) * 0.012 + belly * 0.06 + hip * 0.045 + chest * 0.1 + traps * 0.07 + F * smooth(1.1, 1.3, y) * 0.022,
+        rz: rz + belly * 0.085 + hip * 0.02 + chest * 0.045 + traps * 0.02 + F * smooth(1.1, 1.3, y) * 0.02,
+        oz: oz + belly * 0.05 + chest * 0.01,
+      };
+    });
     const radial = 18;
     const pos: number[] = [];
     const idx: number[] = [];
@@ -387,26 +418,28 @@ export function buildHumanoid(outfit: Outfit): { mesh: THREE.SkinnedMesh; bones:
     const up = `upperArm${side}` as BoneName;
     const fo = `forearm${side}` as BoneName;
     const ha = `hand${side}` as BoneName;
-    const sh = v3(J[up]);
-    const el = v3(J[fo]);
-    const wr = v3(J[ha]);
-    const r = bulk * 0.8;
-    add(at(ellipsoid(0.05 + r, 0.054 + r, 0.053 + r, 14, 10), sh.x - sx * 0.005, sh.y - 0.005, sh.z), solid(top), limbWeights(up, 'chest', null, 0.09));
+    const sh = v3(JT[up]);
+    const el = v3(JT[fo]);
+    const wr = v3(JT[ha]);
+    const r = bulk * 0.8 + F * 0.012;
+    const big = M * 0.032 + F * 0.008; // biceps / upper arm on top of r
+    const del = M * 0.045;
+    add(at(ellipsoid(0.05 + r + del, 0.054 + r + del * 0.8, 0.053 + r + del * 0.7, 14, 10), sh.x - sx * (0.005 + del * 0.4), sh.y - 0.005 + del * 0.3, sh.z), solid(top), limbWeights(up, 'chest', null, 0.09));
     add(
       limb(sh, el, [
-        [0, 0.054 + r, 0.056 + r],
-        [0.35, 0.05 + r, 0.052 + r, 0.003],
-        [0.75, 0.043 + r, 0.045 + r],
-        [1, 0.039 + r, 0.04 + r],
+        [0, 0.054 + r + big * 0.7, 0.056 + r + big * 0.7],
+        [0.35, 0.05 + r + big, 0.052 + r + big * 1.1, 0.003 + big * 0.3],
+        [0.75, 0.043 + r + big * 0.7, 0.045 + r + big * 0.8],
+        [1, 0.039 + r + big * 0.3, 0.04 + r + big * 0.3],
       ]),
       solid(top),
       limbWeights(up, 'chest', fo, 0.07),
     );
     add(
       limb(el, wr, [
-        [0, 0.039 + r, 0.04 + r],
-        [0.25, 0.043 + r, 0.041 + r, 0.004],
-        [0.8, 0.033 + r, 0.03 + r],
+        [0, 0.039 + r + big * 0.3, 0.04 + r + big * 0.3],
+        [0.25, 0.043 + r + big * 0.6, 0.041 + r + big * 0.5, 0.004],
+        [0.8, 0.033 + r + big * 0.25, 0.03 + r + big * 0.2],
         [1, 0.03 + r * 0.6, 0.027 + r * 0.6],
       ]),
       (p) => (p.y < wr.y + 0.035 ? topDark : top), // cuff
@@ -429,16 +462,17 @@ export function buildHumanoid(outfit: Outfit): { mesh: THREE.SkinnedMesh; bones:
     const th = `thigh${side}` as BoneName;
     const sn = `shin${side}` as BoneName;
     const ft = `foot${side}` as BoneName;
-    const hip = v3(J[th]);
-    const knee = v3(J[sn]);
-    const ankle = v3(J[ft]);
+    const hip = v3(JT[th]);
+    const knee = v3(JT[sn]);
+    const ankle = v3(JT[ft]);
+    const leg = F * 0.03 + M * 0.02;
     add(
       limb(hip, knee, [
-        [0, 0.072 * W, 0.076],
-        [0.1, 0.082 * W, 0.086, 0.003],
-        [0.3, 0.08 * W, 0.083, 0.006],
-        [0.75, 0.062, 0.064, 0.004],
-        [1, 0.056, 0.058, 0.004],
+        [0, 0.072 * W + leg, 0.076 + leg],
+        [0.1, 0.082 * W + leg, 0.086 + leg, 0.003],
+        [0.3, 0.08 * W + leg, 0.083 + leg, 0.006 + M * 0.006],
+        [0.75, 0.062 + leg * 0.6, 0.064 + leg * 0.6, 0.004],
+        [1, 0.056 + leg * 0.2, 0.058 + leg * 0.2, 0.004],
       ]),
       solid(legs),
       limbWeights(th, 'hips', sn, 0.08),
@@ -446,7 +480,7 @@ export function buildHumanoid(outfit: Outfit): { mesh: THREE.SkinnedMesh; bones:
     add(
       limb(knee, ankle, [
         [0, 0.056, 0.058, 0.004],
-        [0.28, 0.058, 0.064, -0.01], // calf at the back
+        [0.28, 0.058 + leg * 0.4, 0.064 + leg * 0.5, -0.01 - M * 0.004], // calf at the back
         [0.7, 0.045, 0.047, -0.003],
         [1, 0.044, 0.046],
       ]),
@@ -467,9 +501,9 @@ export function buildHumanoid(outfit: Outfit): { mesh: THREE.SkinnedMesh; bones:
   const headStart = parts.length + 1; // index after the neck
   add(
     limb(new THREE.Vector3(0, 1.62, 0.0), new THREE.Vector3(0, 1.45, -0.012), [
-      [0, 0.052, 0.054],
-      [0.6, 0.056, 0.058],
-      [1, 0.066, 0.064],
+      [0, 0.052 + M * 0.022 + F * 0.022, 0.054 + M * 0.012 + F * 0.022],
+      [0.6, 0.056 + M * 0.032 + F * 0.02, 0.058 + M * 0.016 + F * 0.02],
+      [1, 0.066 + M * 0.05 + F * 0.015, 0.064 + M * 0.02 + F * 0.015],
     ]),
     solid(skinShade),
     (p) => {
@@ -489,8 +523,10 @@ export function buildHumanoid(outfit: Outfit): { mesh: THREE.SkinnedMesh; bones:
       let y = p.getY(i);
       let z = p.getZ(i);
       const lower = smooth(0.05, -0.75, y); // 0 above the cheekbones, 1 at the chin
-      x *= 1 - 0.3 * lower;
-      z *= 1 - 0.12 * lower;
+      // a fuller face keeps the jaw wide (jowls) instead of narrowing to the chin
+      x *= 1 - (0.3 - 0.26 * F) * lower + F * 0.06 * lower;
+      z *= 1 - 0.12 * lower + F * 0.05 * lower;
+      if (M > 0) x *= 1 + M * 0.08 * lower; // square jaw
       if (z > 0) z += 0.12 * lower * (1 - Math.abs(x)) * 0.6; // chin forward
       if (z < 0 && y > -0.2) z *= 1.06; // back of skull
       if (y < -0.85) y = -0.85 - (y + 0.85) * 0.4; // flatter chin bottom
@@ -499,6 +535,11 @@ export function buildHumanoid(outfit: Outfit): { mesh: THREE.SkinnedMesh; bones:
     add(at(clean(g), headC.x, headC.y, headC.z), (q) => (q.y < headPos.y - 0.055 && q.z > 0 ? skin.clone().multiplyScalar(0.97) : skin), only('head'));
   }
   const face = (geo: THREE.BufferGeometry, color: THREE.Color | string) => add(geo, solid(color), only('head'));
+  // fuller face: round cheeks and a double chin
+  if (F > 0.25) {
+    const k = (F - 0.25) / 0.75;
+    face(at(ellipsoid(0.055 + k * 0.012, 0.02 + k * 0.01, 0.05 + k * 0.01, 12, 8), headC.x, headC.y - 0.108, headC.z + 0.018), skin.clone().multiplyScalar(0.97));
+  }
   // ears: outer rim + inner bowl
   for (const sx of [1, -1]) {
     face(at(ellipsoid(0.012, 0.03, 0.02, 8, 6), headC.x + sx * 0.084, headC.y - 0.005, headC.z - 0.008, 0, 0, sx * 0.15), skinShade);
@@ -691,9 +732,9 @@ export function buildHumanoid(outfit: Outfit): { mesh: THREE.SkinnedMesh; bones:
   }
   for (const name of BONE_NAMES) {
     const parent = PARENT[name];
-    const p = v3(J[name]);
+    const p = v3(JT[name]);
     if (parent) {
-      p.sub(v3(J[parent]));
+      p.sub(v3(JT[parent]));
       bones[parent].add(bones[name]);
     }
     bones[name].position.copy(p);

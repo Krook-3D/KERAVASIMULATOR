@@ -68,6 +68,7 @@ export function useTraining(ctx: GameCtx, otherBusy: boolean) {
       const xp = chance > 0 ? Math.round(liftXp(lift, strength, kg, success) * buffMult.strengthXp) : 0;
       dispatch({ type: 'adjustStats', energy: -SET_ENERGY });
       if (xp) dispatch({ type: 'grantReward', reward: { skillXp: { strength: xp } } });
+      if (success) dispatch({ type: 'recordLift', lift, kg });
       setToast(
         success
           ? `💪 ${LIFTS[lift].name} ${kg} kg × 5 – onnistui! +${xp} Voima XP`

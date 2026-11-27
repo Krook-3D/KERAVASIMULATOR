@@ -93,7 +93,7 @@ export function InteriorScene(props: {
       {shop && <Hotspot at={shop.till} label="🧾 Kassa" onClick={() => onGroundClick(shop.till)} />}
       {scene === 'gym' && (
         <>
-          <Shopper p={ROINA_SPOT} yaw={-2.2} sway={0.7} outfit={{ top: '#14171f', legs: '#3c4a63', shoes: '#f2f2f2', skin: '#e0ac7e', hair: '#1a1410', hairStyle: 'buzz', facialHair: 'goatee', hat: 'cap', hatColor: '#c8312b', accent: '#ffd23f', style: 'hoodie', build: 1.25 }} />
+          <Shopper p={ROINA_SPOT} yaw={-2.2} sway={0.7} outfit={{ top: '#14171f', legs: '#3c4a63', shoes: '#f2f2f2', skin: '#e0ac7e', hair: '#1a1410', hairStyle: 'buzz', facialHair: 'goatee', hat: 'cap', hatColor: '#c8312b', accent: '#ffd23f', style: 'hoodie', build: 1.1, muscle: 1, fat: 0.15 }} />
           <Hotspot at={ROINA_TALK_SPOT} label="🧴 Pumppi-Pete" onClick={() => onGroundClick(ROINA_TALK_SPOT)} />
         </>
       )}

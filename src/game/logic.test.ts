@@ -8,6 +8,7 @@ import { artXp, spotQuality, witnessReaction } from './art/graffiti';
 import { buffMultipliers, strainEffect } from './gym/roina';
 import type { Player } from '../types/game';
 import { moveDir } from '../components/world/controls';
+import { muscleOf } from './player/body';
 import { fightChance, roadmanLevel, ROADMAN_MAX, ROADMAN_MIN } from './street/fight';
 import { DRILLS, drillXp } from './gym/drills';
 import { CHECK_LEVEL, dealPrice, resolveDeal, scamChance } from './street/streetDeals';
@@ -295,5 +296,26 @@ describe('crew mood and martial drills', () => {
   it('gives more XP for harder drills', () => {
     expect(drillXp(DRILLS.spar, 6, 0.5)).toBeGreaterThan(drillXp(DRILLS.wrestle, 6, 0.5));
     expect(drillXp(DRILLS.wrestle, 6, 0.5)).toBeGreaterThan(drillXp(DRILLS.bag, 6, 0.5));
+  });
+});
+
+describe('body shape', () => {
+  it('overeating fattens, training burns it', () => {
+    let s = run(fresh());
+    const f0 = s.player!.body?.fat ?? 0.12;
+    s = run(s, { type: 'addItem', itemId: 'bolognese', quantity: 3 }, { type: 'eatItem', itemId: 'bolognese' }, { type: 'eatItem', itemId: 'bolognese' }, { type: 'eatItem', itemId: 'bolognese' });
+    const f1 = s.player!.body!.fat;
+    expect(f1).toBeGreaterThan(f0 + 0.3);
+    s = run(s, ...Array.from({ length: 10 }, () => ({ type: 'adjustStats' as const, energy: -15 })));
+    expect(s.player!.body!.fat).toBeLessThan(f1);
+  });
+  it('the huge roinattu look needs heavy deadlifts and roina, not just training', () => {
+    const natural = muscleOf({ fat: 0, deadlift: 220, roina: 0 }, 60);
+    const juiced = muscleOf({ fat: 0, deadlift: 220, roina: 3 }, 60);
+    expect(natural).toBeLessThan(0.7);
+    expect(juiced).toBe(1);
+    let s = run(fresh(), { type: 'recordLift', lift: 'deadlift', kg: 140 }, { type: 'recordLift', lift: 'deadlift', kg: 100 }, { type: 'addItem', itemId: 'massamix' }, { type: 'useRoina', id: 'massamix' });
+    expect(s.player!.body!.deadlift).toBe(140);
+    expect(s.player!.body!.roina).toBeCloseTo(0.32);
   });
 });

@@ -1,3 +1,4 @@
+import type { RoinaId } from '../../../game/gym/roina';
 import { useEffect, type MutableRefObject } from 'react';
 import type * as THREE from 'three';
 import type { Dispatch } from 'react';
@@ -62,6 +63,9 @@ export function useDebugHook(d: {
       pieces: () => graffiti.pieces.length,
       cookSpots: () => w.cookSpots,
       give: (id: string, n = 1) => d.dispatch({ type: 'addItem', itemId: id, quantity: n }),
+      eat: (id: string) => d.dispatch({ type: 'eatItem', itemId: id }),
+      lift: (kg: number) => d.dispatch({ type: 'recordLift', lift: 'deadlift', kg }),
+      roina: (id: RoinaId) => d.dispatch({ type: 'useRoina', id }),
       npcs: () => [...npcLive.current.entries()].map(([id, v]) => ({ id, p: v.p, kind: w.npcs.find((n) => n.id === id)?.kind })),
       talk: (id: string) => { const n = w.npcs.find((x) => x.id === id); if (n) d.onNpcClick(n); },
       npcCount: () => w.npcs.length,
