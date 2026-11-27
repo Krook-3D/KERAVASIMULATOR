@@ -43,6 +43,12 @@ const defs: Record<string, Def> = {
   nokka3310: { name: 'Nokka 3310', description: 'Vanha kännykkä, akku kestää viikon. Kerääjien himoitsema.', category: 'collectible', value: 70, rarity: 'rare', icon: '📱' },
   timanttisormus: { name: 'Timanttisormus', description: 'Joku etsii tätä varmasti.', category: 'collectible', value: 400, rarity: 'epic', icon: '💍' },
   kultakello: { name: 'Kultainen Rolux', description: 'Kultainen rannekello. Painava, kiiltävä ja täysin hillitön.', category: 'collectible', value: 1500, rarity: 'legendary', equipSlot: 'accessory', icon: '⌚' },
+  kultaranneke: { name: 'Kultaranneke', description: 'Painava kultainen ranneke, leimat kunnossa. Aito.', category: 'collectible', value: 180, rarity: 'rare', equipSlot: 'accessory', icon: '🔗' },
+  terasrolux: { name: 'Rolux Teräs', description: 'Teräksinen Rolux. Raskas, hiljaa tikittävä ja aito.', category: 'collectible', value: 450, rarity: 'rare', equipSlot: 'accessory', icon: '⌚' },
+  // fakes: look the part from a distance, worth next to nothing
+  feikkiketju: { name: 'Kultaketju (feikki)', description: 'Kiiltää kuin aito, kunnes kaula muuttuu vihreäksi.', category: 'collectible', value: 4, rarity: 'common', equipSlot: 'accessory', icon: '📿' },
+  feikkiranneke: { name: 'Kultaranneke (feikki)', description: 'Kevyt kuin muovi. Koska se on muovia.', category: 'collectible', value: 3, rarity: 'common', equipSlot: 'accessory', icon: '🔗' },
+  feikkirolux: { name: 'Rolux (feikki)', description: 'Sekuntiviisari nykii ja logossa lukee ROLUKS. Torilta parilla kympillä.', category: 'collectible', value: 8, rarity: 'common', equipSlot: 'accessory', icon: '⌚' },
   kultaharkko: { name: 'Kultaharkko', description: 'Mistä tämä on tänne tullut?', category: 'collectible', value: 2500, rarity: 'legendary', icon: '🥇' },
 
   // ---- junk

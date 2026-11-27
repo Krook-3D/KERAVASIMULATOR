@@ -489,3 +489,12 @@ describe('Kerava-Pörssi location', () => {
     expect(Math.hypot(x - MARKET.at.x, z - MARKET.at.z)).toBeLessThan(1);
   });
 });
+
+describe('jewellery and watches', () => {
+  it('fakes are common, real ones rare or legendary, and all can be found on the map', () => {
+    for (const id of ['feikkiketju', 'feikkiranneke', 'feikkirolux']) expect(ITEMS[id]?.rarity).toBe('common');
+    for (const id of ['kultaketju', 'kultaranneke', 'terasrolux']) expect(ITEMS[id]?.rarity).toBe('rare');
+    expect(ITEMS.kultakello?.rarity).toBe('legendary');
+    expect(ITEMS.feikkirolux!.value).toBeLessThan(ITEMS.terasrolux!.value / 10);
+  });
+});
