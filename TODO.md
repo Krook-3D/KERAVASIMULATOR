@@ -72,6 +72,26 @@ Vaiheet: ks. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#8-kehitysjärjestys).
 - [ ] Charisma- ja Knowledge-skillit
 - [ ] Katukaupan maine ja rangit
 
+## Maailma, sisätilat ja ensimmäinen quest ✅
+- [x] 3D-maasto, metsät Talmaan päin, joki
+- [x] Silta aseman yli, reitinhaku sillan kautta
+- [x] Sisätilat: asematunneli, asemahalli, Prisma, vankila, kuntosali, uimahalli
+- [x] Quest "Viilattu vapaus"
+- [x] Kuntosali: penkki, kyykky, maastaveto, levyjen lastaus, voimarajat
+
+## Seuraavaksi (jono)
+- [ ] Joukkoliikenne: bussipysäkit, määränpäävalikko, bussi hakee
+- [ ] SHERWOOD-alkuvalikko, taustalla ilmakuva Keravasta
+- [ ] Hahmoeditori ja parturi
+- [ ] Kokkaus raaka-aineilla, Art-skilli graffiteilla
+- [ ] Karma ja aura, kaupan vartijat, poliisiasema ja putka
+- [ ] Esineet common → legendary, 30 paikan reppu, ostoskori
+- [ ] Maastokätköt, jotka aloittavat questin
+- [ ] Tarinan pääketjut alueittain (ks. ARCHITECTURE luku 11)
+- [ ] Laaja grafiikkakierros, kasvojen yksityiskohdat
+- [ ] Esineiden 3D-mallit ja ikonit kuntoon
+- [ ] Koodin laadun tarkistus
+
 ## Myöhemmin
 - [ ] Backend (Node + TS, REST) ja PostgreSQL/PostGIS
 - [ ] Maailma chunkeiksi, koko Kerava

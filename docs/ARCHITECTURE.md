@@ -300,3 +300,59 @@ Järjestelmät:
 Tekninen toteutus: puhdas `src/game/street/`-moduuli (market, heat, police, raids, interrogation, jail). Kuulustelu käyttää samaa dialogijärjestelmää kuin NPC:t, laajennettuna skill-check-vaihtoehdoilla, data `src/data/street.ts`. Satunnaisuus kulkee yhden siemenellisen RNG:n kautta, jotta tapahtumat ovat testattavia ja myöhemmin palvelimen ratkaistavissa.
 
 Paikka kehitysjärjestyksessä: **vaihe 10c**, NPC:iden ja inventoryn jälkeen, koska se tarvitsee kaupat, kotivaraston, liikkumisen ja energian. Ikävahvistus on jo hahmon luonnissa.
+
+## 11. Tarina: alueet ja pomot
+
+Kerava jaetaan alueisiin, ja jokaisella alueella on oma valtarakenne. Kaikki hahmot, jengit ja aineet ovat keksittyjä; oikeita yrityksiä tai ihmisiä ei käytetä rikosten yhteydessä.
+
+Jokaisella alueella on kolme pomoa:
+
+- **Katupomo** pyörittää alueen fiktiivistä katukauppaa.
+- **Kyttäpomo** on alueen ylikonstaapeli, jolla on oma tapa toimia.
+- **Naapurustopomo** on taloyhtiön puheenjohtaja, kioskin omistaja tai kaupunginosayhdistyksen aktiivi, joka "tietää kaiken".
+
+Pomot antavat questeja, ja niiden välinen suhde muuttuu pelaajan valintojen mukaan. Jos auttaa yhtä, toinen suuttuu.
+
+| Alue | Katupomo | Kyttäpomo | Naapurustopomo | Teema |
+| --- | --- | --- | --- | --- |
+| Asema ja keskusta | "Laituri-Lasse", hallitsee tunnelia ja aseman kulmia | Ylikonstaapeli Kärkkäinen, pikkutarkka ja sääntöjen mies | Kioskin Raija, kuulee kaiken ensimmäisenä | Lähtöalue, opetusquestit, Jonne-ketju |
+| Savio (radan itäpuoli) | "Pomo-Pirkko", vanha konkari | Komisario Lindqvist, väsynyt mutta reilu | Taloyhtiön pj Heikkinen | Vanhat teollisuushallit, varastot, ensimmäiset ratsiat |
+| Kaleva ja joenvarsi | "Joki-Jape", kasvattajien välikäsi | Vanhempi konstaapeli Mäkelä, lahjottava? | Kalastusseuran Eino | Kalastus, joenvarren piilopaikat |
+| Talma (metsät ja pellot) | "Mehtäläinen", eristäytynyt kasvattaja | Maaseutupartio Hyvönen | Kyläyhdistyksen Marjatta | Maastokätköt, kasvattajien talot, metsäjahdit |
+| Ahjo ja Kaskela | "Kaskelan Kuningas", nuori ja kunnianhimoinen | Rikoskomisario Salo, iso kala | Omakotiyhdistyksen Pekka | Myöhäisen pelin alue, isot diilit |
+
+### Kasvattajat ja ratsiat
+
+Osa NPC:istä on **kasvattajia**, joiden talossa on fiktiivinen kasvattamo. Talo on oma pieni sisätila, ja pelaaja voi:
+
+1. **Tiedustella**: naapurustopomo tai vihjeet questeista kertovat mistä talosta on kyse ja milloin asukas on poissa.
+2. **Raidata**: sisään päästään lukkojen, ikkunoiden tai kellarin kautta. Työkalut (sorkkarauta, voimapihdit) avaavat eri reittejä. Sisällä on vartijakoira, kamerat tai paikalle palaava asukas.
+3. **Valita**: saaliin voi myydä katupomolle, viedä kyttäpomolle (karma nousee, katupomon suhde laskee) tai pitää itse.
+
+Ratsiat nostavat heatia, ja katupomo voi kostaa (questi alkaa).
+
+### Questien rakenne
+
+- **Pääketju alueittain**: 3–5 questia per alue. Ketju aukeaa kun edellinen alue on "rauhoitettu" jonkin pomon puolelle.
+- **Sivuquestit** syntyvät järjestelmistä: kiinnijäänti näpistyksestä, maastokätkön löytäminen, kostot ja velat.
+- **Ensimmäinen quest** on "Viilattu vapaus" (asema ja keskusta): Jonne antaa pussin, poliisi pidättää, vankilassa saa viilan tapaamisessa ja karkaa vartijoiden huomaamatta.
+
+## 12. Uudet järjestelmät (suunnitelma)
+
+- **Karma ja aura**: karma −100…+100. Varastaminen laskee karmaa, ja kiinni jääminen näpistyksestä laskee sitä kolminkertaisesti. Matala karma heikentää auraa: hahmon ympärillä näkyvä hehku himmenee ja muuttuu tummaksi, NPC:t suhtautuvat nuivemmin ja hinnat nousevat. Hyvät teot ja ostaminen omilla rahoilla pitävät karman ylhäällä.
+- **Kaupat ja näpistys**: Prismassa ja muissa kaupoissa voi kerätä tuotteita ostoskoriin ja maksaa kassalla, tai piilottaa ne reppuun. Kaupan vartija huomaa noin joka 3.–4. näpistyksen (satunnainen), ja silloin pelaaja viedään poliisiasemalle.
+- **Poliisiasema**: oma sisätila, jossa on päivystys, kuulusteluhuone ja putka-osasto. Kuulustelussa voi puhua itsensä ulos skill-checkeillä.
+- **Esineet ja reppu**: kartalle siroteltuja esineitä harvinaisuusasteikolla common → uncommon → rare → epic → legendary (esim. commandopipo, köysi, ketju, pesäpallomaila, sorkkarauta, voimapihdit, rälläkkä, kultakello "Rolux"). Repussa on 30 paikkaa. Työkalut avaavat ratsioissa reittejä.
+- **Maastokätköt**: syrjäisiltä maastoalueilta löytyy toisten kätköjä. Ottaminen voi tuoda perään kytät tai rikolliset, ja tilanteesta pitää puhua itsensä ulos tai seuraa ongelmia. Jokainen kätkö käynnistää questin.
+- **Kokkaus ja Art**: kokkaus vaatii raaka-aineet kaupasta (ostettuna tai näpistettynä). Uusi skilli **Art** kehittyy graffiteja maalaamalla vartijoiden huomaamatta, ja spraymaalit ostetaan ensin kaupasta.
+- **Joukkoliikenne**: bussipysäkeiltä valitaan määränpää valikosta, bussi tulee hakemaan ja vie perille (pikamatkustus).
+- **Hahmoeditori ja parturi**: tarkka hahmon muokkaus luonnissa; myöhemmin kampausta ym. voi muuttaa vain parturissa.
+
+## 13. Toteutettu tekniikka (marraskuu 2026)
+
+- **Maasto** (`src/game/world/terrain.ts`): korkeuskenttä 6 m ruuduin. Oikea korkeusdata haetaan `fetch:osm`-skriptissä Open-Meteon elevation-rajapinnasta, muuten proseduraaliset mäet Talmaan päin. Tiet ja rata tasoitetaan, asema-alue on tasainen, joet ja lammet kaiverretaan. Tiet käyttävät kaivertamatonta pintaa, joten ne ylittävät joet siltoina.
+- **Silta** (`station.ts`: `BRIDGE`, `planRoute`): kävelysilta raiteiden yli. Reitinhaku vie sillan kautta, kun klikkaa raiteiden toiselle puolelle.
+- **Sisätilat** (`src/game/interiors/interiors.ts`, `src/components/world/interiors/`): erilliset kattomattomat näkymät omissa koordinaateissaan, ovet yhdistävät ne maailmaan. Seinät madaltuvat, kun kamera on niiden takana (cutaway). Sisätilat: asematunneli, asemahalli, Prisma, vankila, kuntosali, uimahalli.
+- **Kuntosali** (`src/game/gym/lifting.ts`): penkki, kyykky ja maastaveto. Levyt haetaan itse telineestä pareittain. Voima-taso rajaa kannettavan levyn painon ja nostettavan maksimin; lähellä maksimia onnistuminen on todennäköisyys.
+- **Vankilapako** (`src/game/quests/`): vartijat ovat ajan puhtaita funktioita (testattavat näkökartiot), viilaus tapahtuu kun kukaan ei katso.
+- **Debug**: `?debug=1` paljastaa `window.__kerava`-olion (teleport, goTo, setRoute, click, pos, local…).
