@@ -4,7 +4,8 @@ import * as THREE from 'three';
 import type { WorldXZ } from '../../game/world/projection';
 import { ARRIVE_EPSILON, WALK_SPEED } from '../../game/world/movement';
 import type { BuildingCollider } from '../../game/world/collision';
-import { HumanModel, type Outfit } from './HumanModel';
+import { Humanoid, type HumanBones, type Outfit } from './humanoid/Humanoid';
+import { poseFlail, poseLocomotion, resetPose } from './humanoid/animate';
 
 /** Scripted control used by cutscenes: when active, normal movement is paused. */
 export interface ScriptedPose {
@@ -31,15 +32,12 @@ interface PlayerCharacterProps {
 }
 
 
-/** Low-poly original character built from primitives. */
+/** The player: skinned humanoid with click-to-move, wall sliding and procedural run/idle animation. */
 export function PlayerCharacter({ color, positionRef, target, collider, onArrive, groundHeight, extraBlocked, visible, scriptRef }: PlayerCharacterProps) {
   const root = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
-  const head = useRef<THREE.Group>(null);
-  const legL = useRef<THREE.Group>(null);
-  const legR = useRef<THREE.Group>(null);
-  const armL = useRef<THREE.Group>(null);
-  const armR = useRef<THREE.Group>(null);
+  const bones = useRef<HumanBones | null>(null);
+  const run = useRef(0);
   const walkPhase = useRef(0);
   const arrivedFor = useRef<WorldXZ | null>(null);
 
@@ -54,17 +52,15 @@ export function PlayerCharacter({ color, positionRef, target, collider, onArrive
       g.position.copy(pos);
       g.rotation.y = script.yaw;
       if (body.current) body.current.rotation.x = script.tilt;
-      const f = script.flail;
-      const t = performance.now() / 90;
-      if (armL.current) armL.current.rotation.set(-2.6 * f + Math.sin(t) * 0.4 * f, 0, -0.4 * f);
-      if (armR.current) armR.current.rotation.set(-2.6 * f + Math.cos(t) * 0.4 * f, 0, 0.4 * f);
-      if (legL.current) legL.current.rotation.x = Math.sin(t) * 0.6 * f;
-      if (legR.current) legR.current.rotation.x = -Math.sin(t) * 0.6 * f;
+      const bn = bones.current;
+      if (bn) {
+        resetPose(bn);
+        poseLocomotion(bn, 0, 0, performance.now() / 1000);
+        if (script.flail > 0.01) poseFlail(bn, script.flail, performance.now() / 1000);
+      }
       return;
     }
     if (body.current) body.current.rotation.x = 0;
-    if (armL.current) armL.current.rotation.z = 0;
-    if (armR.current) armR.current.rotation.z = 0;
 
     if (target && arrivedFor.current !== target) {
       const dx = target[0] - pos.x;
@@ -102,20 +98,16 @@ export function PlayerCharacter({ color, positionRef, target, collider, onArrive
 
     pos.y = THREE.MathUtils.lerp(pos.y, groundHeight([pos.x, pos.z]), Math.min(1, dt * 14));
     g.position.copy(pos);
-    walkPhase.current = moving ? walkPhase.current + dt * 10 : walkPhase.current * 0.85;
-    const swing = Math.sin(walkPhase.current) * (moving ? 0.7 : 0);
-    if (legL.current) legL.current.rotation.x = swing;
-    if (legR.current) legR.current.rotation.x = -swing;
-    if (armL.current) armL.current.rotation.x = -swing * 0.8;
-    if (armR.current) armR.current.rotation.x = swing * 0.8;
-    if (body.current) body.current.position.y = moving ? Math.abs(Math.sin(walkPhase.current)) * 0.07 : 0;
-    if (head.current) head.current.rotation.z = moving ? Math.sin(walkPhase.current) * 0.04 : 0;
+    run.current = THREE.MathUtils.lerp(run.current, moving ? 1 : 0, Math.min(1, dt * (moving ? 10 : 7)));
+    walkPhase.current += dt * 11 * run.current;
+    if (bones.current) poseLocomotion(bones.current, walkPhase.current, run.current, performance.now() / 1000);
   });
 
   const outfit: Outfit = {
     top: color,
     legs: '#2e3b55',
     shoes: '#f4f4f0',
+    hair: '#4a3222',
     hat: 'beanie',
     hatColor: '#3a7bd5',
     accent: '#ffd23f',
@@ -129,7 +121,7 @@ export function PlayerCharacter({ color, positionRef, target, collider, onArrive
         <meshBasicMaterial color="#000" transparent opacity={0.28} depthWrite={false} />
       </mesh>
       <group ref={body}>
-        <HumanModel outfit={outfit} rig={{ legL, legR, armL, armR, head }} />
+        <Humanoid outfit={outfit} bonesRef={bones} />
       </group>
     </group>
   );
