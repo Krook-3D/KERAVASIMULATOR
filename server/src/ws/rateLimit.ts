@@ -26,6 +26,8 @@ export const MESSAGE_LIMITS: Record<string, { rate: number; burst: number }> = {
   ping: { rate: 1, burst: 3 },
   move: { rate: 12, burst: 20 },
   chat: { rate: 1, burst: 5 },
+  look: { rate: 0.2, burst: 4 },
+  warp: { rate: 0.5, burst: 3 },
   'trade.request': { rate: 1 / 3, burst: 2 },
   'trade.respond': { rate: 10, burst: 10 },
   'trade.offer': { rate: 10, burst: 10 },

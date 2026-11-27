@@ -3,7 +3,7 @@
  * sees whom. Positions here are not economy data; the authoritative rules
  * are speed and bounds checks. See docs/MULTIPLAYER.md sections 4 and 6.
  */
-import type { AnimState, PublicPlayer, ServerMessage } from '../../../shared/protocol';
+import { DEFAULT_SCENE, type AnimState, type PlayerLook, type PublicPlayer, type ServerMessage } from '../../../shared/protocol';
 import { SpatialGrid } from './grid';
 
 export interface WorldOptions {
@@ -15,9 +15,11 @@ export interface WorldOptions {
   boundsM: number;
   /** Corrections allowed per minute before the player is flagged. */
   maxCorrectionsPerMinute: number;
+  /** Minimum time between warps (doors, bus, train), ms. */
+  warpCooldownMs: number;
 }
 
-export const DEFAULT_WORLD_OPTIONS: WorldOptions = { maxSpeed: 10, tolerance: 1.25, boundsM: 3000, maxCorrectionsPerMinute: 20 };
+export const DEFAULT_WORLD_OPTIONS: WorldOptions = { maxSpeed: 10, tolerance: 1.25, boundsM: 3000, maxCorrectionsPerMinute: 20, warpCooldownMs: 1500 };
 
 export type Send = (msg: ServerMessage) => void;
 
@@ -26,6 +28,7 @@ export interface WorldPlayer extends PublicPlayer {
   lastMoveAt: number;
   joinedAt: number;
   corrections: number[];
+  lastWarpAt?: number;
   /** Set when a player repeatedly fails movement checks. */
   flagged?: boolean;
 }
@@ -37,6 +40,7 @@ interface PendingMove {
   tx?: number;
   tz?: number;
   anim?: AnimState;
+  scene?: string;
 }
 
 export class World {
@@ -57,7 +61,7 @@ export class World {
   join(p: Omit<WorldPlayer, 'lastMoveAt' | 'joinedAt' | 'corrections'>, now = Date.now()): WorldPlayer {
     if (this.players.has(p.id)) this.leave(p.id);
     const [x, z] = this.clamp(p.x, p.z);
-    const player: WorldPlayer = { ...p, x, z, lastMoveAt: now, joinedAt: now, corrections: [] };
+    const player: WorldPlayer = { scene: DEFAULT_SCENE, ...p, x, z, lastMoveAt: now, joinedAt: now, corrections: [] };
     this.players.set(player.id, player);
     const change = this.grid.set(player.id, x, z)!;
     const visible = [...this.grid.around(change.to)].filter((id) => id !== player.id);
@@ -100,13 +104,48 @@ export class World {
       p.send({ t: 'correction', x: p.x, z: p.z });
       return false;
     }
+    this.apply(p, m, now);
+    return true;
+  }
+
+
+  /**
+   * A jump the client says is legitimate (a door, the bus, the train, jail).
+   * Skips the speed check but is rate limited; positions carry no economy
+   * value, and trades and activities check distance and scene anyway.
+   */
+  warp(id: string, m: { x: number; z: number; scene: string }, now = Date.now()): boolean {
+    const p = this.players.get(id);
+    if (!p) return false;
+    const inBounds = Math.abs(m.x) <= this.opts.boundsM && Math.abs(m.z) <= this.opts.boundsM;
+    if (!inBounds || (p.lastWarpAt !== undefined && now - p.lastWarpAt < this.opts.warpCooldownMs)) {
+      p.send({ t: 'correction', x: p.x, z: p.z });
+      return false;
+    }
+    p.lastWarpAt = now;
+    this.apply(p, { x: m.x, z: m.z, anim: 'idle' }, now, m.scene);
+    return true;
+  }
+
+  /** Stores the look and shows it to everyone in view. */
+  setLook(id: string, look: PlayerLook): void {
+    const p = this.players.get(id);
+    const cell = this.grid.cellOfId(id);
+    if (!p || !cell) return;
+    p.look = look;
+    for (const other of this.grid.around(cell)) if (other !== id) this.players.get(other)?.send({ t: 'player.look', id, look });
+  }
+
+  private apply(p: WorldPlayer, m: { x: number; z: number; tx?: number; tz?: number; anim?: AnimState }, now: number, scene = p.scene): void {
+    const id = p.id;
     p.x = m.x;
     p.z = m.z;
     p.tx = m.tx;
     p.tz = m.tz;
     p.anim = m.anim;
     p.lastMoveAt = now;
-    this.pending.set(id, { id, x: m.x, z: m.z, tx: m.tx, tz: m.tz, anim: m.anim });
+    p.scene = scene;
+    this.pending.set(id, { id, x: m.x, z: m.z, tx: m.tx, tz: m.tz, anim: m.anim, scene });
 
     const change = this.grid.set(id, m.x, m.z);
     if (change) {
@@ -123,7 +162,6 @@ export class World {
         p.send({ t: 'player.leave', id: other });
       }
     }
-    return true;
   }
 
   /** Flushes batched moves to everyone who can see them. Called every tick. */
@@ -149,13 +187,16 @@ export class World {
     const p = this.players.get(id);
     const cell = this.grid.cellOfId(id);
     if (!p || !cell) return;
-    for (const other of this.grid.around(cell)) this.players.get(other)?.send({ t: 'chat', from: id, name: p.name, text });
+    for (const other of this.grid.around(cell)) {
+      const o = this.players.get(other);
+      if (o && o.scene === p.scene) o.send({ t: 'chat', from: id, name: p.name, text });
+    }
   }
 
   distance(a: string, b: string): number {
     const pa = this.players.get(a);
     const pb = this.players.get(b);
-    if (!pa || !pb) return Infinity;
+    if (!pa || !pb || pa.scene !== pb.scene) return Infinity;
     return Math.hypot(pa.x - pb.x, pa.z - pb.z);
   }
 
@@ -164,7 +205,7 @@ export class World {
   }
 
   publicOf(p: WorldPlayer): PublicPlayer {
-    return { id: p.id, name: p.name, color: p.color, level: p.level, x: p.x, z: p.z, tx: p.tx, tz: p.tz, anim: p.anim };
+    return { id: p.id, name: p.name, color: p.color, level: p.level, x: p.x, z: p.z, tx: p.tx, tz: p.tz, anim: p.anim, look: p.look, scene: p.scene };
   }
 
   private clamp(x: number, z: number): [number, number] {

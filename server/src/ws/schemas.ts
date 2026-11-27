@@ -6,6 +6,13 @@ const id = z.string().uuid();
 const rid = z.string().max(64).optional();
 const anim = z.enum(['idle', 'walk', 'run', 'fish', 'train', 'cook']).optional();
 const stage = z.enum(['offer', 'confirm']);
+const scene = z.string().regex(/^[a-z_]{1,24}$/);
+const lookValue = z.union([z.string().max(16), z.number().finite(), z.boolean()]);
+const look = z.object({
+  a: z.record(z.string().regex(/^[a-zA-Z]{1,16}$/), lookValue).refine((r) => Object.keys(r).length <= 24, 'too many fields'),
+  fat: z.number().min(0).max(1),
+  muscle: z.number().min(0).max(1),
+});
 
 const offer = z.object({
   items: z
@@ -23,6 +30,8 @@ export const clientMessageSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('ping') }),
   z.object({ t: z.literal('move'), x: coord, z: coord, tx: coord.optional(), tz: coord.optional(), anim }),
   z.object({ t: z.literal('chat'), text: z.string().min(1).max(200) }),
+  z.object({ t: z.literal('look'), look }),
+  z.object({ t: z.literal('warp'), x: coord, z: coord, scene }),
   z.object({ t: z.literal('trade.request'), targetId: id, rid }),
   z.object({ t: z.literal('trade.respond'), tradeId: id, accept: z.boolean(), rid }),
   z.object({ t: z.literal('trade.offer'), tradeId: id, offer, rid }),

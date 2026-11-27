@@ -49,6 +49,11 @@ import { QuestLayer } from './QuestLayer';
 import { InteriorScene } from './InteriorScene';
 import { Player, PlaceCamera } from './Player';
 import { GameHUD } from './GameHUD';
+import { useOnline } from './systems/useOnline';
+import { OnlineHud } from './hud/OnlineHud';
+import { RemotePlayers, SelfBubble, appearanceToLook } from '../RemotePlayers';
+import { useOnlineAccount } from '../../../game/online/OnlineProvider';
+import { TRADE } from '../../../../shared/economy';
 
 interface GameWorldProps {
   start: LngLat;
@@ -318,7 +323,10 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     if (inputLocked) return;
     const here: WorldXZ = [positionRef.current.x, positionRef.current.z];
     const far = (d: number) => `Liian kaukana (${Math.round(d)} m), kävele lähemmäs`;
-    // people first
+    // other players first, then NPCs
+    for (const r of online.live.current.values()) {
+      if (r.scene === scene && dist([r.rx, r.rz], p) < 1.2) return openRemoteMenu(r.id, x, y);
+    }
     let npc: (typeof w.npcs)[number] | null = null, nd = 1.6;
     if (inWorld)
       for (const n of w.npcs) {
@@ -380,6 +388,27 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
   const { fat: bodyFat, muscle: bodyMuscle } = bodyShape(player?.body, strengthLv);
   const shape = useMemo(() => ({ fat: bodyFat, muscle: bodyMuscle }), [bodyFat, bodyMuscle]);
   const outfit = useMemo(() => playerOutfit(color, appearance, shape), [color, appearance, shape]);
+
+  // ------------------------------------------------------------ shared world (when logged in online)
+  const account = useOnlineAccount();
+  const myLook = useMemo(() => appearanceToLook(appearance, color, shape), [appearance, color, shape]);
+  const online = useOnline({ character: account.character, enabled: introDone || !cutscene, positionRef, scene, look: myLook, setToast });
+  const remoteGround = useCallback((x: number, z: number) => (scene === 'world' ? w.groundHeight([x, z]) : 0), [scene, w.groundHeight]);
+  const openRemoteMenu = (id: string, x: number, y: number) => {
+    const r = online.live.current.get(id);
+    if (!r || inputLocked) return;
+    const locked = !!document.pointerLockElement;
+    const d = Math.hypot(r.rx - positionRef.current.x, r.rz - positionRef.current.z);
+    setCtxMenu({
+      x: locked ? window.innerWidth / 2 + 12 : x,
+      y: locked ? window.innerHeight / 2 + 12 : y,
+      title: `${r.name} · taso ${r.level}`,
+      options: [
+        { text: d <= TRADE.maxDistanceM ? '🤝 Käy kauppaa' : `🤝 Liian kaukana (${Math.round(d)} m)`, disabled: d > TRADE.maxDistanceM || !!online.trade, onPick: () => online.requestTrade(id) },
+        { text: '🔍 Tarkastele', onPick: () => setToast(`${r.name}: toinen pelaaja, taso ${r.level}.`) },
+      ],
+    });
+  };
 
   useDebugHook({
     w, scene, cutscene, dispatch, positionRef, jailLive, holdingRef, npcLive, goTo, teleport, setRoute,
@@ -460,7 +489,9 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
           />
         )}
 
+          {online.status === 'online' && <RemotePlayers roster={online.roster} live={online.live} scene={scene} groundAt={remoteGround} onClick={openRemoteMenu} />}
         </group>
+        {online.status === 'online' && <SelfBubble bubbleRef={online.myBubble} positionRef={positionRef} />}
         <Player
           color={color}
           appearance={appearance}
@@ -506,6 +537,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       )}
       {!cutscene && nearSpot && !inputLocked && <div className="use-prompt"><kbd>E</kbd> Käytä</div>}
 
+      {!cutscene && <OnlineHud online={online} playerCount={online.roster.filter((id) => online.live.current.get(id)?.scene === scene).length} />}
       <GameHUD
         world={w.world}
         player={player}

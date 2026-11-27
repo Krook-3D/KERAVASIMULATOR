@@ -235,6 +235,12 @@ export class Gateway {
       case 'move':
         world.move(id, msg);
         return;
+      case 'look':
+        world.setLook(id, msg.look);
+        return;
+      case 'warp':
+        world.warp(id, msg);
+        return;
       case 'chat': {
         if (conn.account.status === 'muted') throw new TradeError('not_allowed', 'Sinut on mykistetty.');
         const text = cleanChat(msg.text);

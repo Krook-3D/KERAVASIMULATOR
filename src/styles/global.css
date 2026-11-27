@@ -732,6 +732,15 @@ button.inv-slot:disabled { cursor: default; }
   font: inherit;
 }
 .menu__input:disabled { opacity: 0.55; }
+.menu__login-form { display: grid; gap: 6px; }
+.menu__muted { font-size: 0.85rem; color: #bfae86; text-align: center; }
+.menu__world { font-size: 0.82rem; color: #d8c79c; text-align: center; }
+.menu__online { text-align: center; font-size: 0.9rem; color: #f3e6c4; }
+.menu__dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #5ee07a; box-shadow: 0 0 6px #5ee07a; margin-right: 4px; }
+.menu__error { font-size: 0.85rem; color: #ff8a7a; text-align: center; }
+.menu__check { display: flex; gap: 6px; align-items: center; font-size: 0.85rem; color: #d8c79c; }
+.menu__link { background: none; border: 0; color: #d8b070; font: inherit; font-size: 0.82rem; cursor: pointer; text-decoration: underline; }
+.menu__btn--small { padding: 5px 10px; font-size: 0.8rem; justify-self: center; }
 .menu__buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 18px 0 10px; }
 .menu__btn {
   font-family: 'Cinzel', Georgia, serif;
@@ -913,3 +922,58 @@ button.inv-slot:disabled { cursor: default; }
 .mash__meter span { display: block; height: 100%; background: linear-gradient(90deg, #e0483c, #ffd23f 50%, #3fbf6f); transition: width 0.08s linear; }
 .mash__stats { margin-top: 8px; font-size: 13px; opacity: 0.85; }
 @keyframes mash-pulse { from { transform: scale(1); } to { transform: scale(1.06); } }
+
+/* ---------- online: status chip, chat, trade ---------- */
+.net-chip {
+  position: absolute; top: 64px; right: 12px; z-index: 20;
+  background: var(--panel); border: 2px solid var(--panel-edge); border-radius: 8px;
+  padding: 4px 10px; font-size: 12px; font-weight: 600; color: var(--text);
+}
+.net-chip__dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #e0b03a; margin-right: 4px; }
+.net-chip--online .net-chip__dot { background: #5ee07a; box-shadow: 0 0 6px #5ee07a; }
+.net-chip--offline .net-chip__dot, .net-chip--kicked .net-chip__dot { background: #ff6b6b; }
+.chat {
+  position: absolute; left: 12px; bottom: calc(var(--nav-h) + 58px); z-index: 22;
+  width: min(360px, calc(100% - 24px)); pointer-events: none;
+}
+.chat > * { pointer-events: auto; }
+.chat__list { max-height: 120px; overflow-y: auto; display: grid; gap: 2px; font-size: 13px; pointer-events: none; }
+.chat.is-open .chat__list { max-height: 220px; background: #14171fcc; border-radius: 6px; padding: 6px 8px; pointer-events: auto; }
+.chat__line { color: #f2f2ee; text-shadow: 0 1px 2px #000, 0 0 4px #000; overflow-wrap: anywhere; }
+.chat__line b { color: #9fe0ff; }
+.chat__line.is-mine b { color: var(--yellow); }
+.chat__form { margin-top: 4px; }
+.chat__input { width: 100%; box-sizing: border-box; padding: 7px 9px; border-radius: 6px; border: 2px solid var(--panel-edge); background: #14171f; color: #f2f2ee; font: inherit; font-size: 14px; }
+.chat__hint { margin-top: 4px; background: #14171fa0; border: 0; color: #cfd3da; font-size: 11px; border-radius: 4px; padding: 2px 6px; cursor: pointer; }
+.trade-ask {
+  position: absolute; top: 120px; left: 50%; transform: translateX(-50%); z-index: 31;
+  background: var(--panel); border: 2px solid var(--yellow); color: var(--text); border-radius: 8px; padding: 10px 14px; box-shadow: 0 6px 18px #0008;
+}
+.trade-ask__row { display: flex; gap: 8px; margin-top: 8px; justify-content: center; }
+.trade-ask button, .trade-win button {
+  font: 600 14px var(--font-body); padding: 6px 12px; border-radius: 6px; border: 2px solid #1a120a; background: #3b2f22; color: #f3e6c4; cursor: pointer;
+}
+.trade-ask button:first-child, .trade-win button.primary { background: #2e7d4f; }
+.trade-win button:disabled { opacity: 0.5; cursor: default; }
+.trade-win {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 32;
+  width: min(560px, calc(100% - 24px)); max-height: calc(100% - 40px); overflow-y: auto;
+  background: #f0e6cc; color: var(--ink); border: 3px solid #3b2f22; border-radius: 6px; box-shadow: 0 6px 0 #3b2f22, 0 14px 30px #0008; padding: 12px 16px;
+}
+.trade-win__title { font-family: var(--font-display); font-size: 14px; color: #7a2f1f; margin-bottom: 8px; }
+.trade-win__cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 480px) { .trade-win__cols { grid-template-columns: 1fr; } }
+.trade-win h4 { margin: 0 0 4px; font-size: 14px; }
+.trade-win .ok { color: #2e7d4f; }
+.trade-win__offer { list-style: none; margin: 0 0 8px; padding: 6px 8px; background: #e2d4ae; border-radius: 4px; min-height: 40px; font-size: 14px; }
+.trade-win__offer li.is-changed { color: #c8312b; font-weight: 700; animation: trade-flash 1s ease-out 2; }
+@keyframes trade-flash { 50% { background: #ffb3a8; } }
+.trade-win__edit { display: grid; gap: 6px; font-size: 13px; }
+.trade-win__edit label { display: flex; gap: 6px; align-items: center; }
+.trade-win__edit input { width: 90px; padding: 4px 6px; border: 2px solid #3b2f22; border-radius: 4px; font: inherit; }
+.trade-win__item { display: grid; grid-template-columns: 1fr auto auto auto; gap: 6px; align-items: center; }
+.trade-win__item button { padding: 2px 8px; }
+.trade-win__warn { margin: 8px 0 0; color: #8a2f2f; font-weight: 700; font-size: 14px; }
+.trade-win__row { display: flex; gap: 8px; margin-top: 10px; }
+.trade-win__foot { margin-top: 8px; font-size: 12px; }
+.trade-win .muted { color: #7a6a4a; }

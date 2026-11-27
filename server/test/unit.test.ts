@@ -58,6 +58,15 @@ describe('message validation', () => {
     expect(clientMessageSchema.safeParse({ t: 'addMoney', amount: 1000 }).success).toBe(false);
     expect(clientMessageSchema.safeParse({ t: 'move', x: Number.NaN, z: 0 }).success).toBe(false);
   });
+  it('limits looks and scenes', () => {
+    const look = { a: { skin: '#efc19b', glasses: true, build: 1.02 }, fat: 0.1, muscle: 0.3 };
+    expect(clientMessageSchema.safeParse({ t: 'look', look }).success).toBe(true);
+    expect(clientMessageSchema.safeParse({ t: 'look', look: { ...look, a: { skin: 'x'.repeat(40) } } }).success).toBe(false);
+    const many = Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`k${String.fromCharCode(97 + (i % 26))}${i > 25 ? 'x' : ''}`, 1]));
+    expect(clientMessageSchema.safeParse({ t: 'look', look: { ...look, a: many } }).success).toBe(false);
+    expect(clientMessageSchema.safeParse({ t: 'warp', x: 1, z: 2, scene: 'prisma' }).success).toBe(true);
+    expect(clientMessageSchema.safeParse({ t: 'warp', x: 1, z: 2, scene: '../etc' }).success).toBe(false);
+  });
   it('cleans chat text', () => {
     expect(cleanChat('  moi\u0000‮   kaikki ')).toBe('moi kaikki');
   });

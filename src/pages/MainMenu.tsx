@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { OnlineLogin } from './OnlineLogin';
 import { MenuBackdrop } from '../components/world/MenuBackdrop';
 import { useGame } from '../game/store/GameProvider';
 import { levelFromXp } from '../game/xp/xp';
@@ -33,13 +34,7 @@ export function MainMenu({ onPlay }: { onPlay: () => void }) {
             Taso {levelFromXp(player.xp)} · {player.money} € · tallennettu tälle laitteelle
           </div>
         )}
-        <div className="menu__login">
-          <input className="menu__input" placeholder="Käyttäjätunnus" disabled />
-          <input className="menu__input" placeholder="Salasana" type="password" disabled />
-          <button type="button" className="menu__btn" disabled title="Tulossa myöhemmin">
-            Kirjaudu (tulossa)
-          </button>
-        </div>
+        <OnlineLogin localName={player?.name} localColor={player?.color} />
       </section>
 
       <nav className="menu__buttons">

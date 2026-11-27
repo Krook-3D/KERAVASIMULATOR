@@ -438,8 +438,16 @@ Kansio `server/` (oma npm-paketti) ja `shared/`:
 - **Läsnäolo**: ruudukkopohjainen näkyvyysalue, join/leave/move-viestit, liikkeen nopeustarkistus ja korjaus, lähichat.
 - **Kauppa**: koko tilakone (pyyntö, tarjous, hyväksyntä, vahvistus, peruutukset, aikarajat, etäisyys), atominen commit rivilukoilla, kauppahistoria.
 - **Pörssin täsmäytysmoottori** puhtaana funktiona (`market/matching.ts`): hinta–aika-prioriteetti, osittaiset täsmäykset, vero, palautukset. Tietokantaintegraatio on vaihe M7.
-- Testit (`npm test` kansiossa `server/`, 54 kpl): salasanat, viestien validointi, nopeusrajat, näkyvyysalueet, liikkeen huijausesto, täsmäysmoottori (myös rahan säilyminen), kirjanpito (20 rinnakkaista ostoa samalla rahalla), kaupan dupetusyritykset (sama tavara kahteen kauppaan yhtä aikaa, kaupan uusinta, ristikkäiset kaupat ilman deadlockia), uusien tilien rajat, ja koko kauppa päästä päähän kahdella oikealla WebSocket-yhteydellä.
+- Testit (`npm test` kansiossa `server/`, 58 kpl): salasanat, viestien validointi, nopeusrajat, näkyvyysalueet, liikkeen huijausesto, täsmäysmoottori (myös rahan säilyminen), kirjanpito (20 rinnakkaista ostoa samalla rahalla), kaupan dupetusyritykset (sama tavara kahteen kauppaan yhtä aikaa, kaupan uusinta, ristikkäiset kaupat ilman deadlockia), uusien tilien rajat, ja koko kauppa päästä päähän kahdella oikealla WebSocket-yhteydellä.
 
-**Seuraavaksi (M5)**: clientiin kirjautumisruutu, muiden pelaajien hahmot `PublicPlayer`-datasta (sama `Humanoid`-komponentti), chat-ikkuna ja kauppaikkuna. Se koskee clientin tiedostoja, joten se tehdään yhdessä clientin kehityksen kanssa.
+**M5, clientin online-tila (tehty)**:
+
+- Päävalikossa kirjautuminen ja tilin luonti (K18-vahvistus), sen jälkeen verkkohahmon nimi. Maailman pelaajamäärä näkyy valikossa. Jos palvelin ei vastaa, yksinpeli toimii kuten ennenkin. Kehityksessä Vite välittää `/api` ja `/ws` palvelimelle (portti 8787), joten httpOnly-eväste toimii ilman CORSia.
+- `src/services/online.ts`: REST-kutsut ja `OnlineClient` (uudelleenyhdistys 1–30 s viiveellä, ping, `rid`-pyynnöt lupauksina). `src/game/online/OnlineProvider.tsx` pitää kirjautumistilan.
+- Pelissä `systems/useOnline.ts` lähettää sijainnin 10 kertaa sekunnissa vain kun se muuttuu. Muut pelaajat piirretään samalla `Humanoid`-mallilla, nimilapulla ja puhekuplalla (`RemotePlayers.tsx`), liike pehmennetään.
+- Protokollaan lisättiin `look` (ulkonäkö JSONina, palvelin rajaa vain koon; vastaanottaja tarkistaa kentät itse, `game/online/look.ts`), `scene` (maailma tai sisätila: vain samassa tilassa olevat näkevät toisensa, chat ja kaupan etäisyys koskevat vain samaa tilaa) ja `warp` (ovet, bussi, juna, vankila: hyppy ilman nopeustarkistusta, enintään kerran 1,5 s:ssa). Sijainnilla ei ole taloudellista arvoa, ja kauppa ja aktiviteetit tarkistavat etäisyyden ja tilan, joten tämä riittää kunnes törmäystarkistus siirtyy palvelimelle.
+- Lähichat: Enter avaa, viesti näkyy chat-ikkunassa ja puhekuplana.
+- Kauppa: oikea klikkaus (tai klikkaus) toiseen pelaajaan → Käy kauppaa. Ikkunassa oma tarjous (raha ja verkkorepun tavarat), toisen tarjous, muutokset vilkkuvat punaisena, hyväksyntä ja 2 s jälkeen vahvistus.
+- Rajaus: verkkokaupassa liikkuu **palvelimen** lompakko ja reppu (aloitusraha 50 €). Yksinpelin paikallinen tallennus ei vielä siirry palvelimelle; se on seuraava vaihe (M5b/M6), koska se vaatii aktiviteettien siirtämistä palvelimelle (luku 4).
 
 Käynnistys: ks. `server/README.md`.

@@ -454,3 +454,21 @@ describe('street junctions', () => {
     expect(js.some((j) => Math.abs(j.at[0] + 150) < 1)).toBe(false);
   });
 });
+
+describe('online look', () => {
+  it('round-trips our appearance and rejects bad values from others', async () => {
+    const { appearanceToLook, lookToAppearance } = await import('./online/look');
+    const { defaultAppearance } = await import('./player/appearance');
+    const mine = { ...defaultAppearance('#3a7bd5'), hairStyle: 'afro' as const, glasses: true, height: 1.05 };
+    const back = lookToAppearance(appearanceToLook(mine, '#3a7bd5', { fat: 0.2, muscle: 0.6 }), '#3a7bd5');
+    expect(back.a).toEqual(mine);
+    expect(back.shape).toEqual({ fat: 0.2, muscle: 0.6 });
+    const bad = lookToAppearance({ a: { skin: 'url(x)', hairStyle: 'spikes', height: 9, hat: 'crown' }, fat: 5, muscle: -1 }, '#ffd23f');
+    const def = defaultAppearance('#ffd23f');
+    expect(bad.a.skin).toBe(def.skin);
+    expect(bad.a.hairStyle).toBe(def.hairStyle);
+    expect(bad.a.height).toBe(1.08);
+    expect(bad.a.hat).toBe(def.hat);
+    expect(bad.shape).toEqual({ fat: 1, muscle: 0 });
+  });
+});

@@ -25,7 +25,23 @@ export interface PublicPlayer {
   tx?: number;
   tz?: number;
   anim?: AnimState;
+  /** How the character looks (sent by its own client, not checked by the server). */
+  look?: PlayerLook;
+  /** 'world' or an interior id; players only see others in the same scene. */
+  scene?: string;
 }
+
+/**
+ * Appearance as plain JSON: the client's Appearance fields (colours, styles,
+ * build) plus body shape. The server only limits its size.
+ */
+export interface PlayerLook {
+  a: Record<string, string | number | boolean>;
+  fat: number;
+  muscle: number;
+}
+
+export const DEFAULT_SCENE = 'world';
 
 export type AnimState = 'idle' | 'walk' | 'run' | 'fish' | 'train' | 'cook';
 
@@ -77,6 +93,10 @@ export type ClientMessage =
   | { t: 'ping' }
   | { t: 'move'; x: number; z: number; tx?: number; tz?: number; anim?: AnimState }
   | { t: 'chat'; text: string }
+  /** Your look, sent after welcome and whenever it changes. */
+  | { t: 'look'; look: PlayerLook }
+  /** A legitimate jump (door, bus, train, jail): skips the speed check, rate limited. */
+  | { t: 'warp'; x: number; z: number; scene: string }
   | { t: 'trade.request'; targetId: string; rid?: string }
   | { t: 'trade.respond'; tradeId: string; accept: boolean; rid?: string }
   | { t: 'trade.offer'; tradeId: string; offer: TradeOffer; rid?: string }
@@ -104,7 +124,8 @@ export type ServerMessage =
   | { t: 'snapshot'; players: PublicPlayer[] }
   | { t: 'player.join'; player: PublicPlayer }
   | { t: 'player.leave'; id: string }
-  | { t: 'player.move'; moves: { id: string; x: number; z: number; tx?: number; tz?: number; anim?: AnimState }[] }
+  | { t: 'player.move'; moves: { id: string; x: number; z: number; tx?: number; tz?: number; anim?: AnimState; scene?: string }[] }
+  | { t: 'player.look'; id: string; look: PlayerLook }
   | { t: 'correction'; x: number; z: number }
   | { t: 'chat'; from: string; name: string; text: string }
   | { t: 'trade.requested'; tradeId: string; fromId: string; name: string }

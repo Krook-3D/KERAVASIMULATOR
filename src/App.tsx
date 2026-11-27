@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { GameProvider, useGame } from './game/store/GameProvider';
+import { OnlineProvider } from './game/online/OnlineProvider';
 import { CharacterCreatePage } from './pages/CharacterCreatePage';
 import { GamePage } from './pages/GamePage';
 import { MainMenu } from './pages/MainMenu';
@@ -15,7 +16,9 @@ function Screens() {
 export default function App() {
   return (
     <GameProvider>
-      <Screens />
+      <OnlineProvider>
+        <Screens />
+      </OnlineProvider>
     </GameProvider>
   );
 }

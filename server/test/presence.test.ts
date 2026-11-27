@@ -40,7 +40,7 @@ describe('World', () => {
     w.join(player('b', 5, 0, b), 0);
     expect(w.move('a', { x: 3, z: 0, tx: 10, tz: 0, anim: 'walk' }, 1000)).toBe(true);
     w.tick();
-    expect(b.at(-1)).toEqual({ t: 'player.move', moves: [{ id: 'a', x: 3, z: 0, tx: 10, tz: 0, anim: 'walk' }] });
+    expect(b.at(-1)).toEqual({ t: 'player.move', moves: [{ id: 'a', x: 3, z: 0, tx: 10, tz: 0, anim: 'walk', scene: 'world' }] });
     expect(a.some((m) => m.t === 'player.move')).toBe(false);
   });
 
@@ -91,5 +91,46 @@ describe('World', () => {
     w.chat('a', 'moi');
     for (const box of [a, b]) expect(box.at(-1)).toEqual({ t: 'chat', from: 'a', name: 'a', text: 'moi' });
     expect(c.some((m) => m.t === 'chat')).toBe(false);
+  });
+
+  it('accepts a warp (door, bus) but not two in quick succession', () => {
+    const w = new World('t');
+    const a: ServerMessage[] = [];
+    const b: ServerMessage[] = [];
+    w.join(player('a', 0, 0, a), 0);
+    w.join(player('b', 5, 0, b), 0);
+    expect(w.warp('a', { x: 2, z: 3, scene: 'prisma' }, 1000)).toBe(true);
+    w.tick();
+    expect(b.at(-1)).toEqual({ t: 'player.move', moves: [{ id: 'a', x: 2, z: 3, anim: 'idle', scene: 'prisma' }] });
+    expect(w.warp('a', { x: 900, z: 0, scene: 'world' }, 1500)).toBe(false);
+    expect(a.at(-1)).toEqual({ t: 'correction', x: 2, z: 3 });
+    expect(w.warp('a', { x: 900, z: 0, scene: 'world' }, 3000)).toBe(true);
+  });
+
+  it('keeps chat and trading distance inside one scene', () => {
+    const w = new World('t');
+    const a: ServerMessage[] = [];
+    const b: ServerMessage[] = [];
+    w.join(player('a', 0, 0, a), 0);
+    w.join(player('b', 1, 0, b), 0);
+    expect(w.distance('a', 'b')).toBeCloseTo(1);
+    w.warp('a', { x: 0, z: 0, scene: 'prisma' }, 1000);
+    expect(w.distance('a', 'b')).toBe(Infinity);
+    w.chat('a', 'moi');
+    expect(b.some((m) => m.t === 'chat')).toBe(false);
+    expect(a.some((m) => m.t === 'chat')).toBe(true);
+  });
+
+  it('shares looks with players in view', () => {
+    const w = new World('t');
+    const a: ServerMessage[] = [];
+    const b: ServerMessage[] = [];
+    w.join(player('a', 0, 0, a), 0);
+    const look = { a: { skin: '#efc19b', hairStyle: 'afro', glasses: true }, fat: 0.2, muscle: 0.5 };
+    w.setLook('a', look);
+    w.join(player('b', 3, 0, b), 0);
+    expect(b[0]).toMatchObject({ t: 'snapshot', players: [{ id: 'a', look }] });
+    w.setLook('a', { ...look, fat: 0.4 });
+    expect(b.at(-1)).toMatchObject({ t: 'player.look', id: 'a' });
   });
 });
