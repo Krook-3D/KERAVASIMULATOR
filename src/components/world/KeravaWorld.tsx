@@ -8,7 +8,7 @@ import type { Tree } from '../../game/world/vegetation';
 import { buildAreaGeometry, buildBuildingsGeometry, buildCatenaryGeometry, buildCrossingGeometry, buildRoadLayers, buildTerrainGeometry } from '../../game/world/geometry';
 import type { Terrain } from '../../game/world/terrain';
 import { paintGroundMap } from './groundMap';
-import { createBuildingMaterial, createGrainMaterial, createGroundMaterial, createWaterMaterial, type XrayUniforms } from './materials';
+import { createBuildingMaterial, createGrainMaterial, createPavingMaterial, createGroundMaterial, createWaterMaterial, type XrayUniforms } from './materials';
 import { WaterDetails } from './WaterDetails';
 import { Trees } from './Trees';
 import { StreetProps } from './StreetProps';
@@ -56,6 +56,8 @@ export function KeravaWorld({ data, terrain, onGroundClick, playerRef, xray, tre
       sleeper: new THREE.MeshStandardMaterial({ color: '#4a3527', roughness: 0.9 }),
       rail: new THREE.MeshStandardMaterial({ color: '#b9bcc2', roughness: 0.3, metalness: 0.9 }),
       concrete: createGrainMaterial('#b3b0a8', 0.12),
+      paving: offset(createPavingMaterial(), -1),
+      curb: createGrainMaterial('#9a9893', 0.14, 0.8),
       mast: new THREE.MeshStandardMaterial({ color: '#8d949c', roughness: 0.45, metalness: 0.7 }),
       wire: new THREE.MeshStandardMaterial({ color: '#3b2f26', roughness: 0.5, metalness: 0.6 }),
     }),
@@ -130,6 +132,8 @@ export function KeravaWorld({ data, terrain, onGroundClick, playerRef, xray, tre
       {flat(r.sidewalk, materials.sidewalk)}
       {flat(r.asphalt, materials.asphalt)}
       {flat(r.markings, materials.marking)}
+      {flat(r.paving, materials.paving)}
+      {flat(r.curb, materials.curb)}
       {flat(r.path, materials.path)}
       {flat(r.ballast, materials.ballast)}
       {flat(r.sleepers, materials.sleeper)}

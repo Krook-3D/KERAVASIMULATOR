@@ -198,6 +198,34 @@ export function createGrainMaterial(color: string, grain = 0.18, roughness = 0.9
   return m;
 }
 
+/**
+ * Sidewalk paving: 0.5 m concrete pavers in a running bond, laid along the
+ * street (aPave = metres along / across), with darker joints, a little colour
+ * variation per stone and some dirt.
+ */
+export function createPavingMaterial(color = '#b4b0a7'): THREE.MeshStandardMaterial {
+  const m = new THREE.MeshStandardMaterial({ color, roughness: 0.92 });
+  m.onBeforeCompile = (shader) => {
+    addWorldVaryings(shader, 'attribute vec2 aPave;\nvarying vec2 vPave;', 'vPave = aPave;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>\n${WORLD_VARYINGS}\nvarying vec2 vPave;\n${NOISE_GLSL}`)
+      .replace(
+        '#include <color_fragment>',
+        `#include <color_fragment>
+  vec2 q = vec2(vPave.x / 0.5, (vPave.y + 4.0) / 0.5);
+  q.x += mod(floor(q.y), 2.0) * 0.5;
+  vec2 cell = floor(q), f = fract(q);
+  float edge = min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y));
+  float joint = 1.0 - smoothstep(0.02, 0.06, edge);
+  float tone = 0.9 + hash21(cell) * 0.16;
+  float dirt = vnoise(vWorldPos.xz * 0.35) * 0.5 + vnoise(vWorldPos.xz * 2.7) * 0.5;
+  diffuseColor.rgb *= tone * (0.92 + dirt * 0.12) * (1.0 - joint * 0.35);`,
+      );
+  };
+  m.customProgramCacheKey = () => `kerava-paving-${color}`;
+  return m;
+}
+
 /** Plain standard material with the x-ray hole (for canopies and other roofs). */
 export function createXrayStandardMaterial(xray: XrayUniforms, params: THREE.MeshStandardMaterialParameters): THREE.MeshStandardMaterial {
   const m = new THREE.MeshStandardMaterial(params);

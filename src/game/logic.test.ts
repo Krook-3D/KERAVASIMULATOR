@@ -16,6 +16,7 @@ import { DRILLS, drillXp } from './gym/drills';
 import { CHECK_LEVEL, dealPrice, resolveDeal, scamChance } from './street/streetDeals';
 import { BUILD_STAGES, placePlots, plotPrice, plotResale, plotSize, pricePerM2 } from './world/plots';
 import { escapeChance } from './street/escape';
+import { findJunctions } from './world/junctions';
 import { crossingLift, findCrossings } from './world/crossings';
 import { ATTACK_MAX, ATTACK_MIN, freshMood, provoke } from './street/provoke';
 
@@ -435,5 +436,21 @@ describe('road–rail crossings', () => {
     expect(cs.length).toBe(1);
     expect(cs[0]!.kind).toBe('under');
     expect(cs[0]!.span).toBeGreaterThan(9);
+  });
+});
+
+describe('street junctions', () => {
+  it('finds crossings, T-junctions on shared nodes, and ignores ways that just continue', () => {
+    const js = findJunctions([
+      { kind: 'major', points: [[-100, 0], [100, 0]] },
+      { kind: 'street', points: [[0, -100], [0, 100]] }, // crosses mid-segment: 4 arms
+      { kind: 'street', points: [[60, 0], [60, 80]] }, // T on... a point inside the major segment, no shared node
+      { kind: 'street', points: [[-200, 50], [-150, 50]] },
+      { kind: 'street', points: [[-150, 50], [-120, 50]] }, // continues the previous way: not a junction
+    ]);
+    const cross = js.find((j) => Math.hypot(j.at[0], j.at[1]) < 1)!;
+    expect(cross.arms.length).toBe(4);
+    expect(cross.hasMajor).toBe(true);
+    expect(js.some((j) => Math.abs(j.at[0] + 150) < 1)).toBe(false);
   });
 });

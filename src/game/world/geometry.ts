@@ -5,6 +5,7 @@ import { hash2 } from './random';
 import { ROAD_WIDTH, type Area, type Building, type Road, type RoadKind } from './worldData';
 import { densify, type Terrain } from './terrain';
 import { inEndGap, WIDE_FADE, WIDE_FULL } from './crossings';
+import { findJunctions, JunctionIndex } from './junctions';
 
 /**
  * Builds merged meshes from world data. Everything of one kind becomes a
@@ -159,12 +160,15 @@ export function buildBuildingsGeometry(buildings: Building[], terrain: Terrain |
 interface Ribbons {
   positions: number[];
   indices: number[];
+  /** Optional (u along, v across) in metres, for patterned surfaces like paving. */
+  uv?: number[];
 }
 
-const newRibbons = (): Ribbons => ({ positions: [], indices: [] });
+const newRibbons = (withUv = false): Ribbons => ({ positions: [], indices: [], ...(withUv ? { uv: [] } : {}) });
 
 /** Adds a flat ribbon along a polyline, optionally shifted sideways. */
 function addRibbon(out: Ribbons, points: WorldXZ[], half: number, y: number, offset = 0, extend = 0.9) {
+  let along = 0;
   for (let i = 0; i < points.length - 1; i++) {
     const [ax, az] = points[i]!;
     const [bx, bz] = points[i + 1]!;
@@ -186,11 +190,39 @@ function addRibbon(out: Ribbons, points: WorldXZ[], half: number, y: number, off
       bx + ex + ox + nx, y, bz + ez + oz + nz,
     );
     out.indices.push(base, base + 2, base + 1, base, base + 3, base + 2);
+    if (out.uv) out.uv.push(along - ext, half, along - ext, -half, along + len + ext, -half, along + len + ext, half);
+    along += len;
   }
 }
 
+/** Vertical face along a polyline at a sideways offset, from y0 to y1 (the road-facing side of a curb). */
+function addFace(out: Ribbons, points: WorldXZ[], offset: number, y0: number, y1: number) {
+  for (let i = 0; i < points.length - 1; i++) {
+    const [ax, az] = points[i]!, [bx, bz] = points[i + 1]!;
+    const dx = bx - ax, dz = bz - az;
+    const len = Math.hypot(dx, dz);
+    if (len < 0.01) continue;
+    const px = (-dz / len) * offset, pz = (dx / len) * offset;
+    const base = out.positions.length / 3;
+    out.positions.push(ax + px, y0, az + pz, bx + px, y0, bz + pz, bx + px, y1, bz + pz, ax + px, y1, az + pz);
+    out.indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    if (out.uv) out.uv.push(0, 0, len, 0, len, y1 - y0, 0, y1 - y0);
+  }
+}
+
+/** Splits a polyline into the pieces outside `cut` (gaps where cut(p) is true). */
+function splitWhere(points: WorldXZ[], cut: (p: WorldXZ) => boolean): WorldXZ[][] {
+  const pieces: WorldXZ[][] = [[]];
+  for (const p of points) {
+    if (cut(p)) {
+      if (pieces[pieces.length - 1]!.length) pieces.push([]);
+    } else pieces[pieces.length - 1]!.push(p);
+  }
+  return pieces.filter((q) => q.length >= 2);
+}
+
 /** Short quads placed at regular intervals along a polyline (dashes, sleepers). */
-function addDashes(out: Ribbons, points: WorldXZ[], y: number, spacing: number, length: number, half: number) {
+function addDashes(out: Ribbons, points: WorldXZ[], y: number, spacing: number, length: number, half: number, skip?: (p: WorldXZ) => boolean) {
   let carry = 0;
   for (let i = 0; i < points.length - 1; i++) {
     const [ax, az] = points[i]!;
@@ -201,6 +233,7 @@ function addDashes(out: Ribbons, points: WorldXZ[], y: number, spacing: number, 
     const ux = dx / len, uz = dz / len;
     for (let t = carry; t < len; t += spacing) {
       const sx = ax + ux * t, sz = az + uz * t;
+      if (skip?.([sx, sz]) || skip?.([sx + ux * length, sz + uz * length])) continue;
       addRibbon(out, [[sx, sz], [sx + ux * length, sz + uz * length]], half, y, 0, 0);
     }
     carry = (carry - len) % spacing;
@@ -216,6 +249,7 @@ function toGeometry(r: Ribbons, drape: Drape = null): THREE.BufferGeometry | nul
   if (drape) for (let i = 0; i < r.positions.length; i += 3) r.positions[i + 1] = r.positions[i + 1]! + drape(r.positions[i]!, r.positions[i + 2]!);
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(r.positions, 3));
+  if (r.uv) geo.setAttribute('aPave', new THREE.Float32BufferAttribute(r.uv, 2));
   geo.setIndex(r.indices);
   geo.computeVertexNormals();
   // Ribbons are built with mixed winding; force upward normals.
@@ -233,15 +267,24 @@ export interface RoadLayers {
   sleepers: THREE.BufferGeometry | null;
   rails: THREE.BufferGeometry | null;
   river: THREE.BufferGeometry | null;
+  /** Paved sidewalk strips (with uv in metres) and the granite curbs beside the road. */
+  paving: THREE.BufferGeometry | null;
+  curb: THREE.BufferGeometry | null;
 }
 
 const SIDEWALK = 2.4;
+/** Curb stone width. */
+const CURB = 0.22;
 
 export function buildRoadLayers(roads: Road[], terrain: Terrain | null = null): RoadLayers {
   const sidewalk = newRibbons(), asphalt = newRibbons(), markings = newRibbons();
   const path = newRibbons(), ballast = newRibbons(), sleepers = newRibbons();
   const rails = newRibbons(), river = newRibbons();
+  const paving = newRibbons(true), curb = newRibbons();
   const half = (k: RoadKind) => ROAD_WIDTH[k] / 2;
+  const junctions = new JunctionIndex(findJunctions(roads), SIDEWALK + 0.6);
+  /** Inside a junction box: no curbs or sidewalk strips (the base pavement fills the corners). */
+  const inJunction = (p: WorldXZ) => !!junctions.at(p);
 
   const ends = terrain?.crossings.filter((c) => c.kind === 'end') ?? [];
   for (const raw of roads) {
@@ -266,11 +309,24 @@ export function buildRoadLayers(roads: Road[], terrain: Terrain | null = null): 
   function addRoad(r: Road) {
     switch (r.kind) {
       case 'major':
-      case 'street':
-        addRibbon(sidewalk, r.points, half(r.kind) + SIDEWALK, 0.04);
-        addRibbon(asphalt, r.points, half(r.kind), 0.07);
-        if (r.kind === 'major') addDashes(markings, r.points, 0.09, 7, 3, 0.12);
+      case 'street': {
+        const h = half(r.kind);
+        // base pavement (shows at junction corners) and asphalt, in lateral strips so they follow uneven ground alike
+        const W = h + SIDEWALK;
+        for (const o of [-0.75, -0.25, 0.25, 0.75]) addRibbon(sidewalk, r.points, W / 4 + 0.05, 0.0, o * W, 0.25);
+        for (const o of [-0.5, 0.5]) addRibbon(asphalt, r.points, h / 2 + 0.05, 0.07, o * h, 0.4);
+        // raised sidewalks with a curb on both sides, broken at junctions
+        for (const piece of splitWhere(r.points, inJunction))
+          for (const side of [-1, 1]) {
+            addRibbon(paving, piece, (SIDEWALK - CURB) / 2, 0.15, side * (h + CURB + (SIDEWALK - CURB) / 2), 0.15);
+            addRibbon(curb, piece, CURB / 2, 0.16, side * (h + CURB / 2), 0.15);
+            addFace(curb, piece, side * h, 0.06, 0.16);
+            // solid edge line on main roads
+            if (r.kind === 'major') addRibbon(markings, piece, 0.07, 0.09, side * (h - 0.45), 0.2);
+          }
+        if (r.kind === 'major') addDashes(markings, r.points, 0.09, 7, 3, 0.12, (p) => !!junctions.at(p, 1));
         break;
+      }
       case 'path':
         addRibbon(path, r.points, half('path'), 0.06);
         break;
@@ -286,6 +342,17 @@ export function buildRoadLayers(roads: Road[], terrain: Terrain | null = null): 
         break;
     }
   }
+  // zebra crossings on every arm of junctions on main roads, and stop lines on the side streets joining them
+  for (const j of junctions.list) {
+    if (!j.hasMajor) continue;
+    for (const arm of j.arms) {
+      const [ux, uz] = arm.dir, px = -uz, pz = ux;
+      const d0 = j.maxHalf + SIDEWALK + 0.8;
+      const at = (s: number, o: number): WorldXZ => [j.at[0] + ux * s + px * o, j.at[1] + uz * s + pz * o];
+      for (let o = -arm.half + 0.6; o <= arm.half - 0.6; o += 1.0) addRibbon(markings, [at(d0, o), at(d0 + 3, o)], 0.25, 0.09, 0, 0);
+      if (arm.kind !== 'major') addRibbon(markings, [at(d0 + 4.2, -arm.half + 0.3), at(d0 + 4.2, arm.half - 0.3)], 0.2, 0.09, 0, 0);
+    }
+  }
   const d: Drape = terrain ? (x, z) => terrain.surfaceAt(x, z) : null;
   const dr: Drape = terrain ? (x, z) => terrain.railAt(x, z) : null;
   return {
@@ -297,6 +364,8 @@ export function buildRoadLayers(roads: Road[], terrain: Terrain | null = null): 
     sleepers: toGeometry(sleepers, dr),
     rails: toGeometry(rails, dr),
     river: toGeometry(river, d),
+    paving: toGeometry(paving, d),
+    curb: toGeometry(curb, d),
   };
 }
 
