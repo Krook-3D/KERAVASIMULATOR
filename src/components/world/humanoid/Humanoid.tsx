@@ -10,7 +10,12 @@ export function Humanoid({ outfit, bonesRef }: { outfit: Outfit; bonesRef: Mutab
   const built = useMemo(() => buildHumanoid(outfit), [key]);
   bonesRef.current = built.bones;
   useEffect(() => () => disposeHumanoid(built.mesh), [built]);
-  return <primitive object={built.mesh} />;
+  const h = outfit.height ?? 1;
+  return h === 1 ? <primitive object={built.mesh} /> : (
+    <group scale={[h, h, h]}>
+      <primitive object={built.mesh} />
+    </group>
+  );
 }
 
 export type { HumanBones, Outfit };

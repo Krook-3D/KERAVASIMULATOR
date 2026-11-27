@@ -161,6 +161,8 @@ export interface Player {
   equipment: Partial<Record<EquipmentSlot, string>>;
   quests: Record<string, QuestProgress>;
   visitedPoiIds: string[];
+  /** Looks (character editor + barber). Older saves fall back to `color`. */
+  appearance?: import('../game/player/appearance').Appearance;
   /** Opening cutscene (thrown off the train) has been seen. */
   introDone?: boolean;
   createdAt: number;

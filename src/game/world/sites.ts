@@ -5,5 +5,6 @@
  */
 export const SITES = {
   gym: { lngLat: [25.0988, 60.4057] as [number, number], w: 30, d: 22, h: 8, kind: 'gym' },
+  barber: { lngLat: [25.1015, 60.4062] as [number, number], w: 14, d: 12, h: 6, kind: 'barber' },
   pool: { lngLat: [25.0935, 60.399] as [number, number], w: 44, d: 34, h: 10, kind: 'pool' },
 } as const;

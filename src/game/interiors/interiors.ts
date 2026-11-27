@@ -6,11 +6,11 @@ import type { WorldXZ } from '../world/projection';
  * the floor at y = 0. Exits link to a door in the world or to another
  * interior's exit.
  */
-export type InteriorId = 'tunnel' | 'station' | 'prisma' | 'prison' | 'gym' | 'pool' | 'alepa';
+export type InteriorId = 'tunnel' | 'station' | 'prisma' | 'prison' | 'gym' | 'pool' | 'alepa' | 'barber';
 export type SceneId = 'world' | InteriorId;
 
 /** Doors placed in the 3D town (positions are worked out at runtime). */
-export type WorldDoorId = 'tunnel-town' | 'tunnel-east' | 'station-platform' | 'station-town' | 'prisma' | 'prison-yard' | 'gym' | 'pool' | 'alepa';
+export type WorldDoorId = 'tunnel-town' | 'tunnel-east' | 'station-platform' | 'station-town' | 'prisma' | 'prison-yard' | 'gym' | 'pool' | 'alepa' | 'barber';
 
 export interface Rect {
   minX: number;
@@ -238,7 +238,25 @@ const alepa: InteriorDef = {
   exits: [{ id: 'main', at: [-6.5, 6.4], spawn: [-6.5, 4.6], yaw: Math.PI, label: 'Ulos', to: { scene: 'world', door: 'alepa' } }],
 };
 
-export const INTERIORS: Record<InteriorId, InteriorDef> = { tunnel, station, prisma, prison, gym, pool, alepa };
+// ------------------------------------------------------------ barber
+export const BARBER_ROOM = R(-6, 6, -5, 5);
+export const BARBER_CHAIR_SPOT: WorldXZ = [-1.5, -1.4];
+const barber: InteriorDef = {
+  id: 'barber',
+  name: 'Parturi-kampaamo Sakset',
+  floor: BARBER_ROOM,
+  solids: [
+    ...roomWalls(BARBER_ROOM, 0.3, [['s', 3.5, 2]]),
+    R(-6, 6, -5, -4.4), // mirror counter
+    R(-2.0, -1.0, -3.4, -2.2), // chair 1
+    R(1.0, 2.0, -3.4, -2.2), // chair 2
+    R(-6, -4.6, 1, 5), // waiting bench
+    R(4.2, 6, 0.5, 2.5), // till desk
+  ],
+  exits: [{ id: 'main', at: [3.5, 4.5], spawn: [3.5, 3], yaw: Math.PI, label: 'Ulos', to: { scene: 'world', door: 'barber' } }],
+};
+
+export const INTERIORS: Record<InteriorId, InteriorDef> = { tunnel, station, prisma, prison, gym, pool, alepa, barber };
 
 export const inRect = (r: Rect, [x, z]: WorldXZ, pad = 0) => x >= r.minX - pad && x <= r.maxX + pad && z >= r.minZ - pad && z <= r.maxZ + pad;
 

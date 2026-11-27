@@ -27,7 +27,7 @@ import {
 } from '../../game/world/station';
 import { NO_INTRO_START } from '../../game/world/trainSchedule';
 import { INSPECTOR_NAME, INTRO_TIMES, type IntroLine } from '../../game/world/intro';
-import { GYM_PLATE_SPOT, GYM_STATIONS, INTERIORS, PLAYER_BARS, PLAYER_CELL_X, POOL_SWIM_SPOT, RectCollider, type InteriorId, type Link, type SceneId, type WorldDoorId } from '../../game/interiors/interiors';
+import { BARBER_CHAIR_SPOT, GYM_PLATE_SPOT, GYM_STATIONS, INTERIORS, PLAYER_BARS, PLAYER_CELL_X, POOL_SWIM_SPOT, RectCollider, type InteriorId, type Link, type SceneId, type WorldDoorId } from '../../game/interiors/interiors';
 import { JAILBREAK, JAILBREAK_ID, JAILBREAK_STEP } from '../../game/quests/jailbreak';
 import { levelFromXp } from '../../game/xp/xp';
 import { useGame } from '../../game/store/GameProvider';
@@ -54,6 +54,10 @@ import { PoolInterior, SWIM_TIME } from './interiors/PoolInterior';
 import { GymHud } from './gym/GymHud';
 import { BlockExterior, PrismaExterior, PrisonExterior, SavioStationModel } from './Landmarks';
 import { AlepaInterior } from './interiors/AlepaInterior';
+import { BarberInterior } from './interiors/BarberInterior';
+import { AppearanceEditor } from '../editor/AppearanceEditor';
+import { AvatarPreview } from '../editor/AvatarPreview';
+import { BARBER_PRICE, defaultAppearance, type Appearance } from '../../game/player/appearance';
 import { Jonne } from './quest/Jonne';
 import { DialogueBox, type DialogueView } from './quest/DialogueBox';
 import { JailHud, PrisonGuards, newJailLive } from './quest/Jailbreak';
@@ -162,11 +166,13 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     buildings = gym.buildings;
     const pool = placeBlock(buildings, rawWorld.roads, SITES.pool.lngLat, SITES.pool.w, SITES.pool.d, SITES.pool.h, SITES.pool.kind);
     buildings = pool.buildings;
+    const barber = placeBlock(buildings, rawWorld.roads, SITES.barber.lngLat, SITES.barber.w, SITES.barber.d, SITES.barber.h, SITES.barber.kind);
+    buildings = barber.buildings;
     const savio = findSavioStation(rawWorld);
     const alepaAt: WorldXZ = [savio.centre[0] + savio.side[0] * 32 + savio.dir[0] * 6, savio.centre[1] + savio.side[1] * 32 + savio.dir[1] * 6];
     const alepa = placeBlockAt(buildings.filter((b) => b.kind !== 'alepa'), rawWorld.roads, alepaAt, 24, 18, 5, 'alepa');
     buildings = alepa.buildings;
-    return { world: { ...rawWorld, buildings }, gym: gym.site, pool: pool.site, alepa: alepa.site, savio };
+    return { world: { ...rawWorld, buildings }, gym: gym.site, pool: pool.site, alepa: alepa.site, barber: barber.site, savio };
   }, [rawWorld, layout, prisma]);
   const world = placed?.world ?? null;
   const terrain = useMemo(() => (world && layout ? createTerrain(world, layout) : null), [world, layout]);
@@ -216,6 +222,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     ];
     if (placed) {
       list.push({ id: 'gym', at: placed.gym.door, outward: placed.gym.outward, label: 'Kuntosali Rauta', to: { scene: 'gym', exit: 'main' } });
+      list.push({ id: 'barber', at: placed.barber.door, outward: placed.barber.outward, label: 'Parturi', to: { scene: 'barber', exit: 'main' } });
       list.push({ id: 'alepa', at: placed.alepa.door, outward: placed.alepa.outward, label: 'Alepa', to: { scene: 'alepa', exit: 'main' } });
       list.push({ id: 'pool', at: placed.pool.door, outward: placed.pool.outward, label: 'Uimahalli', to: { scene: 'pool', exit: 'main' } });
     }
@@ -429,7 +436,8 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
   const [atPool, setAtPool] = useState(false);
   const [swimT0, setSwimT0] = useState<number | null>(null);
   const busy = !!gymActive || swimT0 !== null;
-  const outfit = useMemo(() => playerOutfit(color), [color]);
+  const appearance = player?.appearance;
+  const outfit = useMemo(() => playerOutfit(color, appearance), [color, appearance]);
 
   // Energy comes back slowly while you are not training.
   useEffect(() => {
@@ -571,6 +579,22 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     }, 3600);
   };
 
+  // ------------------------------------------------------------ barber
+  const [barberDraft, setBarberDraft] = useState<Appearance | null>(null);
+  const currentLook = appearance ?? defaultAppearance(color);
+  const barberChanged = !!barberDraft && (barberDraft.hairStyle !== currentLook.hairStyle || barberDraft.hair !== currentLook.hair || barberDraft.facialHair !== currentLook.facialHair);
+  const draftOutfit = useMemo(() => (barberDraft ? playerOutfit(color, barberDraft) : null), [barberDraft, color]);
+  const payBarber = () => {
+    if (!barberDraft) return;
+    if (money < BARBER_PRICE) {
+      setToast(`Leikkuu maksaa ${BARBER_PRICE} €. Rahat ei riitä.`);
+      return;
+    }
+    dispatch({ type: 'setAppearance', appearance: { hairStyle: barberDraft.hairStyle, hair: barberDraft.hair, facialHair: barberDraft.facialHair }, cost: BARBER_PRICE });
+    setBarberDraft(null);
+    setToast(`✂ Uusi look! (−${BARBER_PRICE} €)`);
+  };
+
   // ------------------------------------------------------------ clicks and arrival
   interface Spot {
     at: WorldXZ;
@@ -594,14 +618,16 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     }));
     if (scene === 'gym') for (const g of GYM_STATIONS) list.push({ at: g.use, use: () => arriveAtStation(g.lift) });
     if (scene === 'pool') list.push({ at: POOL_SWIM_SPOT, use: () => setAtPool(true) });
+    if (scene === 'barber') list.push({ at: BARBER_CHAIR_SPOT, use: () => setBarberDraft({ ...currentLook }) });
     return list;
     // talkToJonne/escaped read the latest state through closures re-created each render
-  }, [scene, doors, jonneAt, goTo, jailStep, player, carrying, busStops, trainStops]);
+  }, [scene, doors, jonneAt, goTo, jailStep, player, carrying, busStops, trainStops, currentLook]);
 
   const onGroundClick = (raw: WorldXZ) => {
     if (cutscene || dialogue || fading || busy || riding) return;
     setAtBusStop(null);
     setAtTrain(null);
+    setBarberDraft(null);
     setAtStation(null);
     setAtPool(false);
     setCarrying(null);
@@ -686,6 +712,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
             {!cutscene &&
               busStops.map((b) => <Hotspot key={b.id} at={b.at} y={terrain!.surfaceAt(b.at[0], b.at[1])} label={`🚌 ${b.name}`} onClick={() => onGroundClick(b.at)} />)}
             {placed && <SavioStationModel centre={placed.savio.centre} dir={placed.savio.dir} side={placed.savio.side} ground={terrain!.surfaceAt(placed.savio.wait[0], placed.savio.wait[1])} />}
+            {placed && <BlockExterior site={placed.barber} ground={terrain!.surfaceAt(placed.barber.door[0], placed.barber.door[1])} sign="PARTURI" color="#7a1f2a" sub="SAKSET · AJANVARAUS EI TARPEEN" />}
             {placed && <BlockExterior site={placed.alepa} ground={terrain!.surfaceAt(placed.alepa.door[0], placed.alepa.door[1])} sign="Alepa" color="#f28c28" />}
             {!cutscene &&
               trainStops.map((t) => (
@@ -724,6 +751,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
             {scene === 'prisma' && <PrismaInterior />}
             {scene === 'gym' && <GymInterior pairs={gymPairs} active={gymActive} outfit={outfit} clockRef={clockRef} />}
             {scene === 'alepa' && <AlepaInterior />}
+            {scene === 'barber' && <BarberInterior />}
             {scene === 'pool' && <PoolInterior swimT0={swimT0} clockRef={clockRef} outfit={outfit} />}
             {scene === 'prison' && (
               <>
@@ -747,6 +775,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
 
         <PlayerCharacter
           color={color}
+          appearance={appearance}
           positionRef={positionRef}
           target={target}
           collider={inWorld ? collider : interiorCollider}
@@ -845,6 +874,21 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
           <div className="train-ride__title">{trainRide}</div>
           <div className="train-ride__bar"><span /></div>
           <div className="muted">Seuraava asema…</div>
+        </div>
+      )}
+      {!cutscene && scene === 'barber' && barberDraft && draftOutfit && (
+        <div className="barber-hud">
+          <div className="gym-hud__title">✂ Parturi Sakset <span className="muted">· {BARBER_PRICE} € · rahaa {money} €</span></div>
+          <div className="barber-hud__body">
+            <AvatarPreview outfit={draftOutfit} focus="head" />
+            <AppearanceEditor value={barberDraft} onChange={setBarberDraft} only="hair" />
+          </div>
+          <div className="gym-hud__actions">
+            <button type="button" className="btn btn--ghost" onClick={() => setBarberDraft(null)}>Ei sittenkään</button>
+            <button type="button" className="btn" disabled={!barberChanged || money < BARBER_PRICE} onClick={payBarber}>
+              {money < BARBER_PRICE ? 'Rahat ei riitä' : `Leikkaa (−${BARBER_PRICE} €)`}
+            </button>
+          </div>
         </div>
       )}
       {dialogue && <DialogueBox view={dialogue} />}

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { FacialHair, HairStyle } from '../../../game/player/appearance';
 import { mergeGeometries, mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 /**
@@ -28,7 +29,15 @@ export interface Outfit {
   prop?: 'phone' | 'reader';
   /** Body width multiplier, 0.9–1.15. */
   build?: number;
+  hairStyle?: HairStyle;
+  facialHair?: FacialHair;
+  eyes?: string;
+  glasses?: boolean;
+  /** Overall height multiplier, 0.92–1.08 (applied by the renderer). */
+  height?: number;
 }
+
+
 
 export const BONE_NAMES = [
   'root',
@@ -497,18 +506,67 @@ export function buildHumanoid(outfit: Outfit): { mesh: THREE.SkinnedMesh; bones:
   // eyes: whites + iris + brows
   for (const sx of [1, -1]) {
     face(at(ellipsoid(0.015, 0.011, 0.01, 10, 8), sx * 0.033, headC.y + 0.016, headC.z + 0.082), '#f6f3ee');
-    face(at(ellipsoid(0.008, 0.009, 0.006, 8, 6), sx * 0.033, headC.y + 0.016, headC.z + 0.091), '#2d2118');
+    face(at(ellipsoid(0.008, 0.009, 0.006, 8, 6), sx * 0.033, headC.y + 0.016, headC.z + 0.091), outfit.eyes ?? '#2d2118');
+    face(at(ellipsoid(0.0035, 0.004, 0.003, 6, 4), sx * 0.033, headC.y + 0.016, headC.z + 0.0965), '#0c0a08');
     face(at(roundedBox(0.04, 0.009, 0.012, 0.004, 1), sx * 0.035, headC.y + 0.04, headC.z + 0.088, 0, 0, sx * -0.1), hair.clone().multiplyScalar(0.8));
   }
   // mouth
   face(at(roundedBox(0.038, 0.009, 0.01, 0.004, 1), 0, headC.y - 0.058, headC.z + 0.088), lip);
 
-  // hair (sides & back always visible), then headwear
-  face(at(ellipsoid(0.089, 0.124, 0.106, 22, 12, 0, Math.PI * 0.42), headC.x, headC.y + 0.006, headC.z - 0.006, -0.38), hair);
-  {
+  // ---- hair: style on top of a base cap that follows the skull
+  const style: HairStyle = outfit.hairStyle ?? 'short';
+  const hatOn = outfit.hat !== 'none';
+  const shaved = hair.clone().lerp(skin, 0.55);
+  const baseCap = (c: THREE.Color) => {
+    face(at(ellipsoid(0.089, 0.124, 0.106, 22, 12, 0, Math.PI * 0.42), headC.x, headC.y + 0.006, headC.z - 0.006, -0.38), c);
     const back = new THREE.SphereGeometry(1, 20, 10, Math.PI * 1.12, Math.PI * 0.76, Math.PI * 0.3, Math.PI * 0.33);
     back.scale(0.089, 0.123, 0.106);
-    face(at(clean(back), headC.x, headC.y + 0.004, headC.z - 0.004), hair);
+    face(at(clean(back), headC.x, headC.y + 0.004, headC.z - 0.004), c);
+  };
+  if (style === 'short' || style === 'sidepart' || style === 'long' || style === 'ponytail') baseCap(hair);
+  else if (style === 'buzz' || style === 'mohawk') baseCap(shaved);
+  if (!hatOn) {
+    if (style === 'sidepart') {
+      face(at(ellipsoid(0.07, 0.03, 0.06, 14, 8), headC.x + 0.025, headC.y + 0.1, headC.z + 0.04, -0.3, 0, -0.25), hair);
+      face(at(ellipsoid(0.05, 0.022, 0.05, 12, 6), headC.x - 0.03, headC.y + 0.108, headC.z + 0.02, -0.2, 0, 0.15), hair.clone().multiplyScalar(0.92));
+    } else if (style === 'short') {
+      face(at(ellipsoid(0.075, 0.03, 0.07, 14, 8), headC.x, headC.y + 0.1, headC.z + 0.012, -0.25), hair);
+    } else if (style === 'mohawk') {
+      face(at(roundedBox(0.03, 0.07, 0.2, 0.012, 2), headC.x, headC.y + 0.13, headC.z - 0.01, -0.15), hair);
+    } else if (style === 'afro') {
+      face(at(ellipsoid(0.13, 0.12, 0.13, 18, 12), headC.x, headC.y + 0.075, headC.z - 0.015), hair);
+    }
+  }
+  if (style === 'long') {
+    face(at(ellipsoid(0.094, 0.15, 0.06, 16, 10), headC.x, headC.y - 0.07, headC.z - 0.06, 0.1), hair);
+    for (const sx of [1, -1]) face(at(ellipsoid(0.025, 0.11, 0.04, 8, 8), headC.x + sx * 0.078, headC.y - 0.04, headC.z - 0.005), hair);
+  } else if (style === 'ponytail') {
+    face(at(ellipsoid(0.03, 0.03, 0.03, 8, 6), headC.x, headC.y + 0.02, headC.z - 0.11), hair.clone().multiplyScalar(0.8));
+    face(at(ellipsoid(0.03, 0.11, 0.035, 10, 8), headC.x, headC.y - 0.08, headC.z - 0.13, 0.25), hair);
+  } else if (style === 'afro' && hatOn) {
+    face(at(ellipsoid(0.12, 0.09, 0.12, 18, 10), headC.x, headC.y + 0.02, headC.z - 0.02), hair);
+  }
+  // ---- facial hair
+  const fh: FacialHair = outfit.facialHair ?? 'none';
+  if (fh === 'stubble' || fh === 'beard') {
+    const k = fh === 'beard' ? 1.06 : 1.012;
+    const g = new THREE.SphereGeometry(1, 22, 12, -Math.PI * 0.05, Math.PI * 1.1, Math.PI * 0.55, Math.PI * 0.45);
+    const p = g.attributes.position as THREE.BufferAttribute;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      const lower = smooth(0.05, -0.75, y);
+      let zz = z * (1 - 0.12 * lower);
+      if (zz > 0) zz += 0.12 * lower * (1 - Math.abs(x)) * 0.6;
+      p.setXYZ(i, x * (1 - 0.3 * lower) * 0.084 * k, y * 0.118 * k - (fh === 'beard' ? 0.008 : 0), zz * 0.1 * k);
+    }
+    face(at(clean(g), headC.x, headC.y, headC.z + 0.002), fh === 'beard' ? hair : skin.clone().lerp(hair, 0.4));
+  }
+  if (fh === 'moustache' || fh === 'beard' || fh === 'goatee') face(at(roundedBox(0.05, 0.012, 0.012, 0.005, 1), 0, headC.y - 0.042, headC.z + 0.094), hair);
+  if (fh === 'goatee') face(at(ellipsoid(0.02, 0.025, 0.015, 8, 6), 0, headC.y - 0.092, headC.z + 0.085), hair);
+  if (outfit.glasses) {
+    for (const sx of [1, -1]) face(at(limb(new THREE.Vector3(0, 0, 0.003), new THREE.Vector3(0, 0, -0.003), [[0, 0.02, 0.016], [1, 0.02, 0.016]], 12), sx * 0.034, headC.y + 0.016, headC.z + 0.097), '#14171f');
+    face(at(roundedBox(0.02, 0.004, 0.004, 0.0015, 1), 0, headC.y + 0.02, headC.z + 0.1), '#14171f');
+    for (const sx of [1, -1]) face(at(roundedBox(0.004, 0.004, 0.09, 0.0015, 1), sx * 0.083, headC.y + 0.02, headC.z + 0.05), '#14171f');
   }
   const hatC = new THREE.Color(outfit.hatColor);
   if (outfit.hat === 'beanie') {

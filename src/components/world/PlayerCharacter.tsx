@@ -1,10 +1,11 @@
-import { useRef, type MutableRefObject } from 'react';
+import { useMemo, useRef, type MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { WorldXZ } from '../../game/world/projection';
 import { ARRIVE_EPSILON, WALK_SPEED } from '../../game/world/movement';
 import { Humanoid, type HumanBones, type Outfit } from './humanoid/Humanoid';
 import { poseFlail, poseLocomotion, resetPose } from './humanoid/animate';
+import { defaultAppearance, type Appearance } from '../../game/player/appearance';
 
 /** Scripted control used by cutscenes: when active, normal movement is paused. */
 export interface ScriptedPose {
@@ -18,6 +19,7 @@ export interface ScriptedPose {
 
 interface PlayerCharacterProps {
   color: string;
+  appearance?: Appearance;
   /** Shared live position; the camera rig reads it every frame. */
   positionRef: MutableRefObject<THREE.Vector3>;
   target: WorldXZ | null;
@@ -32,7 +34,7 @@ interface PlayerCharacterProps {
 
 
 /** The player: skinned humanoid with click-to-move, wall sliding and procedural run/idle animation. */
-export function PlayerCharacter({ color, positionRef, target, collider, onArrive, groundHeight, extraBlocked, visible, scriptRef }: PlayerCharacterProps) {
+export function PlayerCharacter({ color, appearance, positionRef, target, collider, onArrive, groundHeight, extraBlocked, visible, scriptRef }: PlayerCharacterProps) {
   const root = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
   const bones = useRef<HumanBones | null>(null);
@@ -102,7 +104,7 @@ export function PlayerCharacter({ color, positionRef, target, collider, onArrive
     if (bones.current) poseLocomotion(bones.current, walkPhase.current, run.current, performance.now() / 1000);
   });
 
-  const outfit = playerOutfit(color);
+  const outfit = useMemo(() => playerOutfit(color, appearance), [color, appearance]);
 
   return (
     <group ref={root} visible={visible}>
@@ -117,16 +119,25 @@ export function PlayerCharacter({ color, positionRef, target, collider, onArrive
   );
 }
 
-/** The player's look (the character editor will extend this). */
-export function playerOutfit(color: string): Outfit {
+/** The player's look as a humanoid outfit. */
+export function playerOutfit(color: string, a?: Appearance): Outfit {
+  const ap = a ?? defaultAppearance(color);
   return {
-    top: color,
-    legs: '#2e3b55',
-    shoes: '#f4f4f0',
-    hair: '#4a3222',
-    hat: 'beanie',
-    hatColor: '#3a7bd5',
-    accent: '#ffd23f',
-    backpack: true,
+    top: ap.top,
+    legs: ap.legs,
+    shoes: ap.shoes,
+    skin: ap.skin,
+    hair: ap.hair,
+    hairStyle: ap.hairStyle,
+    facialHair: ap.facialHair,
+    eyes: ap.eyes,
+    glasses: ap.glasses,
+    hat: ap.hat,
+    hatColor: ap.hatColor,
+    accent: ap.accent,
+    backpack: ap.backpack,
+    style: ap.topStyle,
+    build: ap.build,
+    height: ap.height,
   };
 }

@@ -1,12 +1,14 @@
 import type { LngLat, Player, Reward } from '../../types/game';
 import { createPlayer, MAX_ENERGY } from '../player/createPlayer';
+import { defaultAppearance, type Appearance } from '../player/appearance';
 
 export interface GameState {
   player: Player | null;
 }
 
 export type GameAction =
-  | { type: 'createCharacter'; name: string; color: string }
+  | { type: 'createCharacter'; name: string; color: string; appearance?: Appearance }
+  | { type: 'setAppearance'; appearance: Partial<Appearance>; cost?: number }
   | { type: 'movePlayer'; position: LngLat }
   | { type: 'finishIntro'; position: LngLat }
   | { type: 'setQuestStep'; questId: string; step: number; completed?: boolean }
@@ -21,7 +23,14 @@ export const initialGameState: GameState = { player: null };
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'createCharacter':
-      return { player: createPlayer(action.name, action.color) };
+      return { player: createPlayer(action.name, action.color, action.appearance) };
+    case 'setAppearance': {
+      const p = state.player;
+      if (!p) return state;
+      const cost = action.cost ?? 0;
+      if (p.money < cost) return state;
+      return { player: { ...p, money: p.money - cost, appearance: { ...defaultAppearance(p.color), ...p.appearance, ...action.appearance } } };
+    }
     case 'movePlayer':
       return state.player ? { player: { ...state.player, position: action.position } } : state;
     case 'finishIntro':
