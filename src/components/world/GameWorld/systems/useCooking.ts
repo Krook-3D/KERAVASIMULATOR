@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { levelFromXp } from '../../../../game/xp/xp';
-import { burnChance, type Recipe } from '../../../../game/cooking/recipes';
+import { resolveCook, type Recipe } from '../../../../game/cooking/recipes';
 import type { CookSpot } from '../../../../game/world/grills';
 import type { GameCtx } from '../gameWorld.types';
 
@@ -24,9 +24,8 @@ export function useCooking(ctx: GameCtx) {
       setCookProgress(Math.min(1, k));
       if (k < 1) return;
       window.clearInterval(id);
-      const burnt = Math.random() < burnChance(cookLevel, cooking.recipe);
-      const xp = burnt ? Math.round(cooking.recipe.xp * 0.25) : cooking.recipe.xp;
-      dispatch({ type: 'cook', ingredients: cooking.recipe.ingredients, out: burnt ? 'palanut' : cooking.recipe.out, xp });
+      const { burnt, out, xp } = resolveCook(cookLevel, cooking.recipe, Math.random());
+      dispatch({ type: 'cook', ingredients: cooking.recipe.ingredients, out, xp });
       setToast(burnt ? `🔥 Hups, ${cooking.recipe.name.toLowerCase()} paloi. +${xp} Ruoanlaitto XP` : `🍳 ${cooking.recipe.name} valmis! +${xp} Ruoanlaitto XP`);
       setCooking(null);
     }, 200);

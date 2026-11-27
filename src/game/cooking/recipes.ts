@@ -32,6 +32,16 @@ export function burnChance(level: number, recipe: Recipe): number {
   return Math.max(0.03, 0.33 - (level - recipe.level) * 0.035);
 }
 
+/**
+ * Outcome of a finished cook. The dice roll (0–1) comes in as a parameter so
+ * the same rule can run on the client now and on the game server later.
+ */
+export function resolveCook(level: number, recipe: Recipe, roll: number): { burnt: boolean; out: string; xp: number } {
+  const burnt = roll < burnChance(level, recipe);
+  const xp = burnt ? Math.round(recipe.xp * 0.25) : recipe.xp;
+  return { burnt, out: burnt ? 'palanut' : recipe.out, xp };
+}
+
 export function canCook(inv: { itemId: string; quantity: number }[], r: Recipe): boolean {
   return Object.entries(r.ingredients).every(([id, n]) => (inv.find((s) => s.itemId === id)?.quantity ?? 0) >= n);
 }

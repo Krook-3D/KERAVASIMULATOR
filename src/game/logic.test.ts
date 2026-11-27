@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { gameReducer, INVENTORY_SIZE, type GameState } from './store/gameReducer';
 import { createPlayer } from './player/createPlayer';
 import { alertLevel, auraTier, basketTotal, catchChance, CAUGHT_KARMA_MULT, priceOf, STEAL_KARMA } from './shop/shop';
-import { burnChance, canCook, RECIPES } from './cooking/recipes';
+import { burnChance, canCook, RECIPES, resolveCook } from './cooking/recipes';
 import { artXp, spotQuality, witnessReaction } from './art/graffiti';
 import { buffMultipliers, strainEffect } from './gym/roina';
 import type { Player } from '../types/game';
@@ -112,6 +112,24 @@ describe('cooking', () => {
     expect(qty(s.player, 'munakas')).toBe(1);
     expect(qty(s.player, 'kananmunat')).toBe(0);
     expect(s.player!.skills.cooking.xp).toBe(munakas.xp);
+  });
+});
+
+describe('cook outcome', () => {
+  const r = RECIPES[0]!;
+
+  it('a low roll burns the dish', () => {
+    expect(resolveCook(r.level, r, 0)).toEqual({ burnt: true, out: 'palanut', xp: Math.round(r.xp * 0.25) });
+  });
+
+  it('a high roll cooks it with full XP', () => {
+    expect(resolveCook(r.level, r, 0.99)).toEqual({ burnt: false, out: r.out, xp: r.xp });
+  });
+
+  it('burning gives a quarter of the XP, at the burn chance edge', () => {
+    const edge = burnChance(r.level, r);
+    expect(resolveCook(r.level, r, edge - 0.001).xp).toBe(Math.round(r.xp * 0.25));
+    expect(resolveCook(r.level, r, edge).burnt).toBe(false);
   });
 });
 
