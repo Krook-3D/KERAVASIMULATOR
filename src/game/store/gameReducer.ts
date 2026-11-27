@@ -1,4 +1,6 @@
-import type { LngLat, Player, Reward } from '../../types/game';
+import type { EquipmentSlot, LngLat, Player, Reward } from '../../types/game';
+import { ITEMS } from '../../data/items';
+import { KARMA_MAX, KARMA_MIN, STEAL_KARMA } from '../shop/shop';
 import { createPlayer, MAX_ENERGY } from '../player/createPlayer';
 import { defaultAppearance, type Appearance } from '../player/appearance';
 
@@ -15,6 +17,15 @@ export type GameAction =
   | { type: 'grantReward'; reward: Reward }
   | { type: 'addItem'; itemId: string; quantity?: number }
   | { type: 'removeItem'; itemId: string; quantity?: number }
+  | { type: 'equipItem'; itemId: string; hand?: 'handL' | 'handR' }
+  | { type: 'unequip'; slot: EquipmentSlot }
+  | { type: 'pickupLoot'; lootId: string; itemId: string }
+  | { type: 'buyBasket'; basket: Record<string, number>; total: number }
+  | { type: 'stealItem'; itemId: string }
+  | { type: 'caughtStealing'; karma: number }
+  | { type: 'adjustKarma'; amount: number }
+  | { type: 'eatItem'; itemId: string }
+  | { type: 'cook'; ingredients: Record<string, number>; out: string; xp: number }
   | { type: 'adjustStats'; energy?: number; money?: number; health?: number }
   | { type: 'resetGame' };
 
@@ -46,6 +57,63 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return state.player ? { player: addItem(state.player, action.itemId, action.quantity ?? 1) } : state;
     case 'removeItem':
       return state.player ? { player: removeItem(state.player, action.itemId, action.quantity ?? Infinity) } : state;
+    case 'equipItem':
+      return state.player ? { player: equipItem(state.player, action.itemId, action.hand) } : state;
+    case 'unequip':
+      return state.player ? { player: unequip(state.player, action.slot) } : state;
+    case 'pickupLoot': {
+      const p = state.player;
+      if (!p || p.lootTaken?.includes(action.lootId) || !canAdd(p, action.itemId)) return state;
+      return { player: { ...addItem(p, action.itemId, 1), lootTaken: [...(p.lootTaken ?? []), action.lootId] } };
+    }
+    case 'buyBasket': {
+      const p = state.player;
+      if (!p || p.money < action.total) return state;
+      const ids = Object.keys(action.basket);
+      const newSlots = ids.filter((id) => !p.inventory.some((s) => s.itemId === id)).length;
+      if (p.inventory.length + newSlots > INVENTORY_SIZE) return state;
+      let next: Player = { ...p, money: Math.round((p.money - action.total) * 100) / 100 };
+      for (const id of ids) next = addItem(next, id, action.basket[id]!);
+      return { player: next };
+    }
+    case 'stealItem': {
+      const p = state.player;
+      if (!p || !canAdd(p, action.itemId)) return state;
+      const stolen = { ...p.stolen, [action.itemId]: (p.stolen?.[action.itemId] ?? 0) + 1 };
+      return { player: { ...addItem(p, action.itemId, 1), stolen, karma: clampKarma((p.karma ?? 0) + STEAL_KARMA), sinceCaught: (p.sinceCaught ?? 0) + 1 } };
+    }
+    case 'caughtStealing': {
+      const p = state.player;
+      if (!p) return state;
+      // the guard takes back everything still hot
+      let next: Player = p;
+      for (const [id, n] of Object.entries(p.stolen ?? {})) next = removeItem(next, id, n);
+      return { player: { ...next, stolen: {}, sinceCaught: 0, karma: clampKarma((p.karma ?? 0) + action.karma) } };
+    }
+    case 'adjustKarma':
+      return state.player ? { player: { ...state.player, karma: clampKarma((state.player.karma ?? 0) + action.amount) } } : state;
+    case 'cook': {
+      const p = state.player;
+      if (!p) return state;
+      if (!Object.entries(action.ingredients).every(([id, n]) => (p.inventory.find((s) => s.itemId === id)?.quantity ?? 0) >= n)) return state;
+      let next = p;
+      for (const [id, n] of Object.entries(action.ingredients)) next = removeItem(next, id, n);
+      next = addItem(next, action.out, 1);
+      return { player: applyReward(next, { skillXp: { cooking: action.xp } }) };
+    }
+    case 'eatItem': {
+      const p = state.player;
+      const def = ITEMS[action.itemId];
+      if (!p || !def?.effects || !p.inventory.some((s) => s.itemId === action.itemId)) return state;
+      const next = removeItem(p, action.itemId, 1);
+      return {
+        player: {
+          ...next,
+          energy: Math.min(MAX_ENERGY, next.energy + (def.effects.energy ?? 0)),
+          health: Math.min(100, next.health + (def.effects.health ?? 0)),
+        },
+      };
+    }
     case 'adjustStats': {
       const p = state.player;
       if (!p) return state;
@@ -64,7 +132,16 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   }
 }
 
+/** Backpack size: distinct item stacks. */
+export const INVENTORY_SIZE = 30;
+
+/** Is there room in the backpack for one more of `itemId`? */
+export function canAdd(p: Player, itemId: string): boolean {
+  return p.inventory.some((s) => s.itemId === itemId) || p.inventory.length < INVENTORY_SIZE;
+}
+
 function addItem(p: Player, itemId: string, quantity: number): Player {
+  if (!canAdd(p, itemId)) return p; // full: the item is lost (callers check canAdd first)
   const inv = p.inventory.map((s) => ({ ...s }));
   const slot = inv.find((s) => s.itemId === itemId);
   if (slot) slot.quantity += quantity;
@@ -76,7 +153,54 @@ function removeItem(p: Player, itemId: string, quantity: number): Player {
   const inv = p.inventory
     .map((s) => (s.itemId === itemId ? { ...s, quantity: s.quantity - quantity } : s))
     .filter((s) => s.quantity > 0);
-  return { ...p, inventory: inv };
+  // hot goods leave with the item (sold, eaten, dropped)
+  let stolen = p.stolen;
+  const hot = stolen?.[itemId];
+  if (hot) {
+    const left = inv.find((s) => s.itemId === itemId)?.quantity ?? 0;
+    stolen = { ...stolen };
+    if (left > 0) stolen[itemId] = Math.min(hot, left);
+    else delete stolen[itemId];
+  }
+  return { ...p, inventory: inv, stolen };
+}
+
+const clampKarma = (k: number) => Math.max(KARMA_MIN, Math.min(KARMA_MAX, Math.round(k)));
+
+const HANDS = ['handL', 'handR'] as const;
+
+/** Hold an item: 1-handed goes to the requested (or a free) hand, 2-handed takes both. */
+function equipItem(p: Player, itemId: string, hand?: 'handL' | 'handR'): Player {
+  const def = ITEMS[itemId];
+  if (!def?.hands || !p.inventory.some((s) => s.itemId === itemId)) return p;
+  let next = removeItem(p, itemId, 1);
+  const eq = next.equipment;
+  const twoHandedHeld = eq.handL && eq.handL === eq.handR && ITEMS[eq.handL]?.hands === 2;
+  let targets: EquipmentSlot[];
+  if (def.hands === 2 || twoHandedHeld) {
+    targets = def.hands === 2 ? [...HANDS] : [hand ?? 'handR'];
+    // a two-handed item leaves both hands either way
+    if (twoHandedHeld) next = unequip(next, 'handR');
+    for (const h of HANDS) if (def.hands === 2) next = unequip(next, h);
+  } else {
+    const free = HANDS.find((h) => !eq[h]);
+    targets = [hand ?? free ?? 'handR'];
+    next = unequip(next, targets[0]!);
+  }
+  if (next.inventory.length > INVENTORY_SIZE) return p; // no room to swap out what was held
+  const equipment = { ...next.equipment };
+  for (const t of targets) equipment[t] = itemId;
+  return { ...next, equipment };
+}
+
+/** Put a held item back in the backpack (a 2-handed item frees both hands). */
+function unequip(p: Player, slot: EquipmentSlot): Player {
+  const id = p.equipment[slot];
+  if (!id) return p;
+  if (!canAdd(p, id)) return p;
+  const equipment = { ...p.equipment };
+  for (const [k, v] of Object.entries(equipment)) if (v === id && (k === slot || ITEMS[id]?.hands === 2)) delete equipment[k as EquipmentSlot];
+  return addItem({ ...p, equipment }, id, 1);
 }
 
 function applyReward(p: Player, r: Reward): Player {

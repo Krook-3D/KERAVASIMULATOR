@@ -1,4 +1,4 @@
-import { useMemo, useRef, type MutableRefObject } from 'react';
+import { useEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { WorldXZ } from '../../game/world/projection';
@@ -6,6 +6,8 @@ import { ARRIVE_EPSILON, WALK_SPEED } from '../../game/world/movement';
 import { Humanoid, type HumanBones, type Outfit } from './humanoid/Humanoid';
 import { poseFlail, poseLocomotion, resetPose } from './humanoid/animate';
 import { defaultAppearance, type Appearance } from '../../game/player/appearance';
+import { ITEMS } from '../../data/items';
+import { buildItemModel, disposeItemModel } from './items/itemModels';
 
 /** Scripted control used by cutscenes: when active, normal movement is paused. */
 export interface ScriptedPose {
@@ -30,11 +32,13 @@ interface PlayerCharacterProps {
   extraBlocked?: (p: WorldXZ, from: WorldXZ) => boolean;
   visible: boolean;
   scriptRef: MutableRefObject<ScriptedPose>;
+  /** Item ids held in the left / right hand (a 2-handed item sits in both). */
+  held?: { handL?: string; handR?: string };
 }
 
 
 /** The player: skinned humanoid with click-to-move, wall sliding and procedural run/idle animation. */
-export function PlayerCharacter({ color, appearance, positionRef, target, collider, onArrive, groundHeight, extraBlocked, visible, scriptRef }: PlayerCharacterProps) {
+export function PlayerCharacter({ color, appearance, positionRef, target, collider, onArrive, groundHeight, extraBlocked, visible, scriptRef, held }: PlayerCharacterProps) {
   const root = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
   const bones = useRef<HumanBones | null>(null);
@@ -105,6 +109,28 @@ export function PlayerCharacter({ color, appearance, positionRef, target, collid
   });
 
   const outfit = useMemo(() => playerOutfit(color, appearance), [color, appearance]);
+  const heldL = held?.handL, heldR = held?.handR;
+  useEffect(() => {
+    const bn = bones.current;
+    if (!bn) return;
+    const models: THREE.Group[] = [];
+    const twoHanded = !!heldR && heldR === heldL && ITEMS[heldR]?.hands === 2;
+    for (const [id, bone, side] of [[heldL, bn.handL, -1], [heldR, bn.handR, 1]] as const) {
+      if (!id || (twoHanded && side === -1)) continue;
+      const m = buildItemModel(id);
+      // grip in the palm, tool pointing forward-down like it's being carried
+      m.position.set(side * 0.004, -0.09, 0.02);
+      m.rotation.set(twoHanded ? -0.5 : -0.25, 0, 0);
+      bone.add(m);
+      models.push(m);
+    }
+    return () => {
+      for (const m of models) {
+        m.removeFromParent();
+        disposeItemModel(m);
+      }
+    };
+  }, [heldL, heldR, outfit]);
 
   return (
     <group ref={root} visible={visible}>

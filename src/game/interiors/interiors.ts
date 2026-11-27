@@ -6,11 +6,11 @@ import type { WorldXZ } from '../world/projection';
  * the floor at y = 0. Exits link to a door in the world or to another
  * interior's exit.
  */
-export type InteriorId = 'tunnel' | 'station' | 'prisma' | 'prison' | 'gym' | 'pool' | 'alepa' | 'barber';
+export type InteriorId = 'tunnel' | 'station' | 'prisma' | 'prison' | 'gym' | 'pool' | 'alepa' | 'barber' | 'police';
 export type SceneId = 'world' | InteriorId;
 
 /** Doors placed in the 3D town (positions are worked out at runtime). */
-export type WorldDoorId = 'tunnel-town' | 'tunnel-east' | 'station-platform' | 'station-town' | 'prisma' | 'prison-yard' | 'gym' | 'pool' | 'alepa' | 'barber';
+export type WorldDoorId = 'tunnel-town' | 'tunnel-east' | 'station-platform' | 'station-town' | 'prisma' | 'prison-yard' | 'gym' | 'pool' | 'alepa' | 'barber' | 'police';
 
 export interface Rect {
   minX: number;
@@ -256,7 +256,41 @@ const barber: InteriorDef = {
   exits: [{ id: 'main', at: [3.5, 4.5], spawn: [3.5, 3], yaw: Math.PI, label: 'Ulos', to: { scene: 'world', door: 'barber' } }],
 };
 
-export const INTERIORS: Record<InteriorId, InteriorDef> = { tunnel, station, prisma, prison, gym, pool, alepa, barber };
+// ------------------------------------------------------------ police station
+// Lobby with the front desk in the south half, the holding cells ("putka")
+// along the north wall behind a locked corridor door.
+export const POLICE_HALL = R(-12, 12, -8, 8);
+export const POLICE_CELL_XS = [-9, -4.5, 0, 4.5];
+export const POLICE_PLAYER_CELL_X = -4.5;
+export const POLICE_CELL = { width: 4.2, minZ: -8, maxZ: -3.6 };
+export const POLICE_CELL_SPAWN: WorldXZ = [POLICE_PLAYER_CELL_X, -6];
+export const POLICE_DESK: WorldXZ = [4, 2.6];
+export const POLICE_DESK_SPOT: WorldXZ = [4, 4.6];
+/** Bars of the player's holding cell (open once released). */
+export const POLICE_BARS = R(POLICE_PLAYER_CELL_X - 2.1, POLICE_PLAYER_CELL_X + 2.1, -3.75, -3.45);
+/** Corridor door between the lobby and the cells (locked from the lobby side). */
+export const POLICE_CORRIDOR_DOOR = R(-12, 12, -1.15, -0.85);
+const police: InteriorDef = {
+  id: 'police',
+  name: 'Keravan poliisiasema',
+  floor: POLICE_HALL,
+  solids: [
+    ...roomWalls(POLICE_HALL, 0.4, [['s', 8, 2.4]]),
+    // cell side walls
+    ...[-11.1, -6.75, -2.25, 2.25, 6.75].map((x) => R(x - 0.12, x + 0.12, -8, -3.6)),
+    R(6.75, 12, -8, -3.6), // archive room
+    // cell bars except the player's (that one comes from POLICE_BARS while locked)
+    ...POLICE_CELL_XS.filter((x) => x !== POLICE_PLAYER_CELL_X).map((x) => R(x - 2.1, x + 2.1, -3.75, -3.45)),
+    // corridor wall with a door gap at x 9 (kept open once you're released)
+    R(-12, 7.8, -1.15, -0.85),
+    R(10.2, 12, -1.15, -0.85),
+    R(1.2, 6.8, 1.9, 3.1), // front desk
+    R(-11.6, -8.4, 3.5, 7.6), // waiting benches
+  ],
+  exits: [{ id: 'main', at: [8, 7.4], spawn: [8, 5.6], yaw: Math.PI, label: 'Ulos', to: { scene: 'world', door: 'police' } }],
+};
+
+export const INTERIORS: Record<InteriorId, InteriorDef> = { tunnel, station, prisma, prison, gym, pool, alepa, barber, police };
 
 export const inRect = (r: Rect, [x, z]: WorldXZ, pad = 0) => x >= r.minX - pad && x <= r.maxX + pad && z >= r.minZ - pad && z <= r.maxZ + pad;
 

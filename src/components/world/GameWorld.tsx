@@ -27,7 +27,7 @@ import {
 } from '../../game/world/station';
 import { NO_INTRO_START } from '../../game/world/trainSchedule';
 import { INSPECTOR_NAME, INTRO_TIMES, type IntroLine } from '../../game/world/intro';
-import { BARBER_CHAIR_SPOT, GYM_PLATE_SPOT, GYM_STATIONS, INTERIORS, PLAYER_BARS, PLAYER_CELL_X, POOL_SWIM_SPOT, RectCollider, type InteriorId, type Link, type SceneId, type WorldDoorId } from '../../game/interiors/interiors';
+import { POLICE_BARS, POLICE_CELL_SPAWN, POLICE_DESK_SPOT, BARBER_CHAIR_SPOT, GYM_PLATE_SPOT, GYM_STATIONS, INTERIORS, PLAYER_BARS, PLAYER_CELL_X, POOL_SWIM_SPOT, RectCollider, type InteriorId, type Link, type SceneId, type WorldDoorId } from '../../game/interiors/interiors';
 import { JAILBREAK, JAILBREAK_ID, JAILBREAK_STEP } from '../../game/quests/jailbreak';
 import { levelFromXp } from '../../game/xp/xp';
 import { useGame } from '../../game/store/GameProvider';
@@ -45,9 +45,24 @@ import { IntroDirector } from './IntroDirector';
 import { Clouds } from './StreetProps';
 import { placeClouds } from '../../game/world/streetProps';
 import { ClickFloor, Hotspot } from './interiors/kit';
+import { LootField } from './items/LootField';
+import { KarmaAura } from './KarmaAura';
+import { CookSpots } from './CookSpots';
+import { CookHud } from './CookHud';
+import { placeCookSpots, type CookSpot } from '../../game/world/grills';
+import { burnChance, type Recipe } from '../../game/cooking/recipes';
+import { Crowd, type NpcLive } from './npc/Crowd';
+import { populate, type Npc } from '../../game/npc/population';
+import { speakerName, talkTreeFor, type TalkOption, type TalkTree } from '../../game/npc/talk';
+import { ShelfHud, TillHud, AlertMeter } from './shop/ShopHud';
+import { PoliceInterior } from './interiors/PoliceInterior';
+import { SHOPS, CAUGHT_KARMA_MULT, STEAL_KARMA, alertLevel, basketTotal, catchChance, type Shelf } from '../../game/shop/shop';
+import { placeLoot, type LootSpot } from '../../game/world/loot';
+import { canAdd, INVENTORY_SIZE } from '../../game/store/gameReducer';
+import { ITEMS, RARITY_NAMES, itemName } from '../../data/items';
 import { TunnelInterior } from './interiors/TunnelInterior';
 import { StationInterior } from './interiors/StationInterior';
-import { PrismaInterior } from './interiors/PrismaInterior';
+import { PrismaInterior, Shopper } from './interiors/PrismaInterior';
 import { PrisonInterior } from './interiors/PrisonInterior';
 import { GymInterior, setDuration, type GymActive } from './interiors/GymInterior';
 import { PoolInterior, SWIM_TIME } from './interiors/PoolInterior';
@@ -131,6 +146,13 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
   const [dialogue, setDialogue] = useState<DialogueView | null>(null);
   const [fading, setFading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  // shops: basket, the shelf / till you stand at, thefts this visit; police holding cell
+  const [basket, setBasket] = useState<Record<string, number>>({});
+  const [atShelf, setAtShelf] = useState<Shelf | null>(null);
+  const [atTill, setAtTill] = useState(false);
+  const [visitThefts, setVisitThefts] = useState(0);
+  const [putkaUntil, setPutkaUntil] = useState<number | null>(null);
+  const [putkaLeft, setPutkaLeft] = useState(0);
 
   const startXZ = useMemo(() => lngLatToWorld(start), [start]);
   const positionRef = useRef(new THREE.Vector3(...(inJail ? [CELL_SPAWN[0], 0, CELL_SPAWN[1]] : [startXZ[0], 0, startXZ[1]]) as [number, number, number]));
@@ -168,11 +190,13 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     buildings = pool.buildings;
     const barber = placeBlock(buildings, rawWorld.roads, SITES.barber.lngLat, SITES.barber.w, SITES.barber.d, SITES.barber.h, SITES.barber.kind);
     buildings = barber.buildings;
+    const police = placeBlock(buildings, rawWorld.roads, SITES.police.lngLat, SITES.police.w, SITES.police.d, SITES.police.h, SITES.police.kind);
+    buildings = police.buildings;
     const savio = findSavioStation(rawWorld);
     const alepaAt: WorldXZ = [savio.centre[0] + savio.side[0] * 32 + savio.dir[0] * 6, savio.centre[1] + savio.side[1] * 32 + savio.dir[1] * 6];
     const alepa = placeBlockAt(buildings.filter((b) => b.kind !== 'alepa'), rawWorld.roads, alepaAt, 24, 18, 5, 'alepa');
     buildings = alepa.buildings;
-    return { world: { ...rawWorld, buildings }, gym: gym.site, pool: pool.site, alepa: alepa.site, barber: barber.site, savio };
+    return { world: { ...rawWorld, buildings }, gym: gym.site, pool: pool.site, alepa: alepa.site, barber: barber.site, police: police.site, savio };
   }, [rawWorld, layout, prisma]);
   const world = placed?.world ?? null;
   const terrain = useMemo(() => (world && layout ? createTerrain(world, layout) : null), [world, layout]);
@@ -201,12 +225,26 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     [layout],
   );
 
+  const loot = useMemo(() => (world && collider && terrain ? placeLoot(world, collider, excludeTrees, terrain) : []), [world, collider, terrain, excludeTrees]);
+  const lootTaken = player?.lootTaken ?? [];
+  const pickLoot = (s: LootSpot) => {
+    if (!player || lootTaken.includes(s.id)) return;
+    if (!canAdd(player, s.itemId)) {
+      setToast('🎒 Reppu on täynnä (30/30). Pudota tai myy jotain ensin.');
+      return;
+    }
+    dispatch({ type: 'pickupLoot', lootId: s.id, itemId: s.itemId });
+    const r = ITEMS[s.itemId]?.rarity ?? 'common';
+    setToast(`${r === 'legendary' ? '🌟 ' : ''}Löysit: ${itemName(s.itemId)} (${RARITY_NAMES[r]})`);
+  };
+
   const interiorCollider = useMemo(() => {
     if (scene === 'world') return null;
     const def = INTERIORS[scene];
-    const solids = scene === 'prison' && jailStep < JAILBREAK_STEP.escape ? [...def.solids, PLAYER_BARS] : def.solids;
+    let solids = scene === 'prison' && jailStep < JAILBREAK_STEP.escape ? [...def.solids, PLAYER_BARS] : def.solids;
+    if (scene === 'police' && putkaUntil !== null) solids = [...solids, POLICE_BARS];
     return new RectCollider(solids);
-  }, [scene, jailStep]);
+  }, [scene, jailStep, putkaUntil]);
 
   const doors = useMemo(() => {
     if (!layout || !prisma) return null;
@@ -224,10 +262,26 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       list.push({ id: 'gym', at: placed.gym.door, outward: placed.gym.outward, label: 'Kuntosali Rauta', to: { scene: 'gym', exit: 'main' } });
       list.push({ id: 'barber', at: placed.barber.door, outward: placed.barber.outward, label: 'Parturi', to: { scene: 'barber', exit: 'main' } });
       list.push({ id: 'alepa', at: placed.alepa.door, outward: placed.alepa.outward, label: 'Alepa', to: { scene: 'alepa', exit: 'main' } });
+      list.push({ id: 'police', at: placed.police.door, outward: placed.police.outward, label: 'Poliisiasema', to: { scene: 'police', exit: 'main' } });
       list.push({ id: 'pool', at: placed.pool.door, outward: placed.pool.outward, label: 'Uimahalli', to: { scene: 'pool', exit: 'main' } });
     }
     return Object.fromEntries(list.map((d) => [d.id, d])) as Record<WorldDoorId, WorldDoor>;
   }, [layout, prisma, placed]);
+
+  // ------------------------------------------------------------ town life (NPCs)
+  const npcs = useMemo(() => {
+    if (!world || !collider || !terrain || !layout || !doors) return [];
+    const ok = (p: WorldXZ) => !collider.isBlocked(p, 1.2) && !isTrackBlocked(layout, p) && terrain.heightAt(p[0], p[1]) >= terrain.surfaceAt(p[0], p[1]) - 0.2 && dist(p, PRISON_AT) > 50;
+    const ahead = (d: WorldDoor, k: number): WorldXZ => [d.at[0] + d.outward[0] * k, d.at[1] + d.outward[1] * k];
+    return populate(world, ok, [ahead(doors['station-town'], 22), ahead(doors.prisma, 26), ...(placed ? [placed.savio.wait] : [])]);
+  }, [world, collider, terrain, layout, doors, placed]);
+  const cookSpots = useMemo(() => {
+    if (!world || !collider || !terrain || !layout) return [];
+    return placeCookSpots(world, (p) => !collider.isBlocked(p, 3) && !isTrackBlocked(layout, p) && terrain.heightAt(p[0], p[1]) >= terrain.surfaceAt(p[0], p[1]) - 0.2);
+  }, [world, collider, terrain, layout]);
+  const npcLive = useRef<NpcLive>(new Map());
+  const [talkingId, setTalkingId] = useState<string | null>(null);
+  const pendingTalk = useRef<string | null>(null);
 
   const busStops = useMemo((): BusStop[] => {
     if (!world || !doors || !layout) return [];
@@ -435,7 +489,10 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
   const [gymActive, setGymActive] = useState<GymActive | null>(null);
   const [atPool, setAtPool] = useState(false);
   const [swimT0, setSwimT0] = useState<number | null>(null);
-  const busy = !!gymActive || swimT0 !== null;
+  const [atCook, setAtCook] = useState<CookSpot | null>(null);
+  const [cooking, setCooking] = useState<{ recipe: Recipe; t0: number } | null>(null);
+  const [cookProgress, setCookProgress] = useState(0);
+  const busy = !!gymActive || swimT0 !== null || !!cooking;
   const appearance = player?.appearance;
   const outfit = useMemo(() => playerOutfit(color, appearance), [color, appearance]);
 
@@ -579,6 +636,163 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     }, 3600);
   };
 
+  // ------------------------------------------------------------ shops, guards, police
+  const shop = scene !== 'world' ? SHOPS[scene as InteriorId] : undefined;
+  const alert = player ? alertLevel(player, { inShop: !!shop, visitThefts }) : 0;
+  const prevScene = useRef(scene);
+  useEffect(() => {
+    if (prevScene.current === scene) return;
+    const left = prevScene.current;
+    prevScene.current = scene;
+    if (SHOPS[left as InteriorId] && Object.keys(basket).length) setToast('Jätit täyden korin kauppaan.');
+    setBasket({});
+    setVisitThefts(0);
+    setAtShelf(null);
+    setAtTill(false);
+    setAtCook(null);
+    pendingTalk.current = null;
+  }, [scene, basket]);
+
+  const toBasket = (id: string) => setBasket((b) => ({ ...b, [id]: (b[id] ?? 0) + 1 }));
+  const fromBasket = (id: string) =>
+    setBasket((b) => {
+      const n = { ...b };
+      if ((n[id] ?? 0) > 1) n[id]!--;
+      else delete n[id];
+      return n;
+    });
+  const payBasket = () => {
+    if (!player) return;
+    const total = basketTotal(basket);
+    if (player.money < total) return setToast('Rahat ei riitä.');
+    const newSlots = Object.keys(basket).filter((id) => !player.inventory.some((s) => s.itemId === id)).length;
+    if (player.inventory.length + newSlots > INVENTORY_SIZE) return setToast('🎒 Reppuun ei mahdu kaikki ostokset.');
+    dispatch({ type: 'buyBasket', basket, total });
+    setBasket({});
+    setAtTill(false);
+    setToast(`🧾 Maksoit ${total.toFixed(2).replace('.', ',')} €. Kiitos käynnistä!`);
+  };
+
+  const caughtStealing = (itemId: string) => {
+    const karma = CAUGHT_KARMA_MULT * STEAL_KARMA * (visitThefts + 1);
+    setAtShelf(null);
+    setBasket({});
+    say('Vartija', `Hetkinen! Mitä sulla on taskussa? ${itemName(itemId)}. Kamerat näki kaiken. Poliisi on jo tulossa.`, [
+      {
+        text: 'Ei se oo mitä luulet…',
+        onPick: () => say('Vartija', 'Se on just sitä. Istu alas, partio vie sut asemalle.', [{ text: '…', onPick: () => toPutka(karma) }]),
+      },
+      { text: '[Juokse] Yritä livahtaa ovesta.', onPick: () => say('Vartija', 'Ovet on lukossa, kaveri. Hyvä yritys.', [{ text: 'Voi ei.', onPick: () => toPutka(karma - 2) }]) },
+    ]);
+  };
+  const toPutka = (karma: number) => {
+    close();
+    dispatch({ type: 'caughtStealing', karma });
+    const sentence = 25 + Math.min(35, visitThefts * 6);
+    setPutkaUntil(clockRef.current + sentence + 0.5);
+    setPutkaLeft(sentence);
+    teleport('police', POLICE_CELL_SPAWN);
+    window.setTimeout(() => setToast(`🚓 Putkaan ${sentence} s. Varastetut tavarat takavarikoitiin · karma ${karma}`), 500);
+  };
+  // holding cell countdown
+  useEffect(() => {
+    if (putkaUntil === null) return;
+    const id = window.setInterval(() => {
+      const left = Math.max(0, Math.ceil(putkaUntil - clockRef.current));
+      setPutkaLeft(left);
+      if (left <= 0) {
+        setPutkaUntil(null);
+        say('Konstaapeli', 'Noniin. Kuulustelu on pidetty ja paperit täytetty. Olet vapaa lähtemään, mutta seuraavalla kerralla tulee sakot.', [
+          { text: 'Kiitos. Ei toistu.', onPick: () => { dispatch({ type: 'adjustKarma', amount: 1 }); close(); } },
+          { text: 'Katsotaan.', onPick: close },
+        ]);
+      }
+    }, 500);
+    return () => window.clearInterval(id);
+  }, [putkaUntil]);
+
+  const stealItem = (itemId: string) => {
+    if (!player) return;
+    if (!canAdd(player, itemId)) return setToast('🎒 Reppu on täynnä.');
+    if (Math.random() < catchChance(player.sinceCaught ?? 0, alert)) return caughtStealing(itemId);
+    dispatch({ type: 'stealItem', itemId });
+    setVisitThefts((n) => n + 1);
+    setToast(`🫳 ${itemName(itemId)} taskuun. Karma ${STEAL_KARMA}. Vartija vilkaisee suuntaasi…`);
+  };
+  const talkAtPoliceDesk = () =>
+    say('Päivystäjä', putkaUntil !== null ? 'Odota vuoroasi.' : 'Keravan poliisi, päivää. Miten voin auttaa?', [
+      { text: 'Tulin vain kysymään tietä.', onPick: () => say('Päivystäjä', 'Asema on suoraan pohjoiseen. Prisma itään. Ja muista: kamerat näkee kaiken.', [{ text: 'Selvä.', onPick: close }]) },
+      { text: 'Haluan ilmoittaa rikoksesta.', onPick: () => say('Päivystäjä', 'Ilmoituksen voi tehdä netissä. Mutta kiitos aktiivisuudesta.', [{ text: '(+1 karma) Selvä.', onPick: () => { dispatch({ type: 'adjustKarma', amount: 1 }); close(); } }]) },
+      { text: 'Ei mitään. Heippa.', onPick: close },
+    ]);
+
+  // ------------------------------------------------------------ cooking
+  const cookLevel = levelFromXp(player?.skills.cooking?.xp ?? 0);
+  const startCook = (r: Recipe) => {
+    if (cooking) return;
+    setCooking({ recipe: r, t0: clockRef.current });
+    setCookProgress(0);
+  };
+  useEffect(() => {
+    if (!cooking) return;
+    const id = window.setInterval(() => {
+      const k = (clockRef.current - cooking.t0) / cooking.recipe.time;
+      setCookProgress(Math.min(1, k));
+      if (k < 1) return;
+      window.clearInterval(id);
+      const burnt = Math.random() < burnChance(cookLevel, cooking.recipe);
+      const xp = burnt ? Math.round(cooking.recipe.xp * 0.25) : cooking.recipe.xp;
+      dispatch({ type: 'cook', ingredients: cooking.recipe.ingredients, out: burnt ? 'palanut' : cooking.recipe.out, xp });
+      setToast(burnt ? `🔥 Hups, ${cooking.recipe.name.toLowerCase()} paloi. +${xp} Ruoanlaitto XP` : `🍳 ${cooking.recipe.name} valmis! +${xp} Ruoanlaitto XP`);
+      setCooking(null);
+    }, 200);
+    return () => window.clearInterval(id);
+  }, [cooking, cookLevel, dispatch]);
+
+  // ------------------------------------------------------------ talking to NPCs
+  useEffect(() => {
+    if (!dialogue) setTalkingId(null);
+  }, [dialogue]);
+  const runTalk = (npc: Npc, tree: TalkTree, nodeId = 'start') => {
+    const node = tree[nodeId] ?? tree.start;
+    say(speakerName(npc), node.text, node.options.map((o) => ({ text: o.text, onPick: () => pickTalk(npc, tree, o) })));
+  };
+  const pickTalk = (npc: Npc, tree: TalkTree, o: TalkOption) => {
+    if (o.next) return runTalk(npc, tree, o.next);
+    const hustle = levelFromXp(player?.skills.hustling?.xp ?? 0);
+    const ok = o.hustle === undefined || hustle >= o.hustle;
+    let eff = ok ? o.effect : o.failEffect;
+    let reply = ok ? o.reply : o.failReply ?? o.reply;
+    if (eff?.money && eff.money < 0 && (player?.money ?? 0) < -eff.money) {
+      reply = 'Ai sulla ei ookaan rahaa? No ei sitten.';
+      eff = undefined;
+    }
+    if (eff?.karma) dispatch({ type: 'adjustKarma', amount: eff.karma });
+    if (eff?.money || eff?.health) dispatch({ type: 'adjustStats', money: eff.money, health: eff.health });
+    if (eff?.hustlingXp) dispatch({ type: 'grantReward', reward: { skillXp: { hustling: eff.hustlingXp } } });
+    const bits = [eff?.karma ? `karma ${eff.karma > 0 ? '+' : ''}${eff.karma}` : '', eff?.hustlingXp ? `+${eff.hustlingXp} Hustlaus XP` : '', eff?.money ? `${eff.money > 0 ? '+' : ''}${eff.money} €` : ''].filter(Boolean);
+    say(speakerName(npc), reply ?? '…', [{ text: 'Heippa.', onPick: close }], o.hustle !== undefined ? (ok ? `Hustlaus ${hustle}/${o.hustle}: onnistui` : `Hustlaus ${hustle}/${o.hustle}: ei riittänyt`) : undefined);
+    if (eff?.toast) setToast(eff.toast);
+    else if (bits.length) setToast(bits.join(' · '));
+  };
+  const startTalk = (npc: Npc) => {
+    pendingTalk.current = null;
+    setRoute([]);
+    setTalkingId(npc.follow ?? npc.id);
+    runTalk(npc, talkTreeFor(npc));
+  };
+  const onNpcClick = (npc: Npc) => {
+    if (cutscene || dialogue || fading || busy || riding) return;
+    const at = npcLive.current.get(npc.id)?.p ?? npc.at;
+    if (!at) return;
+    const here: WorldXZ = [positionRef.current.x, positionRef.current.z];
+    if (dist(here, at) < 3.5) return startTalk(npc);
+    const k = 1.4 / Math.max(1e-3, dist(here, at));
+    const goal: WorldXZ = [at[0] + (here[0] - at[0]) * k, at[1] + (here[1] - at[1]) * k];
+    onGroundClick(goal);
+    pendingTalk.current = npc.id;
+  };
+
   // ------------------------------------------------------------ barber
   const [barberDraft, setBarberDraft] = useState<Appearance | null>(null);
   const currentLook = appearance ?? defaultAppearance(color);
@@ -610,6 +824,8 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       if (jonneAt) list.push({ at: jonneAt, use: talkToJonne });
       for (const b of busStops) list.push({ at: b.at, use: () => setAtBusStop(b) });
       for (const t of trainStops) list.push({ at: t.at, use: () => setAtTrain(t) });
+      for (const c of cookSpots) list.push({ at: c.at, use: () => setAtCook(c) });
+      for (const l of loot) if (!lootTaken.includes(l.id)) list.push({ at: [l.x, l.z], use: () => pickLoot(l) });
       return list;
     }
     const list: Spot[] = INTERIORS[scene].exits.map((e) => ({
@@ -619,9 +835,15 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     if (scene === 'gym') for (const g of GYM_STATIONS) list.push({ at: g.use, use: () => arriveAtStation(g.lift) });
     if (scene === 'pool') list.push({ at: POOL_SWIM_SPOT, use: () => setAtPool(true) });
     if (scene === 'barber') list.push({ at: BARBER_CHAIR_SPOT, use: () => setBarberDraft({ ...currentLook }) });
+    const sh = SHOPS[scene];
+    if (sh) {
+      for (const shelf of sh.shelves) list.push({ at: shelf.at, use: () => setAtShelf(shelf) });
+      list.push({ at: sh.till, use: () => setAtTill(true) });
+    }
+    if (scene === 'police') list.push({ at: POLICE_DESK_SPOT, use: talkAtPoliceDesk });
     return list;
     // talkToJonne/escaped read the latest state through closures re-created each render
-  }, [scene, doors, jonneAt, goTo, jailStep, player, carrying, busStops, trainStops, currentLook]);
+  }, [scene, doors, jonneAt, goTo, jailStep, player, carrying, busStops, trainStops, currentLook, loot, lootTaken, putkaUntil, cookSpots]);
 
   const onGroundClick = (raw: WorldXZ) => {
     if (cutscene || dialogue || fading || busy || riding) return;
@@ -631,6 +853,8 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     setAtStation(null);
     setAtPool(false);
     setCarrying(null);
+    setAtShelf(null);
+    setAtTill(false);
     let p = scene === 'world' ? clampToWorld(raw) : raw;
     const snap = spots.find((s) => dist(s.at, p) < HOTSPOT_SNAP);
     if (snap) p = snap.at;
@@ -649,6 +873,13 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     if (scene === 'world') onMove(worldToLngLat(p));
     const spot = spots.find((s) => dist(s.at, p) < HOTSPOT_USE);
     if (spot) spot.use();
+    const pend = pendingTalk.current ? npcs.find((n) => n.id === pendingTalk.current) : undefined;
+    if (pend) {
+      const at = npcLive.current.get(pend.id)?.p;
+      if (at && dist(at, p) < 6) startTalk(pend);
+      else setToast(`${pend.name} käveli jo ohi.`);
+      pendingTalk.current = null;
+    }
   };
 
   // Developer hook (only with ?debug=1): jump between scenes from the console.
@@ -666,6 +897,17 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       hold: (v: boolean) => (holdingRef.current = v),
       click: (x: number, z: number) => onGroundClick([x, z]),
       stops: busStops,
+      cookSpots: () => cookSpots,
+      give: (id: string, n = 1) => dispatch({ type: 'addItem', itemId: id, quantity: n }),
+      npcs: () => [...npcLive.current.entries()].map(([id, v]) => ({ id, p: v.p, kind: npcs.find((n) => n.id === id)?.kind })),
+      talk: (id: string) => { const n = npcs.find((x) => x.id === id); if (n) onNpcClick(n); },
+      npcCount: () => npcs.length,
+      shop: () => ({ basket, atShelf: atShelf?.id, atTill, alert, putkaLeft, putka: putkaUntil !== null }),
+      basketAdd: toBasket,
+      steal: stealItem,
+      shelfAt: (id: string) => shop?.shelves.find((x) => x.id === id)?.at,
+      tillAt: () => shop?.till,
+      loot: () => loot.filter((l) => !lootTaken.includes(l.id)).map((l) => ({ id: l.id, item: l.itemId, x: l.x, z: l.z })),
       trains: trainStops,
       blocked: (x: number, z: number) => !!collider?.isBlocked([x, z]) || extraBlocked([x, z]),
       ui: () => ({ atTrain: atTrain?.id, spots: spots.length, atBusStop: atBusStop?.id, busRun: busRun?.mode, scene, cutscene }),
@@ -720,7 +962,15 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
               ))}
             {busRun && <BusVehicle run={busRun} clockRef={clockRef} groundAt={(x, z) => terrain!.surfaceAt(x, z)} />}
             {placed && <BlockExterior site={placed.gym} ground={terrain!.surfaceAt(placed.gym.door[0], placed.gym.door[1])} sign="KUNTOSALI RAUTA" color="#c8312b" sub="AVOINNA 24/7" />}
+            {placed && <BlockExterior site={placed.police} ground={terrain!.surfaceAt(placed.police.door[0], placed.police.door[1])} sign="POLIISI" color="#1f3f8f" sub="POLISEN · KERAVAN POLIISIASEMA" />}
             {placed && <BlockExterior site={placed.pool} ground={terrain!.surfaceAt(placed.pool.door[0], placed.pool.door[1])} sign="UIMAHALLI" color="#1f8fc0" sub="KERAVAN UIMAHALLI" />}
+            {!cutscene && npcs.length > 0 && (
+              <Crowd npcs={npcs} live={npcLive} clockRef={clockRef} groundAt={(x, z) => terrain!.surfaceAt(x, z)} playerRef={positionRef} talkingId={talkingId} onTalk={onNpcClick} />
+            )}
+            <CookSpots spots={cookSpots} groundAt={(x, z) => terrain!.surfaceAt(x, z)} />
+            {!cutscene &&
+              cookSpots.map((c) => <Hotspot key={c.id} at={c.at} y={terrain!.surfaceAt(c.at[0], c.at[1])} label={`🍳 ${c.name}`} onClick={() => onGroundClick(c.at)} />)}
+            {!cutscene && <LootField spots={loot} taken={lootTaken} playerRef={positionRef} onPick={(l) => onGroundClick([l.x, l.z])} />}
             <PrisonExterior at={PRISON_AT} yaw={0} ground={terrain!.surfaceAt(PRISON_AT[0], PRISON_AT[1] + 8)} />
             {jonneAt && <Jonne at={jonneAt} y={0} yaw={jonneYaw} onClick={() => onGroundClick(jonneAt)} showMarker={!cutscene && jailStep === JAILBREAK_STEP.notStarted} />}
             {!cutscene &&
@@ -752,6 +1002,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
             {scene === 'gym' && <GymInterior pairs={gymPairs} active={gymActive} outfit={outfit} clockRef={clockRef} />}
             {scene === 'alepa' && <AlepaInterior />}
             {scene === 'barber' && <BarberInterior />}
+            {scene === 'police' && <PoliceInterior cellOpen={putkaUntil === null} />}
             {scene === 'pool' && <PoolInterior swimT0={swimT0} clockRef={clockRef} outfit={outfit} />}
             {scene === 'prison' && (
               <>
@@ -770,6 +1021,12 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
             {def.exits.map((e) => (
               <Hotspot key={e.id} at={e.at} label={e.label} onClick={() => onGroundClick(e.at)} />
             ))}
+            {shop?.shelves.map((sh) => <Hotspot key={sh.id} at={sh.at} label={`🛒 ${sh.name}`} onClick={() => onGroundClick(sh.at)} />)}
+            {shop && (
+              <Shopper p={shop.guard} yaw={Math.PI * 0.85} sway={1.3} outfit={{ top: '#1b1d22', legs: '#1b1d22', shoes: '#111', hair: '#2a2018', hairStyle: 'buzz', hat: 'none', hatColor: '#000', accent: '#ffd23f', style: 'jacket', build: 1.12 }} />
+            )}
+            {shop && <Hotspot at={shop.till} label="🧾 Kassa" onClick={() => onGroundClick(shop.till)} />}
+            {scene === 'police' && <Hotspot at={POLICE_DESK_SPOT} label="👮 Palvelutiski" onClick={() => onGroundClick(POLICE_DESK_SPOT)} />}
           </group>
         )}
 
@@ -784,7 +1041,9 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
           visible={playerVisible}
           scriptRef={scriptRef}
           onArrive={onArrive}
+          held={{ handL: player?.equipment.handL, handR: player?.equipment.handR }}
         />
+        <KarmaAura karma={player?.karma ?? 0} followRef={positionRef} visible={playerVisible && !cutscene} />
         {target && <ClickMarker point={route[route.length - 1] ?? target} y={inWorld ? positionRef.current.y : 0} />}
         <CameraRig followRef={positionRef} />
       </Canvas>
@@ -890,6 +1149,27 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
             </button>
           </div>
         </div>
+      )}
+      {!cutscene && shop && atShelf && !dialogue && (
+        <ShelfHud shelf={atShelf} basket={basket} alert={alert} onBasket={toBasket} onSteal={stealItem} onClose={() => setAtShelf(null)} />
+      )}
+      {!cutscene && shop && atTill && !dialogue && (
+        <TillHud basket={basket} money={money} onPay={payBasket} onRemove={fromBasket} onClose={() => setAtTill(false)} />
+      )}
+      {!cutscene && shop && !atShelf && !atTill && (Object.keys(basket).length > 0 || alert > 10) && (
+        <div className="gym-hud gym-hud--mini shop-mini">
+          {Object.keys(basket).length > 0 && <span>🧺 Kori: {Object.values(basket).reduce((a, b) => a + b, 0)} kpl · {basketTotal(basket).toFixed(2).replace('.', ',')} € · maksa kassalla</span>}
+          <AlertMeter alert={alert} />
+        </div>
+      )}
+      {!cutscene && scene === 'police' && putkaUntil !== null && (
+        <div className="gym-hud gym-hud--mini putka-hud">🔒 Putkassa · vapautus {putkaLeft} s kuluttua</div>
+      )}
+      {!cutscene && inWorld && alert >= 20 && (
+        <div className="gym-hud gym-hud--mini shop-mini"><AlertMeter alert={alert} /></div>
+      )}
+      {!cutscene && inWorld && atCook && player && (
+        <CookHud name={atCook.name} level={cookLevel} inventory={player.inventory} cooking={cooking ? { recipe: cooking.recipe, progress: cookProgress } : null} onCook={startCook} onClose={() => setAtCook(null)} />
       )}
       {dialogue && <DialogueBox view={dialogue} />}
       {toast && <div className="toast">{toast}</div>}

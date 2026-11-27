@@ -4,13 +4,15 @@ import { levelFromXp, levelProgress, xpForLevel } from '../../game/xp/xp';
 import { MAX_ENERGY, MAX_HEALTH } from '../../game/player/createPlayer';
 import { useGame } from '../../game/store/GameProvider';
 import { ProgressBar } from '../ProgressBar';
+import { itemIcon, itemName } from '../../data/items';
 
 const SLOTS: { id: EquipmentSlot; label: string }[] = [
   { id: 'head', label: 'Pää' },
   { id: 'body', label: 'Keho' },
   { id: 'legs', label: 'Jalat' },
   { id: 'feet', label: 'Kengät' },
-  { id: 'tool', label: 'Työkalu' },
+  { id: 'handL', label: 'Vasen käsi' },
+  { id: 'handR', label: 'Oikea käsi' },
   { id: 'accessory', label: 'Asuste' },
   { id: 'backpack', label: 'Reppu' },
 ];
@@ -49,7 +51,7 @@ export function CharacterPanel({ player }: { player: Player }) {
         {SLOTS.map((slot) => (
           <div key={slot.id} className="equip-slot">
             <span className="muted">{slot.label}</span>
-            <span>{player.equipment[slot.id] ?? '—'}</span>
+            <span>{player.equipment[slot.id] ? `${itemIcon(player.equipment[slot.id]!)} ${itemName(player.equipment[slot.id]!)}` : '—'}</span>
           </div>
         ))}
       </div>

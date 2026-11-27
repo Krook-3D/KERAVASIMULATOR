@@ -23,7 +23,7 @@ const FOREST_AREA_PER_TREE = 85;
 const CELL = 30;
 
 /** Fast "is this point on a road?" test using a segment grid. */
-class RoadIndex {
+export class RoadIndex {
   private cells = new Map<string, { a: WorldXZ; b: WorldXZ; half: number }[]>();
 
   constructor(roads: Road[]) {

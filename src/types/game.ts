@@ -26,7 +26,8 @@ export type EquipmentSlot =
   | 'body'
   | 'legs'
   | 'feet'
-  | 'tool'
+  | 'handL'
+  | 'handR'
   | 'accessory'
   | 'backpack';
 
@@ -37,9 +38,10 @@ export type ItemCategory =
   | 'equipment'
   | 'quest'
   | 'collectible'
+  | 'drug'
   | 'misc';
 
-export type Rarity = 'common' | 'uncommon' | 'rare' | 'legendary';
+export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
 export interface ItemDef {
   id: string;
@@ -52,6 +54,12 @@ export interface ItemDef {
   stackable: boolean;
   effects?: { energy?: number; health?: number };
   equipSlot?: EquipmentSlot;
+  /** Held in the hands: 1 = one hand (left or right), 2 = both hands. */
+  hands?: 1 | 2;
+  /** Price in shops (euros). */
+  price?: number;
+  /** Emoji used as the icon until item models/icons get their own pass. */
+  icon?: string;
 }
 
 export interface InventorySlot {
@@ -161,6 +169,14 @@ export interface Player {
   equipment: Partial<Record<EquipmentSlot, string>>;
   quests: Record<string, QuestProgress>;
   visitedPoiIds: string[];
+  /** World loot spots already picked up (ids from game/world/loot.ts). */
+  lootTaken?: string[];
+  /** -100…100. Stealing lowers it, getting caught lowers it 3x; shown as the aura. */
+  karma?: number;
+  /** Stolen goods still carried, per item id (raises the alert level). */
+  stolen?: Record<string, number>;
+  /** Thefts since the guard last caught you (catch chance grows with it). */
+  sinceCaught?: number;
   /** Looks (character editor + barber). Older saves fall back to `color`. */
   appearance?: import('../game/player/appearance').Appearance;
   /** Opening cutscene (thrown off the train) has been seen. */
