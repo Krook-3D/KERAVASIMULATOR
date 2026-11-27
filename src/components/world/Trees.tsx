@@ -50,7 +50,7 @@ function TreeKindMesh({ kind, trees, geos }: { kind: TreeKind; trees: Tree[]; ge
     trees.forEach((t, i) => {
       q.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, t.rotation);
       s.setScalar(t.scale);
-      p.set(t.x, 0, t.z);
+      p.set(t.x, t.y ?? 0, t.z);
       m.compose(p, q, s);
       trunk.current?.setMatrixAt(i, m);
       crown.current?.setMatrixAt(i, m);

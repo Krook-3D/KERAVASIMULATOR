@@ -51,8 +51,8 @@ export function createBuildingMaterial(xray: XrayUniforms): THREE.MeshStandardMa
     Object.assign(shader.uniforms, xray);
     addWorldVaryings(
       shader,
-      'attribute float aFacade;\nattribute float aTop;\nvarying float vFacade;\nvarying float vTop;',
-      'vFacade = aFacade;\nvTop = aTop;',
+      'attribute float aFacade;\nattribute float aTop;\nattribute float aBase;\nvarying float vFacade;\nvarying float vTop;\nvarying float vBase;',
+      'vFacade = aFacade;\nvTop = aTop;\nvBase = aBase;',
     );
     shader.fragmentShader = shader.fragmentShader
       .replace(
@@ -61,6 +61,7 @@ export function createBuildingMaterial(xray: XrayUniforms): THREE.MeshStandardMa
 ${WORLD_VARYINGS}
 varying float vFacade;
 varying float vTop;
+varying float vBase;
 uniform vec3 uPlayer;
 uniform vec3 uCamera;
 uniform float uRadius;
@@ -87,7 +88,7 @@ ${NOISE_GLSL}`,
       diffuseColor.rgb = mix(vec3(0.27, 0.28, 0.30), diffuseColor.rgb * 0.5, 0.25) * (0.9 + vnoise(vWorldPos.xz * 0.4) * 0.2);
     } else {
       float u = abs(n.z) > abs(n.x) ? vWorldPos.x : vWorldPos.z;
-      float h = vWorldPos.y;
+      float h = vWorldPos.y - vBase;
       float floorH = vTop < 7.6 ? 2.9 : 3.1;
       float cellW = vTop < 7.6 ? 3.6 : 2.7;
       vec2 cell = vec2(u / cellW, (h - 0.3) / floorH);
@@ -125,13 +126,28 @@ ${NOISE_GLSL}`,
   return m;
 }
 
-/** Grass with large- and small-scale colour variation. */
-export function createGroundMaterial(): THREE.MeshStandardMaterial {
+/**
+ * Ground: grass with large- and small-scale colour variation, plus land
+ * cover from a painted map (park lawn, forest floor, muddy banks) and bare
+ * earth / rock on steep slopes.
+ */
+export function createGroundMaterial(map?: { texture: THREE.Texture; min: THREE.Vector2; size: THREE.Vector2 }): THREE.MeshStandardMaterial {
   const m = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 1 });
+  const black = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
+  black.needsUpdate = true;
+  const uniforms = {
+    uGroundMap: { value: map?.texture ?? black },
+    uMapMin: { value: map?.min ?? new THREE.Vector2(0, 0) },
+    uMapSize: { value: map?.size ?? new THREE.Vector2(1, 1) },
+  };
   m.onBeforeCompile = (shader) => {
-    addWorldVaryings(shader);
+    Object.assign(shader.uniforms, uniforms);
+    addWorldVaryings(shader, 'attribute float aSlope;\nvarying float vSlope;', 'vSlope = aSlope;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', `#include <common>\n${WORLD_VARYINGS}\n${NOISE_GLSL}`)
+      .replace(
+        '#include <common>',
+        `#include <common>\n${WORLD_VARYINGS}\nvarying float vSlope;\nuniform sampler2D uGroundMap;\nuniform vec2 uMapMin;\nuniform vec2 uMapSize;\n${NOISE_GLSL}`,
+      )
       .replace(
         '#include <color_fragment>',
         `#include <color_fragment>
@@ -143,10 +159,20 @@ export function createGroundMaterial(): THREE.MeshStandardMaterial {
   vec3 dry = vec3(0.62, 0.60, 0.38);
   vec3 col = mix(g1, g2, big);
   col = mix(col, dry, smoothstep(0.72, 0.95, big) * 0.5);
+  vec2 muv = (p - uMapMin) / uMapSize;
+  vec3 cover = texture2D(uGroundMap, muv).rgb;
+  if (muv.x < 0.0 || muv.y < 0.0 || muv.x > 1.0 || muv.y > 1.0) cover = vec3(0.0);
+  col = mix(col, vec3(0.30, 0.55, 0.17), cover.r * 0.85);
+  vec3 forest = mix(vec3(0.17, 0.25, 0.10), vec3(0.32, 0.27, 0.15), vnoise(p * 0.21));
+  forest = mix(forest, vec3(0.42, 0.40, 0.22), smoothstep(0.75, 0.95, vnoise(p * 0.07)) * 0.6); // clearings with heather
+  col = mix(col, forest, cover.g);
+  col = mix(col, vec3(0.38, 0.33, 0.24), cover.b * 0.75);
+  float rock = smoothstep(0.12, 0.3, vSlope + (small - 0.5) * 0.08);
+  col = mix(col, mix(vec3(0.40, 0.33, 0.24), vec3(0.50, 0.49, 0.47), vnoise(p * 0.35)), rock * 0.85);
   diffuseColor.rgb = col * (0.88 + small * 0.24);`,
       );
   };
-  m.customProgramCacheKey = () => 'kerava-ground';
+  m.customProgramCacheKey = () => `kerava-ground-${map ? 'map' : 'plain'}`;
   return m;
 }
 

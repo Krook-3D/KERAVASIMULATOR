@@ -1,20 +1,25 @@
 import type { WorldXZ } from './projection';
 import { BuildingCollider, pointInPolygon } from './collision';
 import { createRng } from './random';
-import { ROAD_WIDTH, type Road, type WorldData } from './worldData';
+import { ROAD_WIDTH, inBounds, worldBounds, type Road, type WorldData } from './worldData';
+import type { Terrain } from './terrain';
 
 export type TreeKind = 'spruce' | 'pine' | 'birch';
 
 export interface Tree {
   x: number;
   z: number;
+  /** Ground height under the tree. */
+  y?: number;
   kind: TreeKind;
   scale: number;
   rotation: number;
   tint: number; // 0–1 colour variation
 }
 
-const MAX_TREES = 3000;
+const MAX_TREES = 11000;
+/** Forest density: one tree per this many square metres. */
+const FOREST_AREA_PER_TREE = 85;
 const CELL = 30;
 
 /** Fast "is this point on a road?" test using a segment grid. */
@@ -58,11 +63,11 @@ function distToSegment(px: number, pz: number, [ax, az]: WorldXZ, [bx, bz]: Worl
  * Scatters trees: dense in parks, rows along streets and sparse elsewhere.
  * Mostly spruce, pine and birch for a Finnish look.
  */
-export function placeTrees(world: WorldData, collider: BuildingCollider, exclude?: (p: WorldXZ) => boolean): Tree[] {
+export function placeTrees(world: WorldData, collider: BuildingCollider, exclude?: (p: WorldXZ) => boolean, terrain?: Terrain | null): Tree[] {
   const rng = createRng(1917); // Kerava's founding vibes
   const roads = new RoadIndex(world.roads);
   const trees: Tree[] = [];
-  const r = world.radius;
+  const bounds = worldBounds(world);
 
   const pickKind = (park: boolean): TreeKind => {
     const v = rng();
@@ -71,12 +76,36 @@ export function placeTrees(world: WorldData, collider: BuildingCollider, exclude
   };
   const tryAdd = (x: number, z: number, kind: TreeKind, roadMargin: number) => {
     if (trees.length >= MAX_TREES) return;
-    if (Math.abs(x) > r || Math.abs(z) > r) return;
+    if (!inBounds(bounds, [x, z])) return;
     if (roads.near([x, z], roadMargin)) return;
     if (collider.isBlocked([x, z], 2.2)) return;
     if (exclude?.([x, z])) return;
-    trees.push({ x, z, kind, scale: 0.75 + rng() * 0.6, rotation: rng() * Math.PI * 2, tint: rng() });
+    const y = terrain ? terrain.heightAt(x, z) : 0;
+    if (terrain && y < terrain.surfaceAt(x, z) - 0.25) return; // river channel / pond
+    trees.push({ x, z, y, kind, scale: 0.75 + rng() * 0.6, rotation: rng() * Math.PI * 2, tint: rng() });
   };
+
+  // Forests: dense spruce and pine with some birch, a few big old trees.
+  const forestKind = (): TreeKind => {
+    const v = rng();
+    return v < 0.5 ? 'spruce' : v < 0.82 ? 'pine' : 'birch';
+  };
+  for (const forest of world.forests ?? []) {
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    for (const [x, z] of forest.outline) {
+      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+      minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+    }
+    const n = ((maxX - minX) * (maxZ - minZ)) / FOREST_AREA_PER_TREE;
+    for (let i = 0; i < n && trees.length < MAX_TREES * 0.8; i++) {
+      const x = minX + rng() * (maxX - minX), z = minZ + rng() * (maxZ - minZ);
+      if (!pointInPolygon([x, z], forest.outline)) continue;
+      const before = trees.length;
+      tryAdd(x, z, forestKind(), 1.5);
+      const t = trees[before];
+      if (t && rng() < 0.08) t.scale *= 1.45;
+    }
+  }
 
   // Parks.
   for (const park of world.parks) {
@@ -111,10 +140,13 @@ export function placeTrees(world: WorldData, collider: BuildingCollider, exclude
   }
 
   // Sparse forest patches everywhere else.
-  for (let i = 0; i < 1400; i++) {
-    const x = (rng() * 2 - 1) * r, z = (rng() * 2 - 1) * r;
-    // Clustered: thicker towards the edges of the play area.
-    const edge = Math.max(Math.abs(x), Math.abs(z)) / r;
+  const w = bounds.maxX - bounds.minX, d = bounds.maxZ - bounds.minZ;
+  const scatter = Math.round((w * d) / 700);
+  const reach = Math.max(-bounds.minX, bounds.maxX, -bounds.minZ, bounds.maxZ);
+  for (let i = 0; i < scatter; i++) {
+    const x = bounds.minX + rng() * w, z = bounds.minZ + rng() * d;
+    // Clustered: thicker away from the town centre.
+    const edge = Math.min(1, Math.hypot(x, z) / reach) * 0.9;
     if (rng() > 0.25 + edge * 0.6) continue;
     tryAdd(x, z, pickKind(false), 2);
   }

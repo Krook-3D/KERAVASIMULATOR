@@ -21,14 +21,60 @@ export interface Area {
   outline: WorldXZ[];
 }
 
+/** Playable rectangle in world metres (north is -z). */
+export interface Bounds {
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+}
+
+/** Elevation samples on a regular grid, metres relative to the station. */
+export interface ElevationGrid {
+  minX: number;
+  minZ: number;
+  step: number;
+  cols: number;
+  rows: number;
+  /** Row-major (z rows, x columns). */
+  heights: number[];
+}
+
+export interface Landmark {
+  name: string;
+  x: number;
+  z: number;
+}
+
 export interface WorldData {
   source: 'osm' | 'placeholder';
-  /** Half-size of the playable square around the origin, in metres. */
+  /** Half-size of the original square map (kept for old data files). */
   radius: number;
+  /** Playable area; older data files only have `radius`. */
+  bounds?: Bounds;
   buildings: Building[];
   roads: Road[];
   water: Area[];
   parks: Area[];
+  forests?: Area[];
+  /** Real elevation from scripts/fetch-osm.mjs; procedural hills when missing. */
+  elevation?: ElevationGrid;
+  /** Named places (e.g. Prisma) found in OSM. */
+  landmarks?: Landmark[];
+}
+
+/**
+ * Default playable area: central Kerava plus a stretch towards Talma
+ * (north-east) so the map reaches the first forests.
+ */
+export const DEFAULT_BOUNDS: Bounds = { minX: -700, maxX: 2000, minZ: -1400, maxZ: 700 };
+
+export function worldBounds(w: Pick<WorldData, 'bounds' | 'radius'>): Bounds {
+  return w.bounds ?? { minX: -w.radius, maxX: w.radius, minZ: -w.radius, maxZ: w.radius };
+}
+
+export function inBounds(b: Bounds, [x, z]: WorldXZ, margin = 0): boolean {
+  return x >= b.minX + margin && x <= b.maxX - margin && z >= b.minZ + margin && z <= b.maxZ - margin;
 }
 
 export const ROAD_WIDTH: Record<RoadKind, number> = {

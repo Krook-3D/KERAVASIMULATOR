@@ -3,7 +3,6 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { WorldXZ } from '../../game/world/projection';
 import { ARRIVE_EPSILON, WALK_SPEED } from '../../game/world/movement';
-import type { BuildingCollider } from '../../game/world/collision';
 import { Humanoid, type HumanBones, type Outfit } from './humanoid/Humanoid';
 import { poseFlail, poseLocomotion, resetPose } from './humanoid/animate';
 
@@ -22,11 +21,11 @@ interface PlayerCharacterProps {
   /** Shared live position; the camera rig reads it every frame. */
   positionRef: MutableRefObject<THREE.Vector3>;
   target: WorldXZ | null;
-  collider: BuildingCollider | null;
+  collider: { isBlocked(p: WorldXZ, radius?: number): boolean } | null;
   onArrive: (point: WorldXZ) => void;
   groundHeight: (p: WorldXZ) => number;
   /** Extra no-go areas on top of building walls (e.g. the track bed). */
-  extraBlocked?: (p: WorldXZ) => boolean;
+  extraBlocked?: (p: WorldXZ, from: WorldXZ) => boolean;
   visible: boolean;
   scriptRef: MutableRefObject<ScriptedPose>;
 }
@@ -73,7 +72,7 @@ export function PlayerCharacter({ color, positionRef, target, collider, onArrive
         const step = Math.min(dist, WALK_SPEED * dt);
         const sx = (dx / dist) * step;
         const sz = (dz / dist) * step;
-        const blocked = (x: number, z: number) => !!collider?.isBlocked([x, z]) || !!extraBlocked?.([x, z]);
+        const blocked = (x: number, z: number) => !!collider?.isBlocked([x, z]) || !!extraBlocked?.([x, z], [pos.x, pos.z]);
         if (!blocked(pos.x + sx, pos.z + sz)) {
           pos.x += sx;
           pos.z += sz;
@@ -103,16 +102,7 @@ export function PlayerCharacter({ color, positionRef, target, collider, onArrive
     if (bones.current) poseLocomotion(bones.current, walkPhase.current, run.current, performance.now() / 1000);
   });
 
-  const outfit: Outfit = {
-    top: color,
-    legs: '#2e3b55',
-    shoes: '#f4f4f0',
-    hair: '#4a3222',
-    hat: 'beanie',
-    hatColor: '#3a7bd5',
-    accent: '#ffd23f',
-    backpack: true,
-  };
+  const outfit = playerOutfit(color);
 
   return (
     <group ref={root} visible={visible}>
@@ -125,4 +115,18 @@ export function PlayerCharacter({ color, positionRef, target, collider, onArrive
       </group>
     </group>
   );
+}
+
+/** The player's look (the character editor will extend this). */
+export function playerOutfit(color: string): Outfit {
+  return {
+    top: color,
+    legs: '#2e3b55',
+    shoes: '#f4f4f0',
+    hair: '#4a3222',
+    hat: 'beanie',
+    hatColor: '#3a7bd5',
+    accent: '#ffd23f',
+    backpack: true,
+  };
 }

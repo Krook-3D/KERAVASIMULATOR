@@ -5,7 +5,9 @@ import type { WorldData } from '../../game/world/worldData';
 import type { WorldXZ } from '../../game/world/projection';
 import type { BuildingCollider } from '../../game/world/collision';
 import { placeTrees } from '../../game/world/vegetation';
-import { buildAreaGeometry, buildBuildingsGeometry, buildRoadLayers } from '../../game/world/geometry';
+import { buildAreaGeometry, buildBuildingsGeometry, buildRoadLayers, buildTerrainGeometry } from '../../game/world/geometry';
+import type { Terrain } from '../../game/world/terrain';
+import { paintGroundMap } from './groundMap';
 import { createBuildingMaterial, createGrainMaterial, createGroundMaterial, type XrayUniforms } from './materials';
 import { Trees } from './Trees';
 import { StreetProps } from './StreetProps';
@@ -13,6 +15,7 @@ import { placeStreetProps } from '../../game/world/streetProps';
 
 interface KeravaWorldProps {
   data: WorldData;
+  terrain: Terrain;
   collider: BuildingCollider;
   excludeTrees?: (p: WorldXZ) => boolean;
   onGroundClick: (point: WorldXZ) => void;
@@ -20,46 +23,56 @@ interface KeravaWorldProps {
   xray: XrayUniforms;
 }
 
+/** Pull a ground layer towards the camera in the depth test so it never flickers with the terrain. */
+function offset<M extends THREE.Material>(m: M, units: number): M {
+  m.polygonOffset = true;
+  m.polygonOffsetFactor = units;
+  m.polygonOffsetUnits = units;
+  return m;
+}
+
 /** Max pointer travel (px) for a press to count as a click rather than a camera drag. */
 const CLICK_TOLERANCE_PX = 6;
 
-export function KeravaWorld({ data, collider, excludeTrees, onGroundClick, playerRef, xray }: KeravaWorldProps) {
+export function KeravaWorld({ data, terrain, collider, excludeTrees, onGroundClick, playerRef, xray }: KeravaWorldProps) {
+  const groundMap = useMemo(() => paintGroundMap(data, terrain), [data, terrain]);
+  useEffect(() => () => groundMap.texture.dispose(), [groundMap]);
 
   const materials = useMemo(
     () => ({
       building: createBuildingMaterial(xray),
       ground: createGroundMaterial(),
-      asphalt: createGrainMaterial('#4d5157', 0.12, 0.9),
-      sidewalk: createGrainMaterial('#a7a59f', 0.1),
-      path: createGrainMaterial('#c9b48a', 0.2),
-      ballast: createGrainMaterial('#7d7368', 0.3),
-      park: new THREE.MeshStandardMaterial({ color: '#5f8f3e', roughness: 1 }),
+      terrain: createGroundMaterial(groundMap),
+      asphalt: offset(createGrainMaterial('#4d5157', 0.12, 0.9), -2),
+      sidewalk: offset(createGrainMaterial('#a7a59f', 0.1), -1),
+      path: offset(createGrainMaterial('#c9b48a', 0.2), -1),
+      ballast: offset(createGrainMaterial('#7d7368', 0.3), -1),
       water: new THREE.MeshStandardMaterial({ color: '#3f7fae', roughness: 0.2, metalness: 0.1 }),
-      marking: new THREE.MeshStandardMaterial({ color: '#f2efe6', roughness: 0.6 }),
+      marking: offset(new THREE.MeshStandardMaterial({ color: '#f2efe6', roughness: 0.6 }), -3),
       sleeper: new THREE.MeshStandardMaterial({ color: '#4a3527', roughness: 0.9 }),
       rail: new THREE.MeshStandardMaterial({ color: '#b9bcc2', roughness: 0.3, metalness: 0.9 }),
     }),
-    [xray],
+    [xray, groundMap],
   );
 
   const geos = useMemo(
     () => ({
-      buildings: buildBuildingsGeometry(data.buildings),
-      roads: buildRoadLayers(data.roads),
-      water: buildAreaGeometry(data.water, 0.025),
-      parks: buildAreaGeometry(data.parks, 0.015),
+      terrain: buildTerrainGeometry(terrain),
+      buildings: buildBuildingsGeometry(data.buildings, terrain),
+      roads: buildRoadLayers(data.roads, terrain),
+      water: buildAreaGeometry(data.water, terrain.waterLevels),
     }),
-    [data],
+    [data, terrain],
   );
 
-  const trees = useMemo(() => placeTrees(data, collider, excludeTrees), [data, collider, excludeTrees]);
-  const props = useMemo(() => placeStreetProps(data, collider, excludeTrees ?? (() => false)), [data, collider, excludeTrees]);
+  const trees = useMemo(() => placeTrees(data, collider, excludeTrees, terrain), [data, collider, excludeTrees, terrain]);
+  const props = useMemo(() => placeStreetProps(data, collider, excludeTrees ?? (() => false), terrain), [data, collider, excludeTrees, terrain]);
 
   useEffect(
     () => () => {
+      geos.terrain.dispose();
       geos.buildings?.dispose();
       geos.water?.dispose();
-      geos.parks?.dispose();
       Object.values(geos.roads).forEach((g) => g?.dispose());
     },
     [geos],
@@ -85,10 +98,22 @@ export function KeravaWorld({ data, collider, excludeTrees, onGroundClick, playe
 
   return (
     <group onClick={handleClick}>
-      <mesh rotation-x={-Math.PI / 2} receiveShadow material={materials.ground}>
-        <planeGeometry args={[size, size]} />
-      </mesh>
-      {flat(geos.parks, materials.park)}
+      {/* far plane beyond the terrain, slightly lower so the terrain edge meets it */}
+      {/* four slabs around the terrain (a single plane would cover low ground like the river valley) */}
+      {(() => {
+        const x0 = terrain.minX + 3, x1 = terrain.maxX - 3, z0 = terrain.minZ + 3, z1 = terrain.maxZ - 3, H = size / 2;
+        return [
+          [-H, H, -H, z0],
+          [-H, H, z1, H],
+          [-H, x0, z0, z1],
+          [x1, H, z0, z1],
+        ].map(([a, b, c, d], i) => (
+          <mesh key={i} rotation-x={-Math.PI / 2} position={[(a! + b!) / 2, -0.4, (c! + d!) / 2]} receiveShadow material={materials.ground}>
+            <planeGeometry args={[b! - a!, d! - c!]} />
+          </mesh>
+        ));
+      })()}
+      <mesh geometry={geos.terrain} material={materials.terrain} receiveShadow />
       {flat(geos.water, materials.water)}
       {flat(r.river, materials.water)}
       {flat(r.sidewalk, materials.sidewalk)}

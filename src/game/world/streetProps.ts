@@ -1,11 +1,13 @@
 import type { WorldXZ } from './projection';
 import type { BuildingCollider } from './collision';
 import { createRng } from './random';
-import { ROAD_WIDTH, type WorldData } from './worldData';
+import { ROAD_WIDTH, inBounds, worldBounds, type WorldData } from './worldData';
+import type { Terrain } from './terrain';
 
 export interface PlacedProp {
   x: number;
   z: number;
+  y?: number;
   /** Heading around Y (radians). */
   rotation: number;
   variant: number; // 0–1
@@ -18,13 +20,14 @@ const MAX_LAMPS = 600;
  * Street furniture along OSM roads: lamp posts on one side of each street and
  * parked cars along residential streets.
  */
-export function placeStreetProps(world: WorldData, collider: BuildingCollider, exclude: (p: WorldXZ) => boolean) {
+export function placeStreetProps(world: WorldData, collider: BuildingCollider, exclude: (p: WorldXZ) => boolean, terrain?: Terrain | null) {
   const rng = createRng(2401);
   const lamps: PlacedProp[] = [];
   const cars: PlacedProp[] = [];
-  const r = world.radius;
+  const bounds = worldBounds(world);
   const ok = (x: number, z: number, clearance: number) =>
-    Math.abs(x) < r && Math.abs(z) < r && !collider.isBlocked([x, z], clearance) && !exclude([x, z]);
+    inBounds(bounds, [x, z]) && !collider.isBlocked([x, z], clearance) && !exclude([x, z]);
+  const y = (x: number, z: number) => (terrain ? terrain.surfaceAt(x, z) : 0);
 
   for (const road of world.roads) {
     if (road.kind !== 'street' && road.kind !== 'major') continue;
@@ -40,7 +43,7 @@ export function placeStreetProps(world: WorldData, collider: BuildingCollider, e
 
       for (let t = lampCarry; t < len; t += 32) {
         const x = ax + ux * t + px * (half + 1.4), z = az + uz * t + pz * (half + 1.4);
-        if (lamps.length < MAX_LAMPS && ok(x, z, 0.6)) lamps.push({ x, z, rotation: heading + Math.PI / 2, variant: 0 });
+        if (lamps.length < MAX_LAMPS && ok(x, z, 0.6)) lamps.push({ x, z, y: y(x, z), rotation: heading + Math.PI / 2, variant: 0 });
       }
       lampCarry = ((lampCarry - len) % 32 + 32) % 32;
 
@@ -49,7 +52,7 @@ export function placeStreetProps(world: WorldData, collider: BuildingCollider, e
         if (rng() > 0.3 || cars.length >= MAX_CARS) continue;
         const side = rng() < 0.5 ? 1 : -1;
         const x = ax + ux * t + px * side * (half - 1.3), z = az + uz * t + pz * side * (half - 1.3);
-        if (ok(x, z, 1.2)) cars.push({ x, z, rotation: heading + (side < 0 ? Math.PI : 0), variant: rng() });
+        if (ok(x, z, 1.2)) cars.push({ x, z, y: y(x, z), rotation: heading + (side < 0 ? Math.PI : 0), variant: rng() });
       }
     }
   }

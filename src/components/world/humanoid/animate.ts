@@ -102,3 +102,78 @@ export function poseHoldOut(b: HumanBones, k: number) {
   b.upperArmR.rotation.set(-0.55 * k, 0.15 * k, -0.05 * k);
   b.forearmR.rotation.x = -1.0 * k;
 }
+
+/** Legs folding into a squat with flat feet: thigh forward `a`, knee 2a, foot −a (thigh and shin are equally long). Returns how far the hips drop. */
+function foldLegs(b: HumanBones, a: number, spread = 0.12) {
+  for (const s of ['L', 'R'] as const) {
+    b[`thigh${s}`].rotation.x = -a;
+    b[`thigh${s}`].rotation.z = s === 'L' ? spread : -spread;
+    b[`shin${s}`].rotation.x = 2 * a;
+    b[`foot${s}`].rotation.x = -a;
+  }
+  return 0.83 * (1 - Math.cos(a));
+}
+
+/**
+ * Bench press, lying on the back (the caller rotates the body to lie down).
+ * `k` 0 = bar on the chest, 1 = arms locked out.
+ */
+export function poseBench(b: HumanBones, k: number) {
+  for (const s of ['L', 'R'] as const) {
+    const out = s === 'L' ? 1 : -1;
+    b[`thigh${s}`].rotation.set(0.25, 0, out * 0.28);
+    b[`shin${s}`].rotation.x = 1.45;
+    b[`foot${s}`].rotation.x = -0.3;
+    b[`upperArm${s}`].rotation.set(-0.55 - 1.0 * k, 0, out * (1.05 - 0.75 * k));
+    b[`forearm${s}`].rotation.set(-1.55 * (1 - k) - 0.05, 0, 0);
+  }
+  b.head.rotation.x = -0.1;
+}
+
+/** Back squat, bar on the shoulders. `d` 0 = standing, 1 = deep squat. */
+export function poseSquat(b: HumanBones, d: number) {
+  const a = 1.2 * d;
+  b.hips.position.y -= foldLegs(b, a, 0.16);
+  b.spine.rotation.x = 0.5 * d;
+  b.chest.rotation.x = 0.1 * d;
+  b.neck.rotation.x = -0.3 * d;
+  b.head.rotation.x = -0.25 * d;
+  for (const s of ['L', 'R'] as const) {
+    const out = s === 'L' ? 1 : -1;
+    b[`upperArm${s}`].rotation.set(0.35, 0, out * 1.25);
+    b[`forearm${s}`].rotation.set(-2.1, out * 0.3, 0);
+  }
+}
+
+/** Deadlift. `d` 0 = standing tall with the bar, 1 = bar on the floor. */
+export function poseDeadlift(b: HumanBones, d: number) {
+  const a = 0.75 * d;
+  b.hips.position.y -= foldLegs(b, a, 0.08);
+  const lean = 0.95 * d;
+  b.spine.rotation.x = lean * 0.6;
+  b.chest.rotation.x = lean * 0.4;
+  b.neck.rotation.x = -0.45 * d;
+  b.head.rotation.x = -0.2 * d;
+  for (const s of ['L', 'R'] as const) {
+    const out = s === 'L' ? 1 : -1;
+    b[`upperArm${s}`].rotation.set(-lean + 0.05, 0, out * 0.08);
+    b[`forearm${s}`].rotation.set(-0.05, 0, 0);
+  }
+}
+
+/** Front crawl (the caller turns the body face down). */
+export function poseSwim(b: HumanBones, t: number) {
+  const w = t * 3.2;
+  b.upperArmL.rotation.set(-w % (Math.PI * 2), 0, 0.15);
+  b.upperArmR.rotation.set(-(w + Math.PI) % (Math.PI * 2), 0, -0.15);
+  b.forearmL.rotation.x = -0.25;
+  b.forearmR.rotation.x = -0.25;
+  b.thighL.rotation.x = Math.sin(t * 9) * 0.25;
+  b.thighR.rotation.x = -Math.sin(t * 9) * 0.25;
+  b.shinL.rotation.x = 0.2 + Math.max(0, Math.sin(t * 9)) * 0.3;
+  b.shinR.rotation.x = 0.2 + Math.max(0, -Math.sin(t * 9)) * 0.3;
+  b.footL.rotation.x = 0.6;
+  b.footR.rotation.x = 0.6;
+  b.head.rotation.y = Math.sin(w) * 0.5;
+  b.chest.rotation.y = Math.sin(w) * 0.25;
+}

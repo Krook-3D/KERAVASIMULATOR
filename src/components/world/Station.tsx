@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { createXrayStandardMaterial, type XrayUniforms } from './materials';
 import * as THREE from 'three';
-import { PLATFORM, STATION_BUILDING, type StationLayout } from '../../game/world/station';
+import { BRIDGE, PLATFORM, STATION_BUILDING, TUNNEL_ENTRANCES, type StationLayout } from '../../game/world/station';
 import { createTextTexture } from './textTexture';
 import { Passengers } from './Passengers';
 
@@ -260,6 +260,14 @@ function StationHouse() {
         <Box p={[0, 0.12, -0.08]} s={[0.04, 0.26, 0.01]} color="#14171f" cast={false} />
         <Box p={[0.1, 0, -0.08]} s={[0.2, 0.035, 0.01]} color="#14171f" cast={false} />
       </group>
+      {/* town-side doors (Asema-aukio) */}
+      <group position={[0, 1.55, maxZ + 0.07]}>
+        <Box p={[0, 0, 0]} s={[2.1, 2.7, 0.12]} color={TRIM} cast={false} />
+        <Box p={[-0.48, -0.1, 0.05]} s={[0.88, 2.3, 0.06]} color="#5a2f1f" cast={false} />
+        <Box p={[0.48, -0.1, 0.05]} s={[0.88, 2.3, 0.06]} color="#5a2f1f" cast={false} />
+      </group>
+      <Sign p={[0, 4.4, maxZ + 0.2]} text="KERAVA" w={4.5} h={0.95} />
+      <Box p={[0, 0.03, maxZ + 5]} s={[30, 0.06, 10]} color="#9a968e" cast={false} />
       {/* paved square between platform and house */}
       <Box p={[0, 0.03, (PLATFORM.maxZ + minZ) / 2]} s={[maxX - minX + 20, 0.06, minZ - PLATFORM.maxZ + 0.2]} color="#9a968e" cast={false} />
       {/* bike racks */}
@@ -273,12 +281,114 @@ function StationHouse() {
   );
 }
 
+/** Covered footbridge with glass sides: stairs, deck over the rails, stairs. */
+function Footbridge({ xray }: { xray: XrayUniforms }) {
+  const glass = useMemo(() => {
+    const m = createXrayStandardMaterial(xray, { color: '#bcd8ea', roughness: 0.15, metalness: 0.3, transparent: true, opacity: 0.35 });
+    return m;
+  }, [xray]);
+  const steel = useMemo(() => createXrayStandardMaterial(xray, { color: STEEL, roughness: 0.5, metalness: 0.6 }), [xray]);
+  const roofMat = useMemo(() => createXrayStandardMaterial(xray, { color: '#d9dcd6', roughness: 0.7 }), [xray]);
+  useEffect(() => () => [glass, steel, roofMat].forEach((m) => m.dispose()), [glass, steel, roofMat]);
+  const { x, halfWidth: hw, deck, footNear, topNear, topFar, footFar } = BRIDGE;
+  const flight = (from: number, to: number, key: string) => {
+    const n = 16;
+    const run = (to - from) / n;
+    return (
+      <group key={key}>
+        {Array.from({ length: n }, (_, i) => {
+          const h = (deck * (i + 1)) / n;
+          return <Box key={i} p={[x, h - 0.12, from + run * (i + 0.5)]} s={[hw * 2, 0.24, Math.abs(run) + 0.02]} color={i % 2 ? '#a8a49c' : '#b3afa7'} />;
+        })}
+        {/* stringer under the flight */}
+        {[-hw, hw].map((dx) => {
+          const len = Math.hypot(to - from, deck);
+          const ang = Math.atan2(deck, to - from);
+          return (
+            <mesh key={dx} position={[x + dx, deck / 2 - 0.3, (from + to) / 2]} rotation-x={-ang} material={steel} castShadow>
+              <boxGeometry args={[0.15, 0.35, len]} />
+            </mesh>
+          );
+        })}
+      </group>
+    );
+  };
+  const span = topNear - topFar;
+  return (
+    <group>
+      {flight(footNear, topNear, 'near')}
+      {flight(footFar, topFar, 'far')}
+      {/* deck */}
+      <Box p={[x, deck - 0.2, (topNear + topFar) / 2]} s={[hw * 2 + 0.3, 0.4, span]} color="#9a968e" />
+      {/* glass walls and roof over the deck */}
+      {[-hw - 0.1, hw + 0.1].map((dx) => (
+        <mesh key={dx} position={[x + dx, deck + 1.3, (topNear + topFar) / 2]} material={glass}>
+          <boxGeometry args={[0.05, 2.6, span]} />
+        </mesh>
+      ))}
+      <mesh position={[x, deck + 2.7, (topNear + topFar) / 2]} material={roofMat} castShadow>
+        <boxGeometry args={[hw * 2 + 0.8, 0.18, span + 0.6]} />
+      </mesh>
+      {/* pillars */}
+      {[topNear, topFar].flatMap((z) =>
+        [-hw, hw].map((dx) => (
+          <mesh key={`${z}${dx}`} position={[x + dx, deck / 2 - 0.2, z]} material={steel} castShadow>
+            <boxGeometry args={[0.3, deck - 0.4, 0.3]} />
+          </mesh>
+        )),
+      )}
+      {/* handrails along the stairs */}
+      {[
+        [footNear, topNear],
+        [footFar, topFar],
+      ].flatMap(([a, b]) =>
+        [-hw, hw].map((dx) => {
+          const len = Math.hypot(b! - a!, deck);
+          const ang = Math.atan2(deck, b! - a!);
+          return (
+            <mesh key={`${a}${dx}`} position={[x + dx, deck / 2 + 0.95, (a! + b!) / 2]} rotation-x={-ang} material={steel}>
+              <boxGeometry args={[0.06, 0.06, len]} />
+            </mesh>
+          );
+        }),
+      )}
+      <Sign p={[x, deck + 3.4, topNear + 0.2]} text="SILTA · LAITURIT" w={3.6} h={0.6} />
+    </group>
+  );
+}
+
+/** Stair opening down to the pedestrian tunnel. */
+function TunnelEntrance({ x, z, rotY }: { x: number; z: number; rotY: number }) {
+  return (
+    <group position={[x, 0, z]} rotation-y={rotY}>
+      <Box p={[0, 0.015, 0]} s={[3.4, 0.03, 4.4]} color="#1a1a1c" cast={false} />
+      {Array.from({ length: 7 }, (_, i) => (
+        <Box key={i} p={[0, 0.035, -1.9 + i * 0.55]} s={[3, 0.012, 0.42]} color={`hsl(30, 4%, ${14 + i * 4}%)`} cast={false} />
+      ))}
+      {[-1.75, 1.75].map((dx) => (
+        <Box key={dx} p={[dx, 0.5, 0]} s={[0.1, 1, 4.4]} color="#c8ccd2" metal={0.8} rough={0.3} />
+      ))}
+      <Box p={[0, 0.5, -2.2]} s={[3.6, 1, 0.1]} color="#c8ccd2" metal={0.8} rough={0.3} />
+      {/* little glass roof */}
+      {[-1.7, 1.7].map((dx) => (
+        <Box key={dx} p={[dx, 1.5, -1.9]} s={[0.12, 3, 0.12]} color={STEEL} />
+      ))}
+      <Box p={[0, 3.05, -0.4]} s={[3.8, 0.12, 3.6]} color="#bcd8ea" rough={0.2} metal={0.3} />
+      <Sign p={[0, 3.55, 1.3]} text="TUNNELI ⬇" w={2.6} h={0.55} />
+    </group>
+  );
+}
+
 export function Station({ layout, xray }: { layout: StationLayout; xray: XrayUniforms }) {
   return (
     <group position={[layout.origin[0], 0, layout.origin[1]]} rotation-y={layout.rotationY}>
       <Platform />
       <Canopy xray={xray} />
       <StationHouse />
+      <Footbridge xray={xray} />
+      {TUNNEL_ENTRANCES.map((t) => (
+        <TunnelEntrance key={t.id} x={t.x} z={t.z} rotY={t.rotY} />
+      ))}
       <Passengers />
     </group>
   );

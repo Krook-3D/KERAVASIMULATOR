@@ -23,7 +23,7 @@ function useInstances(ref: React.RefObject<THREE.InstancedMesh | null>, items: P
     const c = new THREE.Color();
     items.forEach((p, i) => {
       q.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, p.rotation);
-      m.compose(new THREE.Vector3(p.x, 0, p.z), q, one);
+      m.compose(new THREE.Vector3(p.x, p.y ?? 0, p.z), q, one);
       mesh.setMatrixAt(i, m);
       if (color) mesh.setColorAt(i, c.set(color(p)));
     });

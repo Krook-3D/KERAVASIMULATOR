@@ -3,6 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { WorldXZ } from './projection';
 import { hash2 } from './random';
 import { ROAD_WIDTH, type Area, type Building, type Road, type RoadKind } from './worldData';
+import { densify, type Terrain } from './terrain';
 
 /**
  * Builds merged meshes from world data. Everything of one kind becomes a
@@ -23,7 +24,7 @@ const STATION_COLOR = '#c75b39';
 
 const LOW_KINDS = new Set(['house', 'detached', 'semidetached_house', 'garage', 'garages', 'shed', 'cabin', 'hut', 'barn']);
 
-function addColor(geo: THREE.BufferGeometry, hex: string, facade: number, top: number) {
+function addColor(geo: THREE.BufferGeometry, hex: string, facade: number, top: number, base = 0) {
   geo.deleteAttribute('uv');
   const count = geo.getAttribute('position').count;
   const c = new THREE.Color(hex);
@@ -32,6 +33,7 @@ function addColor(geo: THREE.BufferGeometry, hex: string, facade: number, top: n
   const topArr = new Float32Array(count).fill(top);
   for (let v = 0; v < count; v++) c.toArray(colors, v * 3);
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geo.setAttribute('aBase', new THREE.BufferAttribute(new Float32Array(count).fill(base), 1));
   geo.setAttribute('aFacade', new THREE.BufferAttribute(facadeArr, 1));
   geo.setAttribute('aTop', new THREE.BufferAttribute(topArr, 1));
 }
@@ -92,7 +94,18 @@ function isSmallHouse(b: Building): boolean {
   return b.height <= 7.5 && b.footprint.length <= 6 && (LOW_KINDS.has(b.kind ?? '') || b.height <= 6);
 }
 
-export function buildBuildingsGeometry(buildings: Building[]): THREE.BufferGeometry | null {
+/** Lowest ground point under a footprint: the building's ground floor level. */
+export function buildingBase(b: Building, terrain: Terrain | null): number {
+  if (!terrain) return 0;
+  let min = Infinity;
+  for (const [x, z] of b.footprint) min = Math.min(min, terrain.surfaceAt(x, z));
+  return Number.isFinite(min) ? min : 0;
+}
+
+/** Walls reach this far below the ground floor so they never float on slopes. */
+const FOUNDATION = 4;
+
+export function buildBuildingsGeometry(buildings: Building[], terrain: Terrain | null = null): THREE.BufferGeometry | null {
   const parts: THREE.BufferGeometry[] = [];
   for (const b of buildings) {
     if (b.footprint.length < 3) continue;
@@ -106,27 +119,31 @@ export function buildBuildingsGeometry(buildings: Building[]): THREE.BufferGeome
           ? WOOD_COLORS[Math.floor(h * WOOD_COLORS.length)]!
           : BLOCK_COLORS[Math.floor(h * BLOCK_COLORS.length)]!;
 
-    const walls = new THREE.ExtrudeGeometry(toShape(b.footprint), { depth: b.height, bevelEnabled: false });
+    const base = buildingBase(b, terrain);
+    const sink = terrain ? FOUNDATION : 0;
+    const walls = new THREE.ExtrudeGeometry(toShape(b.footprint), { depth: b.height + sink, bevelEnabled: false });
     walls.rotateX(-Math.PI / 2);
+    walls.translate(0, base - sink, 0);
     const flat = walls.index ? walls.toNonIndexed() : walls;
     if (flat !== walls) walls.dispose();
-    addColor(flat, color, 1, b.height);
+    addColor(flat, color, 1, b.height, base);
     parts.push(flat);
 
     if (small) {
       const roof = gableRoof(b.footprint, b.height);
       if (roof) {
-        addColor(roof, ROOF_COLORS[Math.floor(hash2(cz, cx) * ROOF_COLORS.length)]!, 0, b.height);
+        roof.translate(0, base, 0);
+        addColor(roof, ROOF_COLORS[Math.floor(hash2(cz, cx) * ROOF_COLORS.length)]!, 0, b.height, base);
         parts.push(roof);
       }
     } else if (b.footprint.length >= 3) {
       // Parapet cap: a slightly darker rim on flat roofs.
       const cap = new THREE.ExtrudeGeometry(toShape(b.footprint), { depth: 0.5, bevelEnabled: false });
       cap.rotateX(-Math.PI / 2);
-      cap.translate(0, b.height, 0);
+      cap.translate(0, base + b.height, 0);
       const capFlat = cap.index ? cap.toNonIndexed() : cap;
       if (capFlat !== cap) cap.dispose();
-      addColor(capFlat, new THREE.Color(color).multiplyScalar(0.78).getStyle(), 2, b.height + 0.5);
+      addColor(capFlat, new THREE.Color(color).multiplyScalar(0.78).getStyle(), 2, b.height + 0.5, base);
       parts.push(capFlat);
     }
   }
@@ -188,8 +205,12 @@ function addDashes(out: Ribbons, points: WorldXZ[], y: number, spacing: number, 
   }
 }
 
-function toGeometry(r: Ribbons): THREE.BufferGeometry | null {
+/** Moves ribbon vertices onto the ground: y += height(x, z). */
+type Drape = ((x: number, z: number) => number) | null;
+
+function toGeometry(r: Ribbons, drape: Drape = null): THREE.BufferGeometry | null {
   if (r.positions.length === 0) return null;
+  if (drape) for (let i = 0; i < r.positions.length; i += 3) r.positions[i + 1] = r.positions[i + 1]! + drape(r.positions[i]!, r.positions[i + 2]!);
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(r.positions, 3));
   geo.setIndex(r.indices);
@@ -213,13 +234,15 @@ export interface RoadLayers {
 
 const SIDEWALK = 2.4;
 
-export function buildRoadLayers(roads: Road[]): RoadLayers {
+export function buildRoadLayers(roads: Road[], terrain: Terrain | null = null): RoadLayers {
   const sidewalk = newRibbons(), asphalt = newRibbons(), markings = newRibbons();
   const path = newRibbons(), ballast = newRibbons(), sleepers = newRibbons();
   const rails = newRibbons(), river = newRibbons();
   const half = (k: RoadKind) => ROAD_WIDTH[k] / 2;
 
-  for (const r of roads) {
+  for (const raw of roads) {
+    // Short segments so the ribbons follow the ground.
+    const r = terrain ? { ...raw, points: densify(raw.points, 5) } : raw;
     switch (r.kind) {
       case 'major':
       case 'street':
@@ -237,26 +260,30 @@ export function buildRoadLayers(roads: Road[]): RoadLayers {
         addRibbon(rails, r.points, 0.07, 0.16, -0.75, 0);
         break;
       case 'river':
-        addRibbon(river, r.points, half('river'), 0.03);
+        // wider than the channel: the banks hide the edges
+        addRibbon(river, r.points, half('river') + (terrain ? 5 : 0), terrain ? -0.4 : 0.03);
         break;
     }
   }
+  const d: Drape = terrain ? (x, z) => terrain.surfaceAt(x, z) : null;
   return {
-    sidewalk: toGeometry(sidewalk),
-    asphalt: toGeometry(asphalt),
-    markings: toGeometry(markings),
-    path: toGeometry(path),
-    ballast: toGeometry(ballast),
-    sleepers: toGeometry(sleepers),
-    rails: toGeometry(rails),
-    river: toGeometry(river),
+    sidewalk: toGeometry(sidewalk, d),
+    asphalt: toGeometry(asphalt, d),
+    markings: toGeometry(markings, d),
+    path: toGeometry(path, d),
+    ballast: toGeometry(ballast, d),
+    sleepers: toGeometry(sleepers, d),
+    rails: toGeometry(rails, d),
+    river: toGeometry(river, d),
   };
 }
 
-export function buildAreaGeometry(areas: Area[], y: number): THREE.BufferGeometry | null {
+/** Flat polygons; `y` is one height for all or one per area (e.g. water levels). */
+export function buildAreaGeometry(areas: Area[], y: number | number[]): THREE.BufferGeometry | null {
   const parts = areas
-    .filter((a) => a.outline.length >= 3)
-    .map((a) => {
+    .map((a, i) => ({ a, y: typeof y === 'number' ? y : (y[i] ?? 0) }))
+    .filter(({ a }) => a.outline.length >= 3)
+    .map(({ a, y }) => {
       const geo = new THREE.ShapeGeometry(toShape(a.outline));
       geo.rotateX(-Math.PI / 2);
       geo.translate(0, y, 0);
@@ -266,4 +293,49 @@ export function buildAreaGeometry(areas: Area[], y: number): THREE.BufferGeometr
   const merged = mergeGeometries(parts);
   parts.forEach((p) => p.dispose());
   return merged;
+}
+
+// ---------------------------------------------------------------- terrain
+
+/**
+ * Terrain mesh on the heightfield grid. Triangles use the 00 → 11 diagonal,
+ * matching Terrain.heightAt(). Carries `aSlope` (0 flat … 1 vertical) for
+ * rocky banks and hillsides in the ground shader.
+ */
+export function buildTerrainGeometry(t: Terrain): THREE.BufferGeometry {
+  const { cols, rows, step, minX, minZ, h } = t;
+  const pos = new Float32Array(cols * rows * 3);
+  const nor = new Float32Array(cols * rows * 3);
+  const slope = new Float32Array(cols * rows);
+  const at = (c: number, r: number) => h[Math.max(0, Math.min(rows - 1, r)) * cols + Math.max(0, Math.min(cols - 1, c))]!;
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++) {
+      const k = r * cols + c;
+      pos[k * 3] = minX + c * step;
+      pos[k * 3 + 1] = h[k]!;
+      pos[k * 3 + 2] = minZ + r * step;
+      const dx = (at(c + 1, r) - at(c - 1, r)) / (2 * step);
+      const dz = (at(c, r + 1) - at(c, r - 1)) / (2 * step);
+      const len = Math.hypot(dx, 1, dz);
+      nor[k * 3] = -dx / len;
+      nor[k * 3 + 1] = 1 / len;
+      nor[k * 3 + 2] = -dz / len;
+      slope[k] = 1 - 1 / len;
+    }
+  const idx = new Uint32Array((cols - 1) * (rows - 1) * 6);
+  let i = 0;
+  for (let r = 0; r < rows - 1; r++)
+    for (let c = 0; c < cols - 1; c++) {
+      const a = r * cols + c, b = a + 1, d = a + cols, e = d + 1;
+      // a=00 b=10 d=01 e=11 (x right, z down); counter-clockwise seen from above
+      idx[i++] = a; idx[i++] = e; idx[i++] = b;
+      idx[i++] = a; idx[i++] = d; idx[i++] = e;
+    }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  geo.setAttribute('aSlope', new THREE.BufferAttribute(slope, 1));
+  geo.setIndex(new THREE.BufferAttribute(idx, 1));
+  geo.computeBoundingSphere();
+  return geo;
 }
