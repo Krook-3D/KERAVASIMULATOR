@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { InteriorId } from '../../../../game/interiors/interiors';
-import { POLICE_CELL_SPAWN } from '../../../../game/interiors/interiors';
+import { levelFromXp } from '../../../../game/xp/xp';
+import { INTERIORS, POLICE_CELL_SPAWN } from '../../../../game/interiors/interiors';
 import { SHOPS, CAUGHT_KARMA_MULT, STEAL_KARMA, alertLevel, basketTotal, catchChance, type Shelf } from '../../../../game/shop/shop';
 import { canAdd, INVENTORY_SIZE } from '../../../../game/store/gameReducer';
 import { itemName } from '../../../../data/items';
@@ -16,7 +17,8 @@ export type PutkaReason = 'theft' | 'graffiti' | 'stash';
  * other systems that can get you arrested.
  */
 export function useShop(ctx: GameCtx) {
-  const { player, dispatch, scene, clockRef, say, close, setToast, teleport } = ctx;
+  const { player, dispatch, scene, clockRef, say, close, setToast, teleport, goTo } = ctx;
+  const evadeLv = () => Math.max(levelFromXp(player?.skills.evasion?.xp ?? 0), levelFromXp(player?.skills.running?.xp ?? 0));
   const [basket, setBasket] = useState<Record<string, number>>({});
   const [atShelf, setAtShelf] = useState<Shelf | null>(null);
   const [atTill, setAtTill] = useState(false);
@@ -79,7 +81,23 @@ export function useShop(ctx: GameCtx) {
         text: 'Ei se oo mitä luulet…',
         onPick: () => say('Vartija', 'Se on just sitä. Istu alas, partio vie sut asemalle.', [{ text: '…', onPick: () => toPutka(karma) }]),
       },
-      { text: '[Juokse] Yritä livahtaa ovesta.', onPick: () => say('Vartija', 'Ovet on lukossa, kaveri. Hyvä yritys.', [{ text: 'Voi ei.', onPick: () => toPutka(karma - 2) }]) },
+      {
+        text: '🏃 Juokse ovesta! (rämpytä Spacea)',
+        onPick: () =>
+          ctx.escape({
+            title: 'Vartija',
+            skill: evadeLv(),
+            difficulty: 0.7,
+            onDone: (ok) => {
+              if (!ok) return say('Vartija', '*Kampittaa sinut ovella* Ei niin nopeasti, kaveri.', [{ text: 'Auts.', onPick: () => { dispatch({ type: 'adjustStats', health: -8 }); toPutka(karma - 2); } }]);
+              const ex = scene !== 'world' ? INTERIORS[scene].exits[0] : undefined;
+              dispatch({ type: 'adjustKarma', amount: STEAL_KARMA * 2 });
+              dispatch({ type: 'grantReward', reward: { skillXp: { evasion: 35, running: 20 } } });
+              if (ex) goTo(ex.to);
+              window.setTimeout(() => setToast(`🏃 Pääsit karkuun kaupasta! Karma ${STEAL_KARMA * 2} · +35 Kyttien pakoilu XP · +20 Juoksu XP`), 500);
+            },
+          }),
+      },
     ]);
   };
   // holding cell countdown

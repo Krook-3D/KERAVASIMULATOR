@@ -70,6 +70,22 @@ export function MotonetInterior() {
       ))}
       <Box p={[11.8, 0.45, -4]} s={[1.8, 0.9, 7.6]} color="#5a5f66" metal={0.4} />
       <InstancedBoxes items={goods} />
+      {/* building materials: boards, cement sacks, roof sheets, windows */}
+      <Box p={[-13, 0.08, -2]} s={[1.9, 0.16, 9.6]} color="#8a6a3e" />
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <Box key={`l${i}`} p={[-13.2, 0.24 + i * 0.1, -5.2]} s={[1.2, 0.09, 3.6]} color={i % 2 ? '#d9b27a' : '#cfa46a'} />
+      ))}
+      {[0, 1, 2].map((i) => [0, 1].map((j) => <Box key={`s${i}${j}`} p={[-13.4 + j * 0.62, 0.36 + i * 0.3, -2.2]} s={[0.58, 0.28, 0.9]} color="#c9c2b2" />))}
+      {[0, 1, 2, 3].map((i) => (
+        <Box key={`k${i}`} p={[-13.3, 0.5 + i * 0.05, 0.2]} s={[1.3, 0.04, 2.2]} color="#7d8894" metal={0.7} />
+      ))}
+      {[0, 1, 2].map((i) => (
+        <group key={`w${i}`}>
+          <Box p={[-13.75, 0.9, 1.6 + i * 0.35]} s={[0.1, 1.4, 0.08]} color="#f2f2f2" />
+          <Box p={[-13.75, 0.9, 1.6 + i * 0.35]} s={[0.06, 1.2, 0.9]} color="#a9d4ea" opacity={0.5} cast={false} />
+        </group>
+      ))}
+      <TextPanel p={[-12.2, 2.6, -2]} rotY={Math.PI / 2} w={2.6} h={0.5} text="RAKENNUSTARVIKKEET" bg={RED} />
       {/* checkout */}
       <Box p={[6.5, 0.55, 6.3]} s={[5, 1.1, 1.4]} color="#2a2d33" />
       <Box p={[6.5, 1.12, 6.3]} s={[5.2, 0.05, 1.5]} color="#c9ccd2" />

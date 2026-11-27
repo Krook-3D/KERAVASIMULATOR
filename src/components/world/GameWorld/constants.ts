@@ -33,3 +33,6 @@ export const TOWN_SIGNS: { key: 'barber' | 'alepa' | 'gym' | 'motonet' | 'police
 ];
 
 export const dist = (a: WorldXZ, b: WorldXZ) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+
+/** Kerava market square (kept free for the Pörssi). */
+export const TORI_LNGLAT: [number, number] = [25.1046, 60.4041];

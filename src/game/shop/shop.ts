@@ -59,6 +59,7 @@ export const SHOPS: Partial<Record<InteriorId, ShopDef>> = {
     shelves: [
       { id: 'paint', name: 'Spraymaalit', at: [-4, -2], items: ['spraymaali', 'spray_punainen', 'spray_sininen', 'spray_keltainen', 'spray_vihrea', 'spray_valkoinen', 'spray_pinkki'] },
       { id: 'tools', name: 'Työkalut', at: [8.6, -4], items: ['ruuvimeisseli', 'jakoavain', 'sorkkarauta', 'voimapihdit', 'taskulamppu', 'koysi'] },
+      { id: 'build', name: 'Rakennustarvikkeet', at: [-10, -2], items: ['lauta', 'sementti', 'kattopelti', 'ikkuna'] },
       { id: 'car', name: 'Autotarvikkeet', at: [2, -2], items: ['oljy', 'tyomiehenliivi', 'potkulautaakku'] },
     ],
     till: [6.5, 4.6],

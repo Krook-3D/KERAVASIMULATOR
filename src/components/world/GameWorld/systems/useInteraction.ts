@@ -20,6 +20,7 @@ import type { LiftId } from '../../../../game/gym/lifting';
 import { LIFTS } from '../../../../game/gym/lifting';
 import type { GameCtx, Spot, TrainStop } from '../gameWorld.types';
 import type { WorldSetup } from '../useWorldSetup';
+import type { Plot } from '../../../../game/world/plots';
 
 /** What the hotspots open, from the systems that own them. */
 export interface SpotActions {
@@ -43,6 +44,8 @@ export interface SpotActions {
   setAtShelf: (s: Shelf) => void;
   setAtTill: (v: boolean) => void;
   talkAtPoliceDesk: () => void;
+  usePlot: (p: Plot) => void;
+  plotsOwned: Record<string, unknown>;
 }
 
 /**
@@ -91,6 +94,10 @@ export function useInteraction(
       for (const t of trainStops) list.push({ at: t.at, label: `🚆 ${t.name}`, info: `Lähijunan laituri: ${t.name}.`, use: () => a.setAtTrain(t) });
       for (const st of stashes) if (!a.stashTaken.has(st.id)) list.push({ at: st.at, label: '❓ Jotain maassa', info: 'Sammaleen alla näkyy jotain. Joku on piilottanut tänne jotain.', use: () => a.takeStash(st) });
       for (const c of cookSpots) list.push({ at: c.at, label: `🔥 ${c.name}`, info: `${c.name}: täällä voi kokata raaka-aineista ruokaa.`, use: () => a.setAtCook(c) });
+      for (const pl of w.plots) {
+        const mine = !!a.plotsOwned[pl.id];
+        list.push({ at: pl.sign, label: mine ? '🏗️ Oma tontti' : `🪧 Tontti ${pl.price.toLocaleString('fi-FI')} €`, info: mine ? `Oma tonttisi (${pl.size} × ${pl.size} m). Rakenna talo Motonetin tarvikkeilla.` : `Myytävä rakennustontti: ${pl.zone}, ${pl.size} × ${pl.size} m, ${pl.price.toLocaleString('fi-FI')} €.`, use: () => a.usePlot(pl) });
+      }
       for (const l of loot) if (!lootTaken.includes(l.id)) list.push({ at: [l.x, l.z], label: `✨ ${itemName(l.itemId)}`, info: `${itemName(l.itemId)} (${RARITY_NAMES[ITEMS[l.itemId]?.rarity ?? 'common']}). ${ITEMS[l.itemId]?.description ?? ''}`, use: () => pickLoot(l) });
       return list;
     }
@@ -113,7 +120,7 @@ export function useInteraction(
     return list;
     // The actions read the latest state through closures re-created each render;
     // the list is rebuilt when any of these change (same dependencies as before the split).
-  }, [scene, doors, jonneAt, goTo, a.jailStep, player, a.carrying, busStops, trainStops, a.currentLook, loot, lootTaken, a.putkaUntil, cookSpots, stashes, a.stashTaken, a.chase]);
+  }, [scene, doors, jonneAt, goTo, a.jailStep, player, a.carrying, busStops, trainStops, a.currentLook, loot, lootTaken, a.putkaUntil, cookSpots, stashes, a.stashTaken, a.chase, w.plots, a.plotsOwned]);
 
   /**
    * A click in the world. There is no click-to-walk: you move with the arrow

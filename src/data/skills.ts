@@ -16,5 +16,6 @@ export const SKILLS: SkillDef[] = [
   { id: 'hustling', name: 'Hustlaus', icon: '🤝', description: 'Katukauppa, välitys ja paremmat hinnat. Kovempi maine avaa isommat diilit.' },
   { id: 'art', name: 'Art', icon: '🎨', description: 'Graffitit spraymaaleilla. Rähjäisiin paikkoihin plussaa karmaan, siisteille alueille miinusta. Älä jää kiinni.' },
   { id: 'martial', name: 'Kamppailu', icon: '🥊', description: 'Säkki, paini ja sparri Ahjo Training Centerissä. Yhdessä Voiman kanssa ratkaisee, pärjäätkö kun jengi käy kimppuun.' },
+  { id: 'construction', name: 'Rakentaminen', icon: '🔨', description: 'Osta oma tontti ja rakenna talo: perustus, runko, katto ja ikkunat. Materiaalit Motonetista.' },
   { id: 'evasion', name: 'Kyttien pakoilu', icon: '🚨', description: 'Partioiden välttely, jahdeista karkuun pääsy ja pienempi heat.' },
 ];

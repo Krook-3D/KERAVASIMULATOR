@@ -28,6 +28,9 @@ export type GameAction =
   | { type: 'caughtStealing'; karma: number }
   | { type: 'adjustKarma'; amount: number }
   | { type: 'setCrewMood'; crewId: string; mood: CrewMood }
+  | { type: 'buyPlot'; plotId: string; price: number }
+  | { type: 'sellPlot'; plotId: string; value: number }
+  | { type: 'buildStage'; plotId: string; needs: Record<string, number>; energy: number; xp: number; advance: boolean }
   | { type: 'recordLift'; lift: string; kg: number }
   | { type: 'eatItem'; itemId: string }
   | { type: 'useUp'; itemId: string }
@@ -99,6 +102,32 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       let next: Player = p;
       for (const [id, n] of Object.entries(p.stolen ?? {})) next = removeItem(next, id, n);
       return { player: { ...next, stolen: {}, sinceCaught: 0, karma: clampKarma((p.karma ?? 0) + action.karma) } };
+    }
+    case 'buyPlot': {
+      const p = state.player;
+      if (!p || p.plots?.[action.plotId] || p.money < action.price) return state;
+      return { player: { ...p, money: Math.round((p.money - action.price) * 100) / 100, plots: { ...p.plots, [action.plotId]: { stage: 0 } } } };
+    }
+    case 'sellPlot': {
+      const p = state.player;
+      if (!p?.plots?.[action.plotId]) return state;
+      const plots = { ...p.plots };
+      delete plots[action.plotId];
+      return { player: { ...p, money: Math.round((p.money + action.value) * 100) / 100, plots } };
+    }
+    case 'buildStage': {
+      // uses the materials and energy, gives Rakentaminen XP and (for a house stage) moves the house on
+      const p = state.player;
+      const plot = p?.plots?.[action.plotId];
+      if (!p || !plot) return state;
+      const have = (id: string) => p.inventory.reduce((a, s) => a + (s.itemId === id ? s.quantity : 0), 0);
+      if (Object.entries(action.needs).some(([id, n]) => have(id) < n)) return state;
+      let next = p;
+      for (const [id, n] of Object.entries(action.needs)) next = removeItem(next, id, n);
+      const skills = { ...next.skills, construction: { xp: (next.skills.construction?.xp ?? 0) + action.xp } };
+      const energy = Math.max(0, next.energy - action.energy);
+      const body = { ...(next.body ?? START_BODY), fat: Math.max(0, (next.body ?? START_BODY).fat - fatBurn(action.energy)) };
+      return { player: { ...next, skills, energy, body, plots: { ...next.plots, [action.plotId]: { stage: plot.stage + (action.advance ? 1 : 0) } } } };
     }
     case 'recordLift': {
       const p = state.player;

@@ -16,6 +16,7 @@ export type SkillId =
   | 'hustling'
   | 'evasion'
   | 'martial'
+  | 'construction'
   | 'art';
 
 export interface SkillState {
@@ -190,6 +191,8 @@ export interface Player {
   body?: import('../game/player/body').BodyState;
   /** Each crew's patience with you (provocations so far and when they snap). */
   crewMood?: Record<string, import('../game/street/provoke').CrewMood>;
+  /** Building plots you own and how far the house on each has got. */
+  plots?: Record<string, import('../game/world/plots').PlotState>;
   /** Opening cutscene (thrown off the train) has been seen. */
   introDone?: boolean;
   createdAt: number;

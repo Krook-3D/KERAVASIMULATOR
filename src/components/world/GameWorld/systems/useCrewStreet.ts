@@ -184,11 +184,17 @@ export function useCrewStreet(ctx: GameCtx, npcs: Npc[]) {
           },
         },
         {
-          text: '[Pakoilu / juoksu 5] Juokse karkuun.',
+          text: '🏃 Juokse karkuun! (rämpytä Spacea)',
           onPick: () =>
-            run >= 5
-              ? (dispatch({ type: 'grantReward', reward: { skillXp: { evasion: 45, running: 30 } } }), endGang('🏃 Juoksit karkuun! +45 Kyttien pakoilu XP · +30 Juoksu XP'))
-              : say(gang.crewName, '*Saavat sinut kiinni kulmalla*', [{ text: 'Ugh…', onPick: () => { dispatch({ type: 'adjustStats', health: -28 }); endGang('🤕 Jäit kiinni. −28 HP'); } }], `Pakoilu ${run}/5: ei riittänyt`),
+            ctx.escape({
+              title: gang.crewName,
+              skill: run,
+              difficulty: 0.8 + gang.size * 0.15,
+              onDone: (ok) =>
+                ok
+                  ? (dispatch({ type: 'grantReward', reward: { skillXp: { evasion: 45, running: 30 } } }), endGang('🏃 Juoksit karkuun! +45 Kyttien pakoilu XP · +30 Juoksu XP'))
+                  : say(gang.crewName, '*Saavat sinut kiinni kulmalla*', [{ text: 'Ugh…', onPick: () => { dispatch({ type: 'adjustStats', health: -28 }); endGang('🤕 Jäit kiinni. −28 HP'); } }]),
+            }),
         },
         money >= 25
           ? { text: 'Sori, mä olin idiootti. Tässä, ottakaa. (−25 €)', onPick: () => { dispatch({ type: 'adjustStats', money: -25 }); endGang('Maksoit itsesi ulos. −25 €'); } }

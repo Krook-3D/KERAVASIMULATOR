@@ -68,11 +68,17 @@ export function useStashes(ctx: GameCtx, toPutka: (karma: number, reason: PutkaR
               : say('Siviilipoliisi', 'Sattumalta. Kaikki sanoo niin. Lähdetään asemalle.', [{ text: 'Voi ei.', onPick: () => { loseStash(s); stashStep(s, STASH_STEP.done); setChase(null); toPutka(-4, 'stash'); } }], `Hustlaus ${hustle}/4: ei riittänyt`),
         },
         {
-          text: `[Kyttien pakoilu 6] Juokse metsään.`,
+          text: '🏃 Juokse metsään! (rämpytä Spacea)',
           onPick: () =>
-            evade >= 6
-              ? (dispatch({ type: 'grantReward', reward: { skillXp: { evasion: 60 } } }), endChase(s, true, '🏃 Karistit poliisit metsään! +60 Kyttien pakoilu XP'))
-              : say('Siviilipoliisi', 'Seis! *kampittaa sinut sammaleeseen*', [{ text: 'Auts.', onPick: () => { loseStash(s); stashStep(s, STASH_STEP.done); setChase(null); toPutka(-6, 'stash'); } }], `Pakoilu ${evade}/6: ei riittänyt`),
+            ctx.escape({
+              title: 'Siviilipoliisi',
+              skill: evade,
+              difficulty: 1.4,
+              onDone: (ok) =>
+                ok
+                  ? (dispatch({ type: 'grantReward', reward: { skillXp: { evasion: 60 } } }), endChase(s, true, '🏃 Karistit poliisit metsään! +60 Kyttien pakoilu XP'))
+                  : say('Siviilipoliisi', 'Seis! *kampittaa sinut sammaleeseen*', [{ text: 'Auts.', onPick: () => { loseStash(s); stashStep(s, STASH_STEP.done); setChase(null); toPutka(-6, 'stash'); } }]),
+            }),
         },
         { text: 'Antaudun. Ottakaa se.', onPick: () => { loseStash(s); dispatch({ type: 'adjustKarma', amount: 1 }); endChase(s, false, 'Poliisit ottivat kätkön ja päästivät sinut varoituksella.'); } },
       ]);
@@ -88,11 +94,17 @@ export function useStashes(ctx: GameCtx, toPutka: (karma: number, reason: PutkaR
             : say('Tuntematon jäbä', 'Valehtelet. *lyö sinua*', [{ text: 'Ugh…', onPick: () => { loseStash(s); dispatch({ type: 'adjustStats', health: -25 }); endChase(s, false, '🤕 Sait turpaan ja kätkö vietiin. −25 HP'); } }], `Hustlaus ${hustle}/6: ei riittänyt`),
       },
       {
-        text: '[Juoksu / pakoilu 5] Juokse karkuun.',
+        text: '🏃 Juokse karkuun! (rämpytä Spacea)',
         onPick: () =>
-          evade >= 5
-            ? (dispatch({ type: 'grantReward', reward: { skillXp: { evasion: 50, running: 30 } } }), endChase(s, true, '🏃 Juoksit karkuun kätkön kanssa!'))
-            : say('Tuntematon jäbä', '*saa sinut kiinni* Minne luulit meneväsi?', [{ text: 'Ugh…', onPick: () => { loseStash(s); dispatch({ type: 'adjustStats', health: -30 }); endChase(s, false, '🤕 Jäit kiinni ja kätkö vietiin. −30 HP'); } }], `Pakoilu ${evade}/5: ei riittänyt`),
+          ctx.escape({
+            title: 'Tuntematon jäbä',
+            skill: evade,
+            difficulty: 1,
+            onDone: (ok) =>
+              ok
+                ? (dispatch({ type: 'grantReward', reward: { skillXp: { evasion: 50, running: 30 } } }), endChase(s, true, '🏃 Juoksit karkuun kätkön kanssa!'))
+                : say('Tuntematon jäbä', '*saa sinut kiinni* Minne luulit meneväsi?', [{ text: 'Ugh…', onPick: () => { loseStash(s); dispatch({ type: 'adjustStats', health: -30 }); endChase(s, false, '🤕 Jäit kiinni ja kätkö vietiin. −30 HP'); } }]),
+          }),
       },
     ]);
   };

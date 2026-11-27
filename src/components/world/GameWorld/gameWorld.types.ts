@@ -51,4 +51,6 @@ export interface GameCtx {
   close: () => void;
   teleport: (scene: SceneId, p: WorldXZ) => void;
   goTo: (link: Link) => void;
+  /** Space-mash escape: closes the dialogue, runs the mash and reports the result. */
+  escape: (o: import('../../../game/street/escape').EscapeOpts) => void;
 }

@@ -14,6 +14,8 @@ import { muscleOf } from './player/body';
 import { fightChance, roadmanLevel, ROADMAN_MAX, ROADMAN_MIN } from './street/fight';
 import { DRILLS, drillXp } from './gym/drills';
 import { CHECK_LEVEL, dealPrice, resolveDeal, scamChance } from './street/streetDeals';
+import { BUILD_STAGES, placePlots, plotPrice, plotResale, plotSize, pricePerM2 } from './world/plots';
+import { escapeChance } from './street/escape';
 import { ATTACK_MAX, ATTACK_MIN, freshMood, provoke } from './street/provoke';
 
 const fresh = (): GameState => ({ player: createPlayer('Testi') });
@@ -351,5 +353,62 @@ describe('landforms', () => {
     expect(landformHeight(forms, 0, 0, 3)).toBeCloseTo(12);
     const ph = landformsFor({ ...base, source: 'placeholder' });
     expect(ph.some((f) => f.name === 'Aurinkomäki')).toBe(true);
+  });
+});
+
+describe('building plots', () => {
+  it('centre plots are small and pricey, edge plots big and cheap', () => {
+    expect(plotSize(150)).toBeLessThan(plotSize(1500));
+    expect(plotPrice(150)).toBeGreaterThan(plotPrice(1500));
+    expect(pricePerM2(150)).toBeGreaterThan(pricePerM2(1500) * 20);
+    for (let d = 100; d < 1600; d += 100) expect(plotPrice(d + 100)).toBeLessThanOrEqual(plotPrice(d));
+  });
+  it('places plots only on free land with a road nearby', () => {
+    const plots = placePlots({
+      free: ([x]) => x > -600,
+      road: ([, z], m) => Math.abs(z % 140) < m + 3,
+      height: () => 0,
+      bounds: { minX: -1500, maxX: 1500, minZ: -1500, maxZ: 1500 },
+    });
+    expect(plots.length).toBeGreaterThan(10);
+    for (const p of plots) expect(p.at[0] - p.size / 2).toBeGreaterThan(-600);
+    for (let i = 0; i < plots.length; i++)
+      for (let j = i + 1; j < plots.length; j++)
+        expect(Math.hypot(plots[i]!.at[0] - plots[j]!.at[0], plots[i]!.at[1] - plots[j]!.at[1])).toBeGreaterThan((plots[i]!.size + plots[j]!.size) / 2);
+  });
+  it('buying, building and selling', () => {
+    let s: GameState = { player: { ...createPlayer('t', '#fff'), money: 3000, energy: 100 } };
+    s = gameReducer(s, { type: 'buyPlot', plotId: 'a', price: 2000 });
+    expect(s.player!.money).toBe(1000);
+    expect(s.player!.plots?.a?.stage).toBe(0);
+    const st = BUILD_STAGES[0]!;
+    // no cement yet: nothing happens
+    const before = s;
+    s = gameReducer(s, { type: 'buildStage', plotId: 'a', needs: st.needs, energy: st.energy, xp: st.xp, advance: true });
+    expect(s).toBe(before);
+    s = gameReducer(s, { type: 'addItem', itemId: 'sementti', quantity: 4 });
+    s = gameReducer(s, { type: 'buildStage', plotId: 'a', needs: st.needs, energy: st.energy, xp: st.xp, advance: true });
+    expect(s.player!.plots?.a?.stage).toBe(1);
+    expect(s.player!.skills.construction.xp).toBe(st.xp);
+    expect(s.player!.inventory.some((i) => i.itemId === 'sementti')).toBe(false);
+    const plot = { id: 'a', at: [0, 0] as [number, number], size: 14, front: [0, 1] as [number, number], sign: [0, 6] as [number, number], price: 2000, zone: 'Keskusta' as const };
+    const v = plotResale(plot, { stage: 1 }, priceOf);
+    expect(v).toBe(Math.round((1600 + 4 * priceOf('sementti')) / 10) * 10);
+    s = gameReducer(s, { type: 'sellPlot', plotId: 'a', value: v });
+    expect(s.player!.plots?.a).toBeUndefined();
+    expect(s.player!.money).toBe(1000 + v);
+  });
+});
+
+describe('space-mash escapes', () => {
+  it('faster mashing gives better odds', () => {
+    expect(escapeChance(30, 3, 0)).toBeGreaterThan(escapeChance(15, 3, 0));
+    expect(escapeChance(15, 3, 0)).toBeGreaterThan(escapeChance(3, 3, 0));
+    expect(escapeChance(0, 3, 0)).toBe(0.03);
+    expect(escapeChance(200, 3, 50)).toBe(0.95);
+  });
+  it('skill helps a bit, harder pursuers hurt', () => {
+    expect(escapeChance(20, 3, 10)).toBeGreaterThan(escapeChance(20, 3, 0));
+    expect(escapeChance(20, 3, 0, 1.5)).toBeLessThan(escapeChance(20, 3, 0, 0.7));
   });
 });

@@ -896,3 +896,20 @@ button.inv-slot:disabled { cursor: default; }
 .use-prompt kbd { display: inline-block; min-width: 18px; text-align: center; background: var(--yellow); color: #14171f; border-radius: 4px; font-weight: 800; padding: 0 4px; margin-right: 4px; }
 .ctx-backdrop { position: fixed; inset: 0; z-index: 59; }
 .ctx-menu button:disabled { opacity: 0.5; cursor: default; }
+.build-progress { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); background: #14171fe6; color: var(--text); border: 1px solid #2f3648; border-radius: 10px; padding: 10px 14px; min-width: 240px; z-index: 30; font-weight: 700; pointer-events: none; }
+.build-progress__bar { margin-top: 8px; height: 8px; border-radius: 4px; background: #2f3648; overflow: hidden; }
+.build-progress__bar span { display: block; height: 100%; background: var(--yellow); transition: width 0.2s linear; }
+.mash { position: fixed; left: 50%; top: 38%; transform: translate(-50%, -50%); width: min(420px, calc(100vw - 32px)); background: #14171ff0; border: 2px solid var(--yellow); border-radius: 14px; padding: 16px 18px; text-align: center; color: var(--text); z-index: 40; box-shadow: 0 10px 40px #0008; }
+.mash.is-free { border-color: #3fbf6f; }
+.mash.is-caught { border-color: #e0483c; }
+.mash__who { font-size: 14px; opacity: 0.85; }
+.mash__big { display: block; width: 100%; margin: 10px 0; font-size: 26px; font-weight: 900; letter-spacing: 0.5px; color: var(--yellow); background: none; border: 0; cursor: pointer; animation: mash-pulse 0.35s ease-in-out infinite alternate; }
+.mash.is-free .mash__big { color: #3fbf6f; animation: none; }
+.mash.is-caught .mash__big { color: #e0483c; animation: none; }
+.mash__big kbd { display: inline-block; background: var(--yellow); color: #14171f; border-radius: 6px; padding: 0 8px; }
+.mash__time, .mash__meter { height: 8px; border-radius: 4px; background: #2f3648; overflow: hidden; margin-top: 8px; }
+.mash__time span { display: block; height: 100%; background: #9aa3b5; }
+.mash__meter { height: 14px; }
+.mash__meter span { display: block; height: 100%; background: linear-gradient(90deg, #e0483c, #ffd23f 50%, #3fbf6f); transition: width 0.08s linear; }
+.mash__stats { margin-top: 8px; font-size: 13px; opacity: 0.85; }
+@keyframes mash-pulse { from { transform: scale(1); } to { transform: scale(1.06); } }

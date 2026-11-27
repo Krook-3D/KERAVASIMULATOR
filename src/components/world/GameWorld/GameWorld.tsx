@@ -28,6 +28,9 @@ import { useWorldSetup } from './useWorldSetup';
 import { useDebugHook } from './useDebugHook';
 import { useJailbreak } from './systems/useJailbreak';
 import { useCooking } from './systems/useCooking';
+import { useBuilding } from './systems/useBuilding';
+import { useEscapeMash } from './systems/useEscapeMash';
+import { EscapeMash } from './hud/EscapeMash';
 import { useTraining } from './systems/useTraining';
 import { useTransit } from './systems/useTransit';
 import { useShop } from './systems/useShop';
@@ -170,6 +173,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
   );
 
   // ------------------------------------------------------------ game systems
+  const escapeMash = useEscapeMash(setDialogue);
   const ctx: GameCtx = {
     player,
     dispatch,
@@ -188,6 +192,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     close: () => setDialogue(null),
     teleport,
     goTo,
+    escape: escapeMash.start,
   };
   const jailbreak = useJailbreak(ctx, jailStep, jailLive, holdingRef);
   const cooking = useCooking(ctx);
@@ -197,6 +202,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
   const graffiti = useGraffiti(ctx, w, npcLive, shop.toPutka);
   const stash = useStashes(ctx, shop.toPutka);
   const roina = useRoina(ctx);
+  const building = useBuilding(ctx, w);
   const barber = useBarber(ctx, color);
   usePolicePatrol(ctx, { doors, alert: shop.alert, occupied: training.busy || transit.riding || !!stash.chase || !!graffiti.painting, toPutka: shop.toPutka });
   // NPC talk walks you up to the NPC with the click handler defined below.
@@ -216,7 +222,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
 
   // ------------------------------------------------------------ clicks and arrival
   /** Clicks, keys and steering are ignored while true (cutscene, dialogue, training, riding, painting, chase). */
-  const inputLocked = cutscene || !!dialogue || fading || training.busy || transit.riding || !!graffiti.painting || !!stash.chase || !!talk.gang;
+  const inputLocked = cutscene || !!dialogue || fading || training.busy || transit.riding || !!graffiti.painting || !!stash.chase || !!talk.gang || !!building.job || !!escapeMash.mash;
   /** Close all open panels when the player walks off. */
   const closePanels = () => {
     transit.setAtBusStop(null);
@@ -254,6 +260,8 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       setAtShelf: shop.setAtShelf,
       setAtTill: shop.setAtTill,
       talkAtPoliceDesk: () => shop.talkAtPoliceDesk(stash.policeDeskOptions),
+      usePlot: building.usePlot,
+      plotsOwned: building.owned,
     },
     {
       locked: inputLocked,
@@ -288,7 +296,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
   }, []);
   // Give the mouse back whenever a menu, panel or dialogue needs it.
   useEffect(() => {
-    const UI = '.dialogue, .gym-hud, .shop-hud, .shelf-pop, .cook-list, .bus-hud, .panel, .graffiti, .ctx-menu';
+    const UI = '.dialogue, .mash, .gym-hud, .shop-hud, .shelf-pop, .cook-list, .bus-hud, .panel, .graffiti, .ctx-menu';
     const check = () => {
       if (document.pointerLockElement && document.querySelector(UI)) document.exitPointerLock();
     };
@@ -399,7 +407,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
           <group visible={inWorld}>
             <GameMap w={w} clouds={clouds} xray={xray} highQuality={highQuality} cutscene={cutscene} playerRef={positionRef} clockRef={clockRef} busRun={transit.busRun} onGroundClick={onGroundClick} />
             <NPCLayer npcs={w.npcs} live={npcLive} terrain={terrain!} cutscene={cutscene} clockRef={clockRef} playerRef={positionRef} talkingId={talk.talkingId} onTalk={talk.onNpcClick} />
-            <WorldObjects w={w} pieces={graffiti.pieces} stashTaken={stash.stashTaken} lootTaken={interaction.lootTaken} cutscene={cutscene} playerRef={positionRef} onGroundClick={onGroundClick} />
+            <WorldObjects w={w} pieces={graffiti.pieces} stashTaken={stash.stashTaken} lootTaken={interaction.lootTaken} owned={building.owned} cutscene={cutscene} playerRef={positionRef} onGroundClick={onGroundClick} />
             <QuestLayer
               w={w}
               jailStep={jailStep}
@@ -487,6 +495,13 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
               </button>
             ))}
           </div>
+        </div>
+      )}
+      {escapeMash.mash && <EscapeMash mash={escapeMash.mash} onPress={escapeMash.press} />}
+      {building.job && (
+        <div className="build-progress">
+          <div>🔨 {building.job.name}…</div>
+          <div className="build-progress__bar"><span style={{ width: `${Math.round(building.progress * 100)}%` }} /></div>
         </div>
       )}
       {!cutscene && nearSpot && !inputLocked && <div className="use-prompt"><kbd>E</kbd> Käytä</div>}

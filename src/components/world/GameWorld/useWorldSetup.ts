@@ -3,7 +3,9 @@ import * as THREE from 'three';
 import type { WorldXZ } from '../../../game/world/projection';
 import { loadWorldData, worldBounds, type Building, type WorldData } from '../../../game/world/worldData';
 import { createTerrain } from '../../../game/world/terrain';
-import { placeTrees } from '../../../game/world/vegetation';
+import { placeTrees, RoadIndex } from '../../../game/world/vegetation';
+import { placePlots, type Plot } from '../../../game/world/plots';
+import { lngLatToWorld } from '../../../game/world/projection';
 import { placeStreetProps } from '../../../game/world/streetProps';
 import { PropCollider } from '../../../game/world/propCollider';
 import { placeBlock, placeBlockAt, placePrisma } from '../../../game/world/prisma';
@@ -27,7 +29,7 @@ import { placeLoot } from '../../../game/world/loot';
 import { placeCookSpots } from '../../../game/world/grills';
 import { populate } from '../../../game/npc/population';
 import { placeStashes } from '../../../game/quests/stashes';
-import { JONNE_LOCAL, PRISON_AT, PRISON_FOOTPRINT, dist } from './constants';
+import { JONNE_LOCAL, PRISON_AT, TORI_LNGLAT, PRISON_FOOTPRINT, dist } from './constants';
 import type { TrainStop, WorldDoor } from './gameWorld.types';
 
 /**
@@ -87,16 +89,33 @@ export function useWorldSetup(scene: SceneId) {
   );
   /** Lamp posts, parked cars, bus shelters and tree trunks (filled in once they are placed below). */
   const propColRef = useRef<PropCollider | null>(null);
+  /** Houses the player has built on their plots (set by GameWorld from the save). */
+  const houseColRef = useRef<PropCollider | null>(null);
   const extraBlocked = useCallback(
     (p: WorldXZ, from?: WorldXZ) => {
       if (scene !== 'world' || !layout) return false;
-      return isTrackBlocked(layout, p) || (!!from && bridgeBlocked(layout, p, from)) || !!propColRef.current?.isBlocked(p);
+      return isTrackBlocked(layout, p) || (!!from && bridgeBlocked(layout, p, from)) || !!propColRef.current?.isBlocked(p) || !!houseColRef.current?.isBlocked(p);
     },
     [layout, scene],
   );
+  /** Buyable plots on free land (the tori, the station and the prison area stay free). */
+  const plots = useMemo((): Plot[] => {
+    if (!world || !collider || !terrain || !layout) return [];
+    const roads = new RoadIndex(world.roads);
+    const tori = lngLatToWorld(TORI_LNGLAT);
+    const free = (p: WorldXZ) =>
+      !collider.isBlocked(p, 3) &&
+      !isTrackBlocked(layout, p) &&
+      !isInStationClearZone(layout, p) &&
+      dist(p, PRISON_AT) > 70 &&
+      dist(p, tori) > 90 &&
+      terrain.heightAt(p[0], p[1]) >= terrain.surfaceAt(p[0], p[1]) - 0.2;
+    return placePlots({ free, road: (p, m) => roads.near(p, m), height: (p) => terrain.heightAt(p[0], p[1]), bounds: worldBounds(world) });
+  }, [world, collider, terrain, layout]);
+  const inPlot = useCallback((p: WorldXZ) => plots.some((pl) => Math.abs(p[0] - pl.at[0]) < pl.size / 2 + 1 && Math.abs(p[1] - pl.at[1]) < pl.size / 2 + 1), [plots]);
   const excludeTrees = useCallback(
-    (p: WorldXZ) => (layout ? isInStationClearZone(layout, p) : false) || dist(p, PRISON_AT) < 45,
-    [layout],
+    (p: WorldXZ) => (layout ? isInStationClearZone(layout, p) : false) || dist(p, PRISON_AT) < 45 || inPlot(p),
+    [layout, inPlot],
   );
   const grassBlocked = useCallback((p: WorldXZ) => !!collider?.isBlocked(p, 0.6) || (layout ? isTrackBlocked(layout, p) || isInStationClearZone(layout, p) : false), [collider, layout]);
   const clampToWorld = ([x, z]: WorldXZ): WorldXZ => {
@@ -235,6 +254,8 @@ export function useWorldSetup(scene: SceneId) {
     trees,
     streetProps,
     propCollider,
+    plots,
+    houseColRef,
     clampToWorld,
     loot,
     npcs,

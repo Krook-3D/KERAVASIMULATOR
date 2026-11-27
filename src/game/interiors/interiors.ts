@@ -303,6 +303,7 @@ const motonet: InteriorDef = {
     R(-14, 14, -10, -8.8), // back wall racks (tyres, oil)
     R(9.5, 14, -8, 0), // tool wall
     R(4, 9, 5.6, 7), // checkout
+    R(-14, -12, -7, 3), // building materials rack
   ],
   exits: [{ id: 'main', at: [-9, 9.4], spawn: [-9, 7.4], yaw: Math.PI, label: 'Ulos', to: { scene: 'world', door: 'motonet' } }],
 };

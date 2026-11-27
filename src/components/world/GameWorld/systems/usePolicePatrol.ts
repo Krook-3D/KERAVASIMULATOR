@@ -34,8 +34,14 @@ export function usePolicePatrol(
           onPick: () => (hustle >= 7 ? (dispatch({ type: 'grantReward', reward: { skillXp: { hustling: 40 } } }), say('Poliisipartio', 'Hmm. Jatka matkaa.', [{ text: 'Kiitos.', onPick: close }], `Hustlaus ${hustle}/7: onnistui`)) : say('Poliisipartio', 'Katsotaanpa… Nämä lähtee meidän mukaan. Ja sinä myös.', [{ text: 'Voi ei.', onPick: () => { dispatch({ type: 'confiscateDrugs' }); toPutka(-5, 'stash'); } }], `Hustlaus ${hustle}/7: ei riittänyt`)),
         },
         {
-          text: '[Pakoilu 6] Juokse.',
-          onPick: () => (evade >= 6 ? (dispatch({ type: 'grantReward', reward: { skillXp: { evasion: 50 } } }), close(), setToast('🏃 Karistit partion! +50 Kyttien pakoilu XP')) : say('Poliisipartio', 'Seis! *saa sinut kiinni*', [{ text: 'Auts.', onPick: () => { dispatch({ type: 'confiscateDrugs' }); toPutka(-6, 'stash'); } }], `Pakoilu ${evade}/6: ei riittänyt`)),
+          text: '🏃 Juokse! (rämpytä Spacea)',
+          onPick: () =>
+            ctx.escape({
+              title: 'Poliisipartio',
+              skill: evade,
+              difficulty: 1.5,
+              onDone: (ok) => (ok ? (dispatch({ type: 'grantReward', reward: { skillXp: { evasion: 50 } } }), setToast('🏃 Karistit partion! +50 Kyttien pakoilu XP')) : say('Poliisipartio', 'Seis! *saa sinut kiinni*', [{ text: 'Auts.', onPick: () => { dispatch({ type: 'confiscateDrugs' }); toPutka(-6, 'stash'); } }])),
+            }),
         },
         { text: 'Ottakaa ne. En halua ongelmia.', onPick: () => { dispatch({ type: 'confiscateDrugs' }); dispatch({ type: 'adjustKarma', amount: 1 }); close(); setToast('Partio takavarikoi tavarat ja päästi sinut varoituksella.'); } },
       ]);

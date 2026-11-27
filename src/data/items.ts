@@ -53,6 +53,12 @@ const defs: Record<string, Def> = {
   rikkinainenpuhelin: { name: 'Rikkinäinen puhelin', description: 'Näyttö säpäleinä. Osat voi myydä.', category: 'misc', value: 5, rarity: 'common', icon: '📵' },
   potkulautaakku: { name: 'Potkulaudan akku', description: 'Sähköpotkulaudan akku. Raskas.', category: 'material', value: 25, rarity: 'uncommon', icon: '🔋' },
 
+  // ---- building materials (Motonet)
+  lauta: { name: 'Lauta', description: 'Höylätty rakennuslauta 2×4. Rungot, seinät ja puutyöt.', category: 'material', value: 3, rarity: 'common', stackable: true, price: 6, icon: '🪵' },
+  sementti: { name: 'Sementtisäkki', description: '25 kg säkki. Sekoita vedellä, valuta perustukseen.', category: 'material', value: 4, rarity: 'common', stackable: true, price: 9, icon: '🧱' },
+  kattopelti: { name: 'Kattopelti', description: 'Profiloitu teräspelti. Ei vuoda, kolisee sateella.', category: 'material', value: 7, rarity: 'common', stackable: true, price: 14, icon: '🔩' },
+  ikkuna: { name: 'Ikkuna', description: 'Kolmilasinen ikkuna karmeineen.', category: 'material', value: 18, rarity: 'uncommon', stackable: true, price: 35, icon: '🪟' },
+
   // ---- groceries (shops)
   maito: { name: 'Maito', description: 'Litra kevytmaitoa.', category: 'food', value: 0.5, rarity: 'common', stackable: true, price: 1.2, icon: '🥛', effects: { energy: 4 } },
   kananmunat: { name: 'Kananmunat', description: 'Kuuden kennon pakkaus.', category: 'food', value: 1, rarity: 'common', stackable: true, price: 2.5, icon: '🥚' },
