@@ -64,6 +64,13 @@ export type TradeCancelReason =
   | 'not_allowed'
   | 'server_shutdown';
 
+export interface WorldInfo {
+  name: string;
+  online: number;
+  capacity: number;
+  queued: number;
+}
+
 // ── client → server ────────────────────────────────────────────────
 
 export type ClientMessage =
@@ -90,7 +97,9 @@ export type ErrorCode =
   | 'internal';
 
 export type ServerMessage =
-  | { t: 'welcome'; protocol: number; you: PublicPlayer; tickRate: number }
+  | { t: 'welcome'; protocol: number; you: PublicPlayer; tickRate: number; world: WorldInfo }
+  /** World is full: you are waiting in line. Sent again whenever your position changes. */
+  | { t: 'queue'; position: number; world: WorldInfo }
   | { t: 'pong'; now: number }
   | { t: 'snapshot'; players: PublicPlayer[] }
   | { t: 'player.join'; player: PublicPlayer }

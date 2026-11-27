@@ -39,6 +39,7 @@ Tietokantatestit käyttävät `TEST_DATABASE_URL`:ia (oletus `postgres://kerava:
 | Metodi | Polku | Kuvaus |
 | --- | --- | --- |
 | GET | `/api/health` | `{ ok, online, trades }` |
+| GET | `/api/worlds` | maailmat: `{ name, online, capacity, queued }` |
 | POST | `/api/auth/register` | `{ email, password, adult: true }` → 201 |
 | POST | `/api/auth/login` | `{ email, password }` → asettaa `ks_session`-evästeen (HttpOnly, SameSite=Strict) |
 | POST | `/api/auth/logout` | mitätöi session |
@@ -50,7 +51,7 @@ POST-pyynnöissä pitää olla sallittu `Origin` (`ALLOWED_ORIGINS`), muuten 403
 
 ## WebSocket
 
-Yhdistä `ws(s)://<palvelin>/ws` samalta originilta kirjautumisen jälkeen (eväste tulee mukana). Viestit: [`shared/protocol.ts`](../shared/protocol.ts). Ensimmäinen viesti on `welcome`, sitten `snapshot` lähellä olevista pelaajista.
+Yhdistä `ws(s)://<palvelin>/ws` samalta originilta kirjautumisen jälkeen (eväste tulee mukana). Viestit: [`shared/protocol.ts`](../shared/protocol.ts). Ensimmäinen viesti on `welcome`, sitten `snapshot` lähellä olevista pelaajista. Jos maailma on täynnä (oletus 20 pelaajaa, `MAX_PLAYERS`), tulee ensin `queue { position }` ja `welcome` vasta kun paikka vapautuu. Täyden jonon yli yhteys saa HTTP 503.
 
 Kehityksessä Viten proxy kannattaa ohjata palvelimelle, jotta eväste ja origin ovat samat:
 

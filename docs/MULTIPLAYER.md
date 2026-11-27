@@ -120,11 +120,30 @@ ping                                       correction { x, z }
 
 ## 6. Läsnäolo: pelaajat näkevät toisensa
 
-- **Maailmat (worlds)**: kuten RuneScapessa, palvelimella on useita rinnakkaisia maailmoja ("Kerava 1", "Kerava 2"…). Maailma on yksi prosessi tai sen osa, jossa on enintään esim. 500 pelaajaa. Pelaaja valitsee maailman tai saa vähiten täyden. Talous (raha, tavarat, Pörssi) on **yhteinen kaikille maailmoille**, koska se on tietokannassa.
-- **Näkyvyysalue (interest management)**: maailma jaetaan 64 m × 64 m ruutuihin. Pelaaja näkee oman ruutunsa ja 8 naapuriruutua (noin 190 m × 190 m). Kun pelaaja vaihtaa ruutua, hän saa `player.join` uusista ja `player.leave` poistuneista. Näin 500 pelaajan maailmassa yksi pelaaja vastaanottaa vain lähellä olevien liikkeet.
+- **Maailmat (worlds)**: kuten RuneScapessa, palvelimella on useita rinnakkaisia maailmoja ("Kerava 1", "Kerava 2"…). Maailma on yksi palvelinprosessi. **Julkaisussa yhden maailman raja on 20 samanaikaista pelaajaa** (asetus `MAX_PLAYERS`, ks. luku 6.1). Pelaaja valitsee maailman tai saa vähiten täyden. Talous (raha, tavarat, Pörssi) on **yhteinen kaikille maailmoille**, koska se on tietokannassa.
+- **Näkyvyysalue (interest management)**: maailma jaetaan 64 m × 64 m ruutuihin. Pelaaja näkee oman ruutunsa ja 8 naapuriruutua (noin 190 m × 190 m). Kun pelaaja vaihtaa ruutua, hän saa `player.join` uusista ja `player.leave` poistuneista. Näin isommassakin maailmassa (myöhemmin satoja pelaajia) yksi pelaaja vastaanottaa vain lähellä olevien liikkeet.
 - **Päivitystahti**: palvelin kerää liikkeet ja lähettää ne 10 kertaa sekunnissa (tick 100 ms), vain muuttuneet. Client interpoloi muiden pelaajien sijaintia 100–150 ms viiveellä, jolloin liike näyttää sulavalta.
 - **Mitä toisista näkyy**: nimi, väri/ulkonäkö, character level, sijainti, suunta, animaatiotila (kävely, kalastus, treeni). Ei rahaa, ei repun sisältöä, ei heatia.
 - **Chat**: lähichat näkyy saman näkyvyysalueen pelaajille puhekuplana ja chat-ikkunassa. Myöhemmin yksityisviestit, kaverilista ja ignore-lista. Suodatin: kirosanat sallittuja (K18), mutta herjaukset, henkilötiedot (puhelinnumerot, osoitteet) ja linkit suodatetaan. Uudet tilit eivät voi lähettää linkkejä eivätkä yksityisviestejä tuntemattomille ensimmäisten 2 tunnin aikana (spämmibotit).
+
+### 6.1 Pelaajamäärä ja jono julkaisussa
+
+Aluksi **20 pelaajaa per maailma**. Pieni raja on tarkoituksellinen:
+- Ensimmäinen julkaisu on testi: 20 pelaajaa riittää näkemään, toimiiko kauppa, chat ja talous oikeasti, ja ongelmat ovat vielä pieniä.
+- Halvin mahdollinen palvelin (1–2 vCPU, 2–4 GB) riittää hyvin, koska 20 pelaajaa × 10 päivitystä sekunnissa on palvelimelle kevyttä.
+- Keravan keskusta tuntuu elävältä jo 20 pelaajalla, kun kaikki kohtaavat torilla ja asemalla.
+
+Miten raja toimii (toteutettu, `server/src/ws/gateway.ts`):
+- Kun maailmassa on 20 pelaajaa, seuraava saa viestin `queue { position, world }` ja odottaa jonossa. Jonossa ei voi tehdä mitään pelissä (vain ping).
+- Kun joku poistuu, jonon ensimmäinen pääsee sisään (`welcome`), ja muut saavat päivitetyn jonopaikan.
+- Jonon pituus on rajattu (`MAX_QUEUE`, oletus 50). Sen yli tuleva yhteys saa HTTP 503 -vastauksen, ja client näyttää "Maailma on täynnä, kokeile toista maailmaa tai yritä hetken päästä".
+- Jo pelissä oleva hahmo, joka yhdistää uudelleen (esim. sivun päivitys), pitää paikkansa eikä joudu jonoon.
+- `GET /api/worlds` kertoo kirjautumisruudulle maailmat: nimi, pelaajat, kapasiteetti, jonossa.
+
+Kasvatus myöhemmin, ilman koodimuutoksia:
+1. Nosta rajaa (`MAX_PLAYERS=50`, sitten 100), kun mittarit (tick-aika, viestit/s, CPU) näyttävät että varaa on.
+2. Lisää maailmoja: käynnistä uusi prosessi `WORLD_NAME="Kerava 2"` omalla portilla. Talous on yhteinen, koska se on tietokannassa. Maailmalistan kokoaminen kaikista prosesseista tulee Redisin myötä (luku 19).
+3. Pidä maailmat mieluummin pieninä ja täysinä kuin isoina ja tyhjinä: puolityhjä maailma tuntuu kuolleelta.
 
 ## 7. Tavaramalli ja omistus
 
@@ -375,7 +394,7 @@ Migraatiot ovat numeroituja SQL-tiedostoja, jotka ajetaan järjestyksessä (`npm
 
 ## 19. Julkaisu, skaalaus ja varmuuskopiot
 
-**Alku (0–500 samanaikaista pelaajaa)**: yksi VPS (esim. 4 vCPU, 8 GB), Docker Compose: Caddy (TLS Let's Encryptillä) + Node-palvelin + PostgreSQL. Staattinen client Caddyn kautta tai CDN:stä. Hinta luokkaa 20–40 €/kk.
+**Julkaisu (yksi maailma, 20 pelaajaa)**: yksi pieni VPS (esim. 2 vCPU, 4 GB), Docker Compose: Caddy (TLS Let's Encryptillä) + Node-palvelin + PostgreSQL. Staattinen client Caddyn kautta tai CDN:stä. Hinta luokkaa 5–15 €/kk. Sama kone kantaa useita 20 hengen maailmoja ja myöhemmin satoja pelaajia (4 vCPU, 8 GB, noin 20–40 €/kk).
 
 **Kasvu**: Node-prosesseja useampi, yksi per maailma. Tietokanta yhteinen (talous on siellä). Redis pub/sub maailmojen väliseen chattiin ja kaverilistan "online"-tietoon. Pörssin täsmäytys pysyy tietokannassa, joten se toimii vaikka prosesseja on monta.
 
@@ -396,7 +415,7 @@ Migraatiot ovat numeroituja SQL-tiedostoja, jotka ajetaan järjestyksessä (`npm
 | Vaihe | Sisältö | Valmis kun |
 | --- | --- | --- |
 | M1 | Palvelimen pohja: Fastify, PostgreSQL, migraatiot, tilit, sessiot, hahmon luonti | Rekisteröinti ja kirjautuminen toimivat, hahmo tietokannassa |
-| M2 | WebSocket: yhteys, protokolla, nopeusrajat, läsnäolo ja näkyvyysalueet, liikkeen validointi, lähichat | Kaksi selainta näkevät toistensa hahmot liikkumassa |
+| M2 | WebSocket: yhteys, protokolla, nopeusrajat, läsnäolo ja näkyvyysalueet, liikkeen validointi, lähichat, 20 pelaajan raja ja jono | Kaksi selainta näkevät toistensa hahmot liikkumassa |
 | M3 | Talouden ydin: kirjanpito, inventaario palvelimella | Kaikki saldot ledgerissä, tarkastus täsmää |
 | M4 | Pelaajien kauppa: tilakone, kaksoisvahvistus, atominen commit | Kauppa toimii, dupetustestit menevät läpi |
 | M5 | Clientin online-tila: kirjautumisruutu, muiden pelaajien hahmot, chat, kauppaikkuna | Pelattavissa netissä |
@@ -415,10 +434,11 @@ Kansio `server/` (oma npm-paketti) ja `shared/`:
 - **Hahmot**: luonti nimen validoinnilla ja uniikkiudella.
 - **Kirjanpito**: `economy/ledger.ts`, raha- ja itemoperaatiot ehdollisilla UPDATEilla ja ledger-riveillä, tarkastusfunktio. Tavarat ovat toistaiseksi pinoina (`inventory_items`); `item_instances`-taulu uniikeille esineille on skeemassa valmiina, mutta käyttöön se otetaan kun ensimmäinen uniikki esine (kuluva työkalu) tulee peliin.
 - **WebSocket**: autentikointi evästeellä, Origin-tarkistus, zod-validointi, token bucket -nopeusrajat, yksi yhteys per hahmo, heartbeat.
+- **Pelaajaraja ja jono**: 20 pelaajaa per maailma, jono täydelle maailmalle, `GET /api/worlds`.
 - **Läsnäolo**: ruudukkopohjainen näkyvyysalue, join/leave/move-viestit, liikkeen nopeustarkistus ja korjaus, lähichat.
 - **Kauppa**: koko tilakone (pyyntö, tarjous, hyväksyntä, vahvistus, peruutukset, aikarajat, etäisyys), atominen commit rivilukoilla, kauppahistoria.
 - **Pörssin täsmäytysmoottori** puhtaana funktiona (`market/matching.ts`): hinta–aika-prioriteetti, osittaiset täsmäykset, vero, palautukset. Tietokantaintegraatio on vaihe M7.
-- Testit (`npm test` kansiossa `server/`, 52 kpl): salasanat, viestien validointi, nopeusrajat, näkyvyysalueet, liikkeen huijausesto, täsmäysmoottori (myös rahan säilyminen), kirjanpito (20 rinnakkaista ostoa samalla rahalla), kaupan dupetusyritykset (sama tavara kahteen kauppaan yhtä aikaa, kaupan uusinta, ristikkäiset kaupat ilman deadlockia), uusien tilien rajat, ja koko kauppa päästä päähän kahdella oikealla WebSocket-yhteydellä.
+- Testit (`npm test` kansiossa `server/`, 54 kpl): salasanat, viestien validointi, nopeusrajat, näkyvyysalueet, liikkeen huijausesto, täsmäysmoottori (myös rahan säilyminen), kirjanpito (20 rinnakkaista ostoa samalla rahalla), kaupan dupetusyritykset (sama tavara kahteen kauppaan yhtä aikaa, kaupan uusinta, ristikkäiset kaupat ilman deadlockia), uusien tilien rajat, ja koko kauppa päästä päähän kahdella oikealla WebSocket-yhteydellä.
 
 **Seuraavaksi (M5)**: clientiin kirjautumisruutu, muiden pelaajien hahmot `PublicPlayer`-datasta (sama `Humanoid`-komponentti), chat-ikkuna ja kauppaikkuna. Se koskee clientin tiedostoja, joten se tehdään yhdessä clientin kehityksen kanssa.
 

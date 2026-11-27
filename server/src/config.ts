@@ -12,6 +12,12 @@ export interface Config {
   maxCharacters: number;
   /** New accounts per IP per hour. */
   registerPerHour: number;
+  /** World name shown to players, e.g. "Kerava 1". */
+  worldName: string;
+  /** Max concurrent players in this world; the rest wait in a queue. */
+  maxPlayers: number;
+  /** Max players waiting in the queue; beyond this new connections are refused. */
+  maxQueue: number;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -28,5 +34,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     termsVersion: 1,
     maxCharacters: 1,
     registerPerHour: Number(env.REGISTER_PER_HOUR ?? 3),
+    worldName: env.WORLD_NAME ?? 'Kerava 1',
+    maxPlayers: Number(env.MAX_PLAYERS ?? 20),
+    maxQueue: Number(env.MAX_QUEUE ?? 50),
   };
 }

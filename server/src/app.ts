@@ -53,11 +53,11 @@ export async function buildApp(config: Config, db: Db): Promise<App> {
 
   const auth = new AuthService(db, { sessionTtlMs: config.sessionTtlMs, termsVersion: config.termsVersion });
   const characters = new CharacterService(db, config.maxCharacters);
-  const world = new World('Kerava 1', undefined, (id, reason) => http.log.warn({ id, reason }, 'player flagged'));
+  const world = new World(config.worldName, undefined, (id, reason) => http.log.warn({ id, reason }, 'player flagged'));
   // Gateway is created below; trade permission checks go through it.
   let gateway: Gateway;
   const trades = new TradeManager({ db, world, canTrade: (id) => gateway.canTrade(id) });
-  gateway = new Gateway({ auth, characters, world, trades, allowedOrigins: config.allowedOrigins, log: (m, e) => http.log.error({ err: e }, m) });
+  gateway = new Gateway({ auth, characters, world, trades, allowedOrigins: config.allowedOrigins, maxPlayers: config.maxPlayers, maxQueue: config.maxQueue, log: (m, e) => http.log.error({ err: e }, m) });
 
   const registerLimit = keyedLimiter(config.registerPerHour / 3600, config.registerPerHour);
 
@@ -91,6 +91,9 @@ export async function buildApp(config: Config, db: Db): Promise<App> {
   });
 
   http.get('/api/health', async () => ({ ok: true, online: gateway.online, trades: trades.openCount }));
+
+  // World list for the login screen (one world per process for now; later aggregated from all worlds).
+  http.get('/api/worlds', async () => ({ worlds: [gateway.worldInfo()] }));
 
   http.post('/api/auth/register', async (req, reply) => {
     if (!registerLimit(req.ip)) return reply.code(429).send({ error: 'rate_limited' });
