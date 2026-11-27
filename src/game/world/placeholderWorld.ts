@@ -56,7 +56,7 @@ export function createPlaceholderWorld(): WorldData {
     for (let j = 0; j < zs.length - 1; j++) {
       const x0 = xs[i]! + 12, x1 = xs[i + 1]! - 12;
       const z0 = zs[j]! + 12, z1 = zs[j + 1]! - 12;
-      const isPark = (i === 4 && j === 3) || (i === 1 && j === 4);
+      const isPark = (i === 5 && j === 4) || (i === 1 && j === 5); // the blocks under the park outlines below
       if (isPark) continue;
       for (let bx = x0; bx < x1 - 20; bx += 34) {
         for (let bz = z0; bz < z1 - 20; bz += 34) {
