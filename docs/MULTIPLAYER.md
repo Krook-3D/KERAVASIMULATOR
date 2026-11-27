@@ -212,7 +212,7 @@ Jos palvelin kaatuu ennen COMMITia, mitään ei tapahtunut. Jos se kaatuu COMMIT
 
 ## 10. Kerava-Pörssi (pelaajien markkinapaikka)
 
-Oma järjestelmä, jossa pelaajat ostavat ja myyvät toisilleen ilman että tarvitsee olla samaan aikaan paikalla. Pörssi on fyysinen paikka pelissä: **Kauppakadun Pörssi-kioski** (yleinen, keksitty kioski kävelykadulla) ja myöhemmin pienempi pääte asemalla. Tarjouksia voi tehdä vain paikan päällä, mutta niiden tilaa voi seurata kaikkialla.
+Oma järjestelmä, jossa pelaajat ostavat ja myyvät toisilleen ilman että tarvitsee olla samaan aikaan paikalla. Pörssi on fyysinen paikka pelissä: **Keravan torilla** keskustassa, pelin sosiaalisena keskipisteenä. Torin keskellä on oma Pörssi-paviljonki (keksitty rakennelma: katos, välittäjä-NPC:t tiskien takana, iso hintataulu), jonka ympärille pelaajat kerääntyvät. Tarjouksia voi tehdä vain torilla välittäjän tiskillä (etäisyys tarkistetaan palvelimella), mutta niiden tilaa voi seurata kaikkialla. Koska tori on kaikkien kohtaamispaikka, se on myös luonteva paikka kasvokkain käytävälle kaupalle, ja torin lähichat on vilkkain.
 
 ### Toiminta
 
@@ -230,7 +230,7 @@ Oma järjestelmä, jossa pelaajat ostavat ja myyvät toisilleen ilman että tarv
 
 - **Myyntivero 2 %** jokaisesta täsmänneestä myynnistä (pyöristys alaspäin, max 5 000 € per kauppa, alle 1 € kaupat verottomia). Vero poistuu pelistä: se on pelin tärkein rahanielu.
 - **Hintakaista**: tarjouksen hinta saa olla enintään ±30 % item-kohtaisesta **ohjehinnasta** (guide price). Estää rahan siirtämisen tililtä toiselle Pörssin kautta (myy kahvi 10 000 €:lla omalle kakkostilille) ja hintojen manipuloinnin yksittäisillä hölmöillä kaupoilla. Kaista on kapeampi harvoin kaupatuille itemeille.
-- **Ohjehinta**: päivitetään tunnin välein, 24 tunnin volyymipainotettu mediaani täsmänneistä kaupoista. Poikkeavat kaupat (alin ja ylin 5 %) jätetään pois. Uudelle itemille ohjehinta on NPC-arvo × 1.5. Ohjehinta voi muuttua enintään 5 % tunnissa.
+- **Ohjehinta**: päivitetään tunnin välein, 24 tunnin volyymipainotettu mediaani täsmänneistä kaupoista (mediaani ei heilu yksittäisistä poikkeavista kaupoista). Uudelle itemille ohjehinta on NPC-arvo × 1.5. Ohjehinta voi muuttua enintään 5 % tunnissa.
 - **Ostorajat**: kustakin itemistä voi ostaa enintään N kpl 4 tunnissa (item-kohtainen, esim. ahven 2 000, harvinainen 5). Hidastaa markkinan nurkkaamista.
 - **Ei Pörssiä uusille**: tili vähintään 24 h vanha ja character level 5. Botit eivät pääse heti myymään farmaamaansa.
 
@@ -413,11 +413,13 @@ Kansio `server/` (oma npm-paketti) ja `shared/`:
 - `server/migrations/001_init.sql`: koko skeema (luku 18), myös Pörssin taulut valmiiksi.
 - **Tilit**: rekisteröinti (K18-vahvistus pakollinen), kirjautuminen, uloskirjautuminen, `GET /api/me`, scrypt-salasanat, tiivistetyt sessiotokenit, kirjautumisen nopeusraja.
 - **Hahmot**: luonti nimen validoinnilla ja uniikkiudella.
-- **Kirjanpito**: `economy/ledger.ts`, raha- ja itemoperaatiot ehdollisilla UPDATEilla ja ledger-riveillä, tarkastusfunktio.
+- **Kirjanpito**: `economy/ledger.ts`, raha- ja itemoperaatiot ehdollisilla UPDATEilla ja ledger-riveillä, tarkastusfunktio. Tavarat ovat toistaiseksi pinoina (`inventory_items`); `item_instances`-taulu uniikeille esineille on skeemassa valmiina, mutta käyttöön se otetaan kun ensimmäinen uniikki esine (kuluva työkalu) tulee peliin.
 - **WebSocket**: autentikointi evästeellä, Origin-tarkistus, zod-validointi, token bucket -nopeusrajat, yksi yhteys per hahmo, heartbeat.
 - **Läsnäolo**: ruudukkopohjainen näkyvyysalue, join/leave/move-viestit, liikkeen nopeustarkistus ja korjaus, lähichat.
 - **Kauppa**: koko tilakone (pyyntö, tarjous, hyväksyntä, vahvistus, peruutukset, aikarajat, etäisyys), atominen commit rivilukoilla, kauppahistoria.
 - **Pörssin täsmäytysmoottori** puhtaana funktiona (`market/matching.ts`): hinta–aika-prioriteetti, osittaiset täsmäykset, vero, palautukset. Tietokantaintegraatio on vaihe M7.
-- Testit (`npm test` kansiossa `server/`): salasanat, nopeusrajat, näkyvyysalueet, täsmäysmoottori, kirjanpito, kaupan dupetustestit oikealla PostgreSQL:llä.
+- Testit (`npm test` kansiossa `server/`, 52 kpl): salasanat, viestien validointi, nopeusrajat, näkyvyysalueet, liikkeen huijausesto, täsmäysmoottori (myös rahan säilyminen), kirjanpito (20 rinnakkaista ostoa samalla rahalla), kaupan dupetusyritykset (sama tavara kahteen kauppaan yhtä aikaa, kaupan uusinta, ristikkäiset kaupat ilman deadlockia), uusien tilien rajat, ja koko kauppa päästä päähän kahdella oikealla WebSocket-yhteydellä.
+
+**Seuraavaksi (M5)**: clientiin kirjautumisruutu, muiden pelaajien hahmot `PublicPlayer`-datasta (sama `Humanoid`-komponentti), chat-ikkuna ja kauppaikkuna. Se koskee clientin tiedostoja, joten se tehdään yhdessä clientin kehityksen kanssa.
 
 Käynnistys: ks. `server/README.md`.

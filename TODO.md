@@ -72,8 +72,20 @@ Vaiheet: ks. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#8-kehitysjärjestys).
 - [ ] Charisma- ja Knowledge-skillit
 - [ ] Katukaupan maine ja rangit
 
+## Moninpeli ja talous (ks. [docs/MULTIPLAYER.md](docs/MULTIPLAYER.md))
+- [x] Suunnitelma: tilit, palvelinauktoriteetti, läsnäolo, kauppa, Pörssi torilla, talouden tasapaino, huijausten esto
+- [x] M1 Palvelimen pohja `server/`: Fastify, PostgreSQL-skeema, migraatiot, tilit (K18), sessiot, hahmot
+- [x] M2 WebSocket: läsnäolo ja näkyvyysalueet, liikkeen validointi, lähichat, nopeusrajat
+- [x] M3 Kirjanpito: raha ja tavarat vain ledgerin kautta, tarkastus
+- [x] M4 Pelaajien kauppa: kaksoisvahvistus, atominen commit, dupetustestit
+- [ ] M5 Client online-tilaan: kirjautuminen, muut pelaajat, chat, kauppaikkuna
+- [ ] M6 Aktiviteetit, NPC-kaupat ja questit palvelimelle
+- [ ] M7 Kerava-Pörssi torilla: tietokantaintegraatio (täsmäysmoottori valmis), noutolaatikko, hintahistoria
+- [ ] M8 Talouden mittarit, admin-työkalut, moderointi, varmuuskopiot
+- [ ] M9 Katukauppa ja poliisi palvelimella, Areena PvP
+
 ## Myöhemmin
-- [ ] Backend (Node + TS, REST) ja PostgreSQL/PostGIS
+- [ ] PostGIS
 - [ ] Maailma chunkeiksi, koko Kerava
 - [ ] Omat glTF-mallit (hahmo, puut, maamerkit)
 - [ ] Achievementit, daily/weekly, minipelit, GPS
