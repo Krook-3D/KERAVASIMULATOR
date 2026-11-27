@@ -7,6 +7,8 @@ import { setDuration, type GymActive } from '../../interiors/GymInterior';
 import { SWIM_TIME } from '../../interiors/PoolInterior';
 import { SWIM_ENERGY } from '../constants';
 import type { GameCtx } from '../gameWorld.types';
+import { DRILLS, drillXp, type DrillId } from '../../../../game/gym/drills';
+import { DRILL_TIME, type FightActive } from '../../interiors/FightGymInterior';
 
 /**
  * Gym lifts (carry plates, load the bar, lift) and swimming laps, plus the
@@ -23,7 +25,10 @@ export function useTraining(ctx: GameCtx, otherBusy: boolean) {
   const [gymActive, setGymActive] = useState<GymActive | null>(null);
   const [atPool, setAtPool] = useState(false);
   const [swimT0, setSwimT0] = useState<number | null>(null);
-  const busy = !!gymActive || swimT0 !== null || otherBusy;
+  const [atDrill, setAtDrill] = useState<DrillId | null>(null);
+  const [fightActive, setFightActive] = useState<FightActive | null>(null);
+  const martial = levelFromXp(player?.skills.martial?.xp ?? 0);
+  const busy = !!gymActive || swimT0 !== null || !!fightActive || otherBusy;
   const buffMult = useMemo(() => buffMultipliers(player?.buffs ?? []), [player?.buffs]);
 
   // Energy comes back slowly while you are not training.
@@ -86,7 +91,26 @@ export function useTraining(ctx: GameCtx, otherBusy: boolean) {
     }, SWIM_TIME * 1000);
   };
 
+  const startDrill = () => {
+    const d = atDrill ? DRILLS[atDrill] : null;
+    if (!d || busy || energy < d.energy || martial < d.level) return;
+    setFightActive({ drill: d.id, t0: clockRef.current });
+    setPlayerVisible(false);
+    window.setTimeout(() => {
+      setFightActive(null);
+      setPlayerVisible(true);
+      dispatch({ type: 'adjustStats', energy: -d.energy });
+      const xp = drillXp(d, martial, Math.random());
+      const sXp = d.strengthXp ? Math.round(d.strengthXp * buffMult.strengthXp) : 0;
+      dispatch({ type: 'grantReward', reward: { skillXp: { martial: xp, ...(sXp ? { strength: sXp } : {}) } } });
+      const hurt = d.hurtChance && Math.random() < d.hurtChance ? d.hurt ?? 0 : 0;
+      if (hurt) dispatch({ type: 'adjustStats', health: -hurt });
+      setToast(`🥊 ${d.name} valmis. +${xp} Kamppailu XP${sXp ? ` · +${sXp} Voima XP` : ''}${hurt ? ` · osuma naamaan −${hurt} HP` : ''}`);
+    }, DRILL_TIME * 1000);
+  };
+
   return {
+    martial, atDrill, setAtDrill, fightActive, startDrill,
     strength, energy, busy, gymActive, gymPairs, carrying, setCarrying, atStation, setAtStation, atPool, setAtPool, swimT0,
     fetchPlate, arriveAtStation, removePair, startLift, startSwim,
   };

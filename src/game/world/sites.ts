@@ -9,4 +9,6 @@ export const SITES = {
   pool: { lngLat: [25.0935, 60.399] as [number, number], w: 44, d: 34, h: 10, kind: 'pool' },
   police: { lngLat: [25.1052, 60.4038] as [number, number], w: 26, d: 18, h: 9, kind: 'police' },
   motonet: { lngLat: [25.1105, 60.4072] as [number, number], w: 40, d: 30, h: 8, kind: 'motonet' },
+  /** Combat gym in Ahjo, near the Ahjon Ässät hangout. */
+  fightgym: { lngLat: [25.1109, 60.4035] as [number, number], w: 28, d: 22, h: 7, kind: 'fightgym' },
 } as const;

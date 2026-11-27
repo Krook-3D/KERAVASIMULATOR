@@ -253,6 +253,6 @@ export function talkTreeFor(npc: Npc): TalkTree {
 }
 
 export function speakerName(npc: Npc): string {
-  if (npc.kind === 'crew') return `${npc.name} · ${CREWS.find((c) => c.id === npc.crew)?.name ?? 'jengi'}`;
+  if (npc.kind === 'crew') return `${npc.name} (lv ${npc.level ?? '?'}) · ${CREWS.find((c) => c.id === npc.crew)?.name ?? 'jengi'}`;
   return npc.name;
 }

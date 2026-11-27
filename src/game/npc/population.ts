@@ -1,3 +1,4 @@
+import { roadmanLevel } from '../street/fight';
 import type { WorldXZ } from '../world/projection';
 import type { Road, WorldData } from '../world/worldData';
 import { ROAD_WIDTH } from '../world/worldData';
@@ -36,6 +37,8 @@ export interface Npc {
   look: NpcLook;
   /** Crew members belong to a named crew. */
   crew?: string;
+  /** Crew members' fighting level (3–15). */
+  level?: number;
   /** Standing NPCs: fixed spot + yaw. Walkers: a route walked back and forth. */
   at?: WorldXZ;
   yaw?: number;
@@ -175,7 +178,8 @@ export function populate(world: WorldData, ok: (p: WorldXZ) => boolean, extraHan
         const r = 1.3 + rng() * 0.6;
         const at: WorldXZ = [centre[0] + Math.sin(a) * r, centre[1] + Math.cos(a) * r];
         const nm = rng() < 0.35 ? `${pick(rng, NICK)} ${pick(rng, FIRST)}` : pick(rng, FIRST);
-        npcs.push({ id: id('c'), kind: 'crew', name: nm, crew: crew.id, look: look(rng, 'crew', crew.colour), at, yaw: Math.atan2(centre[0] - at[0], centre[1] - at[1]) });
+        const cid = id('c');
+        npcs.push({ id: cid, kind: 'crew', name: nm, crew: crew.id, level: roadmanLevel(cid), look: look(rng, 'crew', crew.colour), at, yaw: Math.atan2(centre[0] - at[0], centre[1] - at[1]) });
       }
     }
   }

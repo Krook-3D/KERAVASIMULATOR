@@ -8,6 +8,8 @@ import { artXp, spotQuality, witnessReaction } from './art/graffiti';
 import { buffMultipliers, strainEffect } from './gym/roina';
 import type { Player } from '../types/game';
 import { moveDir } from '../components/world/controls';
+import { fightChance, roadmanLevel, ROADMAN_MAX, ROADMAN_MIN } from './street/fight';
+import { DRILLS, drillXp } from './gym/drills';
 import { CHECK_LEVEL, dealPrice, resolveDeal, scamChance } from './street/streetDeals';
 import { ATTACK_MAX, ATTACK_MIN, freshMood, provoke } from './street/provoke';
 
@@ -260,5 +262,38 @@ describe('street deals', () => {
   it('haggles at most 25 % off', () => {
     expect(dealPrice(20, 1)).toBe(20);
     expect(dealPrice(20, 99)).toBe(15);
+  });
+});
+
+describe('roadman fights', () => {
+  it('gives every crew member a level from 3 to 15', () => {
+    const lv = Array.from({ length: 300 }, (_, i) => roadmanLevel(`c${i}`));
+    expect(Math.min(...lv)).toBe(ROADMAN_MIN);
+    expect(Math.max(...lv)).toBe(ROADMAN_MAX);
+  });
+  it('wins more with gym and especially martial training', () => {
+    const gang = [8, 6, 5];
+    const fresh = fightChance(1, 1, gang);
+    const gymRat = fightChance(20, 1, gang);
+    const fighter = fightChance(1, 20, gang);
+    expect(fresh).toBeLessThan(0.1);
+    expect(gymRat).toBeGreaterThan(fresh);
+    expect(fighter).toBeGreaterThan(gymRat);
+    expect(fightChance(40, 40, [15, 15, 15, 15])).toBeGreaterThan(0.9);
+  });
+  it('is harder against higher-level and bigger gangs', () => {
+    expect(fightChance(10, 10, [3, 3, 3])).toBeGreaterThan(fightChance(10, 10, [15, 12, 10]));
+    expect(fightChance(10, 10, [8])).toBeGreaterThan(fightChance(10, 10, [8, 8, 8, 8]));
+  });
+});
+
+describe('crew mood and martial drills', () => {
+  it('stores each crew’s patience in the save', () => {
+    const s = run(fresh(), { type: 'setCrewMood', crewId: 'laituri', mood: { count: 2, attackAt: 4 } });
+    expect(s.player!.crewMood).toEqual({ laituri: { count: 2, attackAt: 4 } });
+  });
+  it('gives more XP for harder drills', () => {
+    expect(drillXp(DRILLS.spar, 6, 0.5)).toBeGreaterThan(drillXp(DRILLS.wrestle, 6, 0.5));
+    expect(drillXp(DRILLS.wrestle, 6, 0.5)).toBeGreaterThan(drillXp(DRILLS.bag, 6, 0.5));
   });
 });

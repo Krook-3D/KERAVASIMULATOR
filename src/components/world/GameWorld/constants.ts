@@ -20,12 +20,13 @@ export const ROINA_TALK_SPOT: WorldXZ = [7.0, 5.0];
 export const SWIM_ENERGY = 8;
 
 /** Shop-front signs for the town buildings placed from sites.ts. */
-export const TOWN_SIGNS: { key: 'barber' | 'alepa' | 'gym' | 'motonet' | 'police' | 'pool'; sign: string; color: string; sub?: string }[] = [
+export const TOWN_SIGNS: { key: 'barber' | 'alepa' | 'gym' | 'motonet' | 'police' | 'pool' | 'fightgym'; sign: string; color: string; sub?: string }[] = [
   { key: 'barber', sign: 'PARTURI', color: '#7a1f2a', sub: 'SAKSET · AJANVARAUS EI TARPEEN' },
   { key: 'alepa', sign: 'Alepa', color: '#f28c28' },
   { key: 'gym', sign: 'KUNTOSALI RAUTA', color: '#c8312b', sub: 'AVOINNA 24/7' },
   { key: 'motonet', sign: 'MOTONET', color: '#d4202a', sub: 'AUTO · KOTI · VAPAA-AIKA' },
   { key: 'police', sign: 'POLIISI', color: '#1f3f8f', sub: 'POLISEN · KERAVAN POLIISIASEMA' },
+  { key: 'fightgym', sign: 'AHJO TRAINING CENTER', color: '#14171f', sub: 'NYRKKEILY · PAINI · KAMPPAILU' },
   { key: 'pool', sign: 'UIMAHALLI', color: '#1f8fc0', sub: 'KERAVAN UIMAHALLI' },
 ];
 

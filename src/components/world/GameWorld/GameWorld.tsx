@@ -219,6 +219,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     barber.setBarberDraft(null);
     training.setAtStation(null);
     training.setAtPool(false);
+    training.setAtDrill(null);
     training.setCarrying(null);
     shop.setAtShelf(null);
     shop.setPicked(null);
@@ -243,6 +244,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       talkToPete: roina.talkToPete,
       arriveAtStation: training.arriveAtStation,
       setAtPool: training.setAtPool,
+      setAtDrill: training.setAtDrill,
       setBarberDraft: barber.setBarberDraft,
       setAtShelf: shop.setAtShelf,
       setAtTill: shop.setAtTill,
@@ -361,6 +363,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
             gymPairs={training.gymPairs}
             gymActive={training.gymActive}
             swimT0={training.swimT0}
+            fightActive={training.fightActive}
             outfit={outfit}
             clockRef={clockRef}
             playerRef={positionRef}

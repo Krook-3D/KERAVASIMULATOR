@@ -177,3 +177,37 @@ export function poseSwim(b: HumanBones, t: number) {
   b.head.rotation.y = Math.sin(w) * 0.5;
   b.chest.rotation.y = Math.sin(w) * 0.25;
 }
+
+/** Fighting stance: hands up, knees soft. `punch` 0–1 throws the right (1) or left (-1) hand. */
+export function poseGuard(b: HumanBones, t: number, punch: number) {
+  const bob = Math.sin(t * 6) * 0.03;
+  b.hips.position.y = 0.92 + bob;
+  for (const s of ['L', 'R'] as const) {
+    const out = s === 'L' ? 1 : -1;
+    const k = s === 'R' ? Math.max(0, punch) : Math.max(0, -punch);
+    b[`thigh${s}`].rotation.set(-0.18, 0, out * 0.12);
+    b[`shin${s}`].rotation.x = 0.3;
+    b[`foot${s}`].rotation.x = -0.12;
+    b[`upperArm${s}`].rotation.set(-0.9 - 0.65 * k, 0, out * (0.35 - 0.25 * k));
+    b[`forearm${s}`].rotation.x = -1.9 * (1 - k) - 0.05;
+  }
+  b.chest.rotation.y = -punch * 0.35;
+  b.spine.rotation.x = 0.12;
+  b.head.rotation.x = 0.08;
+}
+
+/** Clinch / grappling: bent forward, arms wrapped around the partner. `sway` −1…1. */
+export function poseGrapple(b: HumanBones, sway: number) {
+  b.hips.position.y = 0.84;
+  for (const s of ['L', 'R'] as const) {
+    const out = s === 'L' ? 1 : -1;
+    b[`thigh${s}`].rotation.set(-0.45 + out * sway * 0.15, 0, out * 0.22);
+    b[`shin${s}`].rotation.x = 0.7;
+    b[`foot${s}`].rotation.x = -0.25;
+    b[`upperArm${s}`].rotation.set(-1.25, 0, out * 0.25);
+    b[`forearm${s}`].rotation.x = -0.9;
+  }
+  b.spine.rotation.set(0.45, 0, sway * 0.12);
+  b.chest.rotation.x = 0.2;
+  b.head.rotation.x = -0.2;
+}

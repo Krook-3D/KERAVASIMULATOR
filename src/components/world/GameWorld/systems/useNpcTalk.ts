@@ -30,7 +30,7 @@ export function useNpcTalk(
   const { npcs, npcLive, blocked, walkTo, stash } = opts;
   const [talkingId, setTalkingId] = useState<string | null>(null);
   const pendingTalk = useRef<string | null>(null);
-  const street = useCrewStreet(ctx);
+  const street = useCrewStreet(ctx, npcs);
 
   useEffect(() => {
     if (!dialogue) setTalkingId(null);

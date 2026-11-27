@@ -4,6 +4,7 @@ import { GymHud } from '../../gym/GymHud';
 import { AppearanceEditor } from '../../../editor/AppearanceEditor';
 import { AvatarPreview } from '../../../editor/AvatarPreview';
 import { SWIM_ENERGY } from '../constants';
+import { DRILLS } from '../../../../game/gym/drills';
 import type { useTraining } from '../systems/useTraining';
 import type { useBarber } from '../systems/useBarber';
 
@@ -37,6 +38,21 @@ export function VenueHud({ scene, t, b, money }: { scene: SceneId; t: ReturnType
           </div>
         </div>
       )}
+      {scene === 'fightgym' && t.atDrill && !t.fightActive && (() => {
+        const d = DRILLS[t.atDrill];
+        const low = t.martial < d.level;
+        return (
+          <div className="gym-hud">
+            <div className="gym-hud__title">{d.name} <span className="muted">· Kamppailu {t.martial}</span></div>
+            <p className="muted">{low ? `Valmentaja: "Treenaa ensin perusteet. Tähän tarvitaan Kamppailu ${d.level}."` : d.blurb}</p>
+            <div className="gym-hud__actions">
+              <button type="button" className="btn" disabled={low || energy < d.energy || t.busy} onClick={t.startDrill}>
+                {low ? `Vaatii Kamppailu ${d.level}` : energy < d.energy ? 'Liian väsynyt' : `Treenaa (−${d.energy} ⚡)`}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
       {scene === 'barber' && b.barberDraft && b.draftOutfit && (
         <div className="barber-hud">
           <div className="gym-hud__title">✂ Parturi Sakset <span className="muted">· {BARBER_PRICE} € · rahaa {money} €</span></div>

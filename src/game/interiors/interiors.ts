@@ -6,11 +6,11 @@ import type { WorldXZ } from '../world/projection';
  * the floor at y = 0. Exits link to a door in the world or to another
  * interior's exit.
  */
-export type InteriorId = 'tunnel' | 'station' | 'prisma' | 'prison' | 'gym' | 'pool' | 'alepa' | 'barber' | 'police' | 'motonet';
+export type InteriorId = 'tunnel' | 'station' | 'prisma' | 'prison' | 'gym' | 'pool' | 'alepa' | 'barber' | 'police' | 'motonet' | 'fightgym';
 export type SceneId = 'world' | InteriorId;
 
 /** Doors placed in the 3D town (positions are worked out at runtime). */
-export type WorldDoorId = 'tunnel-town' | 'tunnel-east' | 'station-platform' | 'station-town' | 'prisma' | 'prison-yard' | 'gym' | 'pool' | 'alepa' | 'barber' | 'police' | 'motonet';
+export type WorldDoorId = 'tunnel-town' | 'tunnel-east' | 'station-platform' | 'station-town' | 'prisma' | 'prison-yard' | 'gym' | 'pool' | 'alepa' | 'barber' | 'police' | 'motonet' | 'fightgym';
 
 export interface Rect {
   minX: number;
@@ -307,7 +307,35 @@ const motonet: InteriorDef = {
   exits: [{ id: 'main', at: [-9, 9.4], spawn: [-9, 7.4], yaw: Math.PI, label: 'Ulos', to: { scene: 'world', door: 'motonet' } }],
 };
 
-export const INTERIORS: Record<InteriorId, InteriorDef> = { tunnel, station, prisma, prison, gym, pool, alepa, barber, police, motonet };
+// ------------------------------------------------------------ Ahjo Training Center (combat gym)
+// Boxing ring in the north-west, heavy bags along the north wall, wrestling
+// mats in the east half, reception by the door.
+export const FIGHT_HALL = R(-12, 12, -9, 9);
+export const FIGHT_RING = R(-9, -1, -7.5, 0.5);
+export const FIGHT_BAG_XS = [3.5, 6.5, 9.5];
+export const FIGHT_BAG_Z = -6.6;
+export const FIGHT_MAT = R(1.5, 11, -2.5, 5);
+/** Hotspots: heavy bag, wrestling mat (with the coach) and the ring (sparring). */
+export const FIGHT_SPOTS = {
+  bag: [6.5, -4.9] as WorldXZ,
+  wrestle: [4.5, 1.2] as WorldXZ,
+  spar: [-5, 1.8] as WorldXZ,
+};
+const fightgym: InteriorDef = {
+  id: 'fightgym',
+  name: 'Ahjo Training Center',
+  floor: FIGHT_HALL,
+  solids: [
+    ...roomWalls(FIGHT_HALL, 0.4, [['s', 8, 2.4]]),
+    FIGHT_RING,
+    ...FIGHT_BAG_XS.map((x) => R(x - 0.45, x + 0.45, FIGHT_BAG_Z - 0.45, FIGHT_BAG_Z + 0.45)),
+    R(-12, -6.5, 6.6, 9), // reception
+    R(-12, -10.8, -7, 4), // bench and lockers
+  ],
+  exits: [{ id: 'main', at: [8, 8.4], spawn: [8, 6.6], yaw: Math.PI, label: 'Ulos', to: { scene: 'world', door: 'fightgym' } }],
+};
+
+export const INTERIORS: Record<InteriorId, InteriorDef> = { tunnel, station, prisma, prison, gym, pool, alepa, barber, police, motonet, fightgym };
 
 export const inRect = (r: Rect, [x, z]: WorldXZ, pad = 0) => x >= r.minX - pad && x <= r.maxX + pad && z >= r.minZ - pad && z <= r.maxZ + pad;
 

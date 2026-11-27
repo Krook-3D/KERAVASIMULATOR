@@ -57,13 +57,15 @@ export function useWorldSetup(scene: SceneId) {
     buildings = barber.buildings;
     const motonet = placeBlock(buildings, rawWorld.roads, SITES.motonet.lngLat, SITES.motonet.w, SITES.motonet.d, SITES.motonet.h, SITES.motonet.kind);
     buildings = motonet.buildings;
+    const fightgym = placeBlock(buildings, rawWorld.roads, SITES.fightgym.lngLat, SITES.fightgym.w, SITES.fightgym.d, SITES.fightgym.h, SITES.fightgym.kind);
+    buildings = fightgym.buildings;
     const police = placeBlock(buildings, rawWorld.roads, SITES.police.lngLat, SITES.police.w, SITES.police.d, SITES.police.h, SITES.police.kind);
     buildings = police.buildings;
     const savio = findSavioStation(rawWorld);
     const alepaAt: WorldXZ = [savio.centre[0] + savio.side[0] * 32 + savio.dir[0] * 6, savio.centre[1] + savio.side[1] * 32 + savio.dir[1] * 6];
     const alepa = placeBlockAt(buildings.filter((b) => b.kind !== 'alepa'), rawWorld.roads, alepaAt, 24, 18, 5, 'alepa');
     buildings = alepa.buildings;
-    return { world: { ...rawWorld, buildings }, gym: gym.site, pool: pool.site, alepa: alepa.site, barber: barber.site, police: police.site, motonet: motonet.site, savio };
+    return { world: { ...rawWorld, buildings }, gym: gym.site, pool: pool.site, alepa: alepa.site, barber: barber.site, police: police.site, motonet: motonet.site, fightgym: fightgym.site, savio };
   }, [rawWorld, layout, prisma]);
   const world = placed?.world ?? null;
   const terrain = useMemo(() => (world && layout ? createTerrain(world, layout) : null), [world, layout]);
@@ -117,6 +119,7 @@ export function useWorldSetup(scene: SceneId) {
       list.push({ id: 'barber', at: placed.barber.door, outward: placed.barber.outward, label: 'Parturi', to: { scene: 'barber', exit: 'main' } });
       list.push({ id: 'alepa', at: placed.alepa.door, outward: placed.alepa.outward, label: 'Alepa', to: { scene: 'alepa', exit: 'main' } });
       list.push({ id: 'motonet', at: placed.motonet.door, outward: placed.motonet.outward, label: 'Motonet', to: { scene: 'motonet', exit: 'main' } });
+      list.push({ id: 'fightgym', at: placed.fightgym.door, outward: placed.fightgym.outward, label: 'Ahjo Training Center', to: { scene: 'fightgym', exit: 'main' } });
       list.push({ id: 'police', at: placed.police.door, outward: placed.police.outward, label: 'Poliisiasema', to: { scene: 'police', exit: 'main' } });
       list.push({ id: 'pool', at: placed.pool.door, outward: placed.pool.outward, label: 'Uimahalli', to: { scene: 'pool', exit: 'main' } });
     }

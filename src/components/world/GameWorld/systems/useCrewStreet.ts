@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { WorldXZ } from '../../../../game/world/projection';
 import { levelFromXp } from '../../../../game/xp/xp';
 import { CREWS, type Npc } from '../../../../game/npc/population';
@@ -6,7 +6,8 @@ import { speakerName } from '../../../../game/npc/talk';
 import { canAdd } from '../../../../game/store/gameReducer';
 import { itemIcon, itemName } from '../../../../data/items';
 import { CHECK_LEVEL, dealPrice, FAKE_GOOD, resolveDeal, STREET_GOODS, type StreetGood } from '../../../../game/street/streetDeals';
-import { INSULTS, provoke, WARNINGS, type CrewMood } from '../../../../game/street/provoke';
+import { INSULTS, provoke, WARNINGS } from '../../../../game/street/provoke';
+import { fightChance } from '../../../../game/street/fight';
 import type { DialogueView } from '../../quest/DialogueBox';
 import type { GameCtx } from '../gameWorld.types';
 
@@ -16,6 +17,8 @@ export interface GangAttack {
   crewName: string;
   colour: string;
   size: number;
+  /** Levels of the crew members coming at you. */
+  levels: number[];
   from: WorldXZ;
   t0: number;
 }
@@ -31,11 +34,12 @@ const shadiness = (npc: Npc) => (hash(npc.id) % 100) / 100;
  * beginner gets scammed often) and provoking a crew until, on a random 3rd–5th
  * time, the whole crew comes at you.
  */
-export function useCrewStreet(ctx: GameCtx) {
+export function useCrewStreet(ctx: GameCtx, npcs: Npc[]) {
   const { player, dispatch, positionRef, clockRef, say, close, setToast } = ctx;
-  const moods = useRef(new Map<string, CrewMood>());
+  /** Each crew's patience lives in the save, so it survives a reload. */
+  const moodOf = (crewId: string) => player?.crewMood?.[crewId];
   const [gang, setGang] = useState<GangAttack | null>(null);
-  const lv = (id: 'hustling' | 'evasion' | 'running' | 'strength') => levelFromXp(player?.skills[id]?.xp ?? 0);
+  const lv = (id: 'hustling' | 'evasion' | 'running' | 'strength' | 'martial') => levelFromXp(player?.skills[id]?.xp ?? 0);
   const money = player?.money ?? 0;
   const bye: Option = { text: 'Heippa.', onPick: close };
 
@@ -108,12 +112,12 @@ export function useCrewStreet(ctx: GameCtx) {
    */
   const registerProvoke = (npc: Npc): boolean => {
     if (!npc.crew || gang) return false;
-    const r = provoke(moods.current.get(npc.crew), Math.random(), Math.random());
-    if (!r.attack) {
-      moods.current.set(npc.crew, r.mood);
-      return false;
-    }
-    moods.current.set(npc.crew, r.mood);
+    const r = provoke(moodOf(npc.crew), Math.random(), Math.random());
+    dispatch({ type: 'setCrewMood', crewId: npc.crew, mood: r.mood });
+    if (!r.attack) return false;
+    // the provoked one plus 2–3 mates from the same crew
+    const mates = npcs.filter((n) => n.crew === npc.crew && n.id !== npc.id).sort(() => Math.random() - 0.5);
+    const levels = [npc.level ?? 5, ...mates.slice(0, 2 + Math.floor(Math.random() * 2)).map((n) => n.level ?? 5)];
     const crew = CREWS.find((c) => c.id === npc.crew);
     say(speakerName(npc), 'Nyt riitti. Pojat! Tänne!', [
       {
@@ -122,7 +126,7 @@ export function useCrewStreet(ctx: GameCtx) {
           close();
           const pos = positionRef.current;
           const a = Math.random() * Math.PI * 2;
-          setGang({ crewId: npc.crew!, crewName: crew?.name ?? 'Jengi', colour: crew?.colour ?? '#c8312b', size: 3 + Math.floor(Math.random() * 2), from: [pos.x + Math.sin(a) * 16, pos.z + Math.cos(a) * 16], t0: clockRef.current });
+          setGang({ crewId: npc.crew!, crewName: crew?.name ?? 'Jengi', colour: crew?.colour ?? '#c8312b', size: levels.length, levels, from: [pos.x + Math.sin(a) * 16, pos.z + Math.cos(a) * 16], t0: clockRef.current });
         },
       },
     ]);
@@ -131,8 +135,9 @@ export function useCrewStreet(ctx: GameCtx) {
 
   const provokeTalk = (npc: Npc) => {
     if (registerProvoke(npc)) return;
-    const m = npc.crew ? moods.current.get(npc.crew) : undefined;
-    const warn = WARNINGS[Math.min(WARNINGS.length - 1, Math.max(0, (m?.count ?? 1) - 1))]!;
+    // the dispatch above lands next render, so count this provocation by hand
+    const count = (npc.crew ? moodOf(npc.crew)?.count ?? 0 : 0) + 1;
+    const warn = WARNINGS[Math.min(WARNINGS.length - 1, count - 1)]!;
     dispatch({ type: 'adjustKarma', amount: -1 });
     say(speakerName(npc), warn, [bye]);
   };
@@ -143,7 +148,7 @@ export function useCrewStreet(ctx: GameCtx) {
       ? []
       : [
           { text: '💰 Onks sulla jotain myytävää?', onPick: () => dealMenu(npc) },
-          { text: `😤 "${INSULTS[(hash(npc.id) + (moods.current.get(npc.crew ?? '')?.count ?? 0)) % INSULTS.length]}"`, onPick: () => provokeTalk(npc) },
+          { text: `😤 "${INSULTS[(hash(npc.id) + (moodOf(npc.crew ?? '')?.count ?? 0)) % INSULTS.length]}"`, onPick: () => provokeTalk(npc) },
         ];
 
   // ---- the attack
@@ -155,16 +160,28 @@ export function useCrewStreet(ctx: GameCtx) {
   useEffect(() => {
     if (!gang) return;
     const id = window.setTimeout(() => {
-      const str = lv('strength'), run = Math.max(lv('evasion'), lv('running'));
-      const need = gang.size >= 4 ? 8 : 6;
+      const str = lv('strength'), martial = lv('martial'), run = Math.max(lv('evasion'), lv('running'));
+      const chance = fightChance(str, martial, gang.levels);
+      const pct = Math.round(chance * 100);
       const loot = Math.min(money, Math.max(10, Math.round(money * 0.3)));
-      say(`${gang.crewName} (${gang.size} jäbää)`, 'Sä luulit et voit aukoo päätä meidän mestalla? Nyt puhutaan.', [
+      const top = Math.max(...gang.levels);
+      const fightNote = `Voima ${str} · Kamppailu ${martial} · voittomahdollisuus ${pct} %`;
+      say(`${gang.crewName} (${gang.size} jäbää, lv ${Math.min(...gang.levels)}–${top})`, 'Sä luulit et voit aukoo päätä meidän mestalla? Nyt puhutaan.', [
         {
-          text: `[Voima ${need}] Pistä vastaan.`,
-          onPick: () =>
-            str >= need
-              ? (dispatch({ type: 'adjustStats', health: -12 }), dispatch({ type: 'grantReward', reward: { skillXp: { strength: 70 } } }), endGang(`💪 Pidit pääsi ja jengi perääntyi. −12 HP · +70 Voima XP`))
-              : say(gang.crewName, '*Kaatavat sinut maahan ja tyhjentävät taskusi*', [{ text: 'Ugh…', onPick: () => { dispatch({ type: 'adjustStats', health: -35, money: -loot }); endGang(`🤕 Sait turpaan. −35 HP${loot ? ` · veivät ${loot} €` : ''}`); } }], `Voima ${str}/${need}: ei riittänyt`),
+          text: `🥊 Pistä vastaan (${pct} %)`,
+          onPick: () => {
+            const xpMul = 1 + top / 10;
+            if (Math.random() < chance) {
+              const sXp = Math.round(40 * xpMul), mXp = Math.round(60 * xpMul);
+              dispatch({ type: 'adjustStats', health: -Math.round(8 + top * 0.8) });
+              dispatch({ type: 'grantReward', reward: { skillXp: { strength: sXp, martial: mXp } } });
+              dispatch({ type: 'setCrewMood', crewId: gang.crewId, mood: { count: 0, attackAt: 5 } });
+              endGang(`🥊 Päihitit ${gang.crewName}! −${Math.round(8 + top * 0.8)} HP · +${mXp} Kamppailu XP · +${sXp} Voima XP`);
+            } else {
+              const mXp = Math.round(15 * xpMul);
+              say(gang.crewName, '*Kaatavat sinut maahan ja tyhjentävät taskusi*', [{ text: 'Ugh…', onPick: () => { dispatch({ type: 'adjustStats', health: -35, money: -loot }); dispatch({ type: 'grantReward', reward: { skillXp: { martial: mXp } } }); endGang(`🤕 Sait turpaan. −35 HP${loot ? ` · veivät ${loot} €` : ''} · +${mXp} Kamppailu XP`); } }], `${fightNote}: hävisit`);
+            }
+          },
         },
         {
           text: '[Pakoilu / juoksu 5] Juokse karkuun.',
@@ -176,7 +193,7 @@ export function useCrewStreet(ctx: GameCtx) {
         money >= 25
           ? { text: 'Sori, mä olin idiootti. Tässä, ottakaa. (−25 €)', onPick: () => { dispatch({ type: 'adjustStats', money: -25 }); endGang('Maksoit itsesi ulos. −25 €'); } }
           : { text: 'Sori, mä olin idiootti…', onPick: () => { dispatch({ type: 'adjustStats', health: -18 }); endGang('🤕 Anteeksipyyntö ei riittänyt. −18 HP'); } },
-      ]);
+      ], fightNote);
     }, 4300);
     return () => window.clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps

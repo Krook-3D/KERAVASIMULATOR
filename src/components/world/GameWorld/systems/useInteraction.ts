@@ -1,3 +1,5 @@
+import type { DrillId } from '../../../../game/gym/drills';
+import { FIGHT_SPOTS } from '../../../../game/interiors/interiors';
 import { useMemo } from 'react';
 import type { WorldXZ } from '../../../../game/world/projection';
 import { worldToLngLat } from '../../../../game/world/projection';
@@ -34,6 +36,7 @@ export interface SpotActions {
   talkToPete: () => void;
   arriveAtStation: (lift: LiftId) => void;
   setAtPool: (v: boolean) => void;
+  setAtDrill: (d: DrillId) => void;
   setBarberDraft: (a: Appearance) => void;
   setAtShelf: (s: Shelf) => void;
   setAtTill: (v: boolean) => void;
@@ -95,6 +98,7 @@ export function useInteraction(
     }));
     if (scene === 'gym') list.push({ at: ROINA_TALK_SPOT, use: a.talkToPete });
     if (scene === 'gym') for (const g of GYM_STATIONS) list.push({ at: g.use, use: () => a.arriveAtStation(g.lift) });
+    if (scene === 'fightgym') for (const [id, at] of Object.entries(FIGHT_SPOTS)) list.push({ at, use: () => a.setAtDrill(id as DrillId) });
     if (scene === 'pool') list.push({ at: POOL_SWIM_SPOT, use: () => a.setAtPool(true) });
     if (scene === 'barber') list.push({ at: BARBER_CHAIR_SPOT, use: () => a.setBarberDraft({ ...a.currentLook }) });
     const sh = SHOPS[scene];

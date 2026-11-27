@@ -17,6 +17,8 @@ import { AlepaInterior } from '../interiors/AlepaInterior';
 import { BarberInterior } from '../interiors/BarberInterior';
 import { PoliceInterior } from '../interiors/PoliceInterior';
 import { MotonetInterior } from '../interiors/MotonetInterior';
+import { FightGymInterior, type FightActive } from '../interiors/FightGymInterior';
+import { FIGHT_SPOTS } from '../../../game/interiors/interiors';
 import { PrisonGuards, type JailLive } from '../quest/Jailbreak';
 import type { playerOutfit } from '../PlayerCharacter';
 import { ROINA_TALK_SPOT } from './constants';
@@ -32,6 +34,7 @@ export function InteriorScene(props: {
   gymPairs: Record<LiftId, number[]>;
   gymActive: GymActive | null;
   swimT0: number | null;
+  fightActive: FightActive | null;
   outfit: Outfit;
   clockRef: MutableRefObject<number>;
   playerRef: MutableRefObject<THREE.Vector3>;
@@ -56,6 +59,14 @@ export function InteriorScene(props: {
       {scene === 'alepa' && <AlepaInterior />}
       {scene === 'barber' && <BarberInterior />}
       {scene === 'motonet' && <MotonetInterior />}
+      {scene === 'fightgym' && <FightGymInterior active={props.fightActive} outfit={outfit} clockRef={clockRef} />}
+      {scene === 'fightgym' && (
+        <>
+          <Hotspot at={FIGHT_SPOTS.bag} label="🥊 Säkki" onClick={() => onGroundClick(FIGHT_SPOTS.bag)} />
+          <Hotspot at={FIGHT_SPOTS.wrestle} label="🤼 Paini" onClick={() => onGroundClick(FIGHT_SPOTS.wrestle)} />
+          <Hotspot at={FIGHT_SPOTS.spar} label="🥋 Sparri" onClick={() => onGroundClick(FIGHT_SPOTS.spar)} />
+        </>
+      )}
       {scene === 'police' && <PoliceInterior cellOpen={putkaUntil === null} />}
       {scene === 'pool' && <PoolInterior swimT0={props.swimT0} clockRef={clockRef} outfit={outfit} />}
       {scene === 'prison' && (

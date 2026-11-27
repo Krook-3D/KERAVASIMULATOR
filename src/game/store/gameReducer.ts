@@ -1,3 +1,4 @@
+import type { CrewMood } from '../street/provoke';
 import type { EquipmentSlot, LngLat, Player, Reward } from '../../types/game';
 import { ITEMS } from '../../data/items';
 import { KARMA_MAX, KARMA_MIN, STEAL_KARMA } from '../shop/shop';
@@ -25,6 +26,7 @@ export type GameAction =
   | { type: 'stealItem'; itemId: string }
   | { type: 'caughtStealing'; karma: number }
   | { type: 'adjustKarma'; amount: number }
+  | { type: 'setCrewMood'; crewId: string; mood: CrewMood }
   | { type: 'eatItem'; itemId: string }
   | { type: 'useUp'; itemId: string }
   | { type: 'useRoina'; id: RoinaId }
@@ -96,6 +98,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       for (const [id, n] of Object.entries(p.stolen ?? {})) next = removeItem(next, id, n);
       return { player: { ...next, stolen: {}, sinceCaught: 0, karma: clampKarma((p.karma ?? 0) + action.karma) } };
     }
+    case 'setCrewMood':
+      return state.player ? { player: { ...state.player, crewMood: { ...state.player.crewMood, [action.crewId]: action.mood } } } : state;
     case 'adjustKarma':
       return state.player ? { player: { ...state.player, karma: clampKarma((state.player.karma ?? 0) + action.amount) } } : state;
     case 'cook': {
