@@ -24,13 +24,15 @@ interface PlayerCharacterProps {
   collider: BuildingCollider | null;
   onArrive: (point: WorldXZ) => void;
   groundHeight: (p: WorldXZ) => number;
+  /** Extra no-go areas on top of building walls (e.g. the track bed). */
+  extraBlocked?: (p: WorldXZ) => boolean;
   visible: boolean;
   scriptRef: MutableRefObject<ScriptedPose>;
 }
 
 
 /** Low-poly original character built from primitives. */
-export function PlayerCharacter({ color, positionRef, target, collider, onArrive, groundHeight, visible, scriptRef }: PlayerCharacterProps) {
+export function PlayerCharacter({ color, positionRef, target, collider, onArrive, groundHeight, extraBlocked, visible, scriptRef }: PlayerCharacterProps) {
   const root = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
   const head = useRef<THREE.Group>(null);
@@ -75,7 +77,7 @@ export function PlayerCharacter({ color, positionRef, target, collider, onArrive
         const step = Math.min(dist, WALK_SPEED * dt);
         const sx = (dx / dist) * step;
         const sz = (dz / dist) * step;
-        const blocked = (x: number, z: number) => !!collider?.isBlocked([x, z]);
+        const blocked = (x: number, z: number) => !!collider?.isBlocked([x, z]) || !!extraBlocked?.([x, z]);
         if (!blocked(pos.x + sx, pos.z + sz)) {
           pos.x += sx;
           pos.z += sz;

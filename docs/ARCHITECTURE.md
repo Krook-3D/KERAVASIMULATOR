@@ -119,7 +119,7 @@ Sisällön määrä MVP:ssä:
 | Questit | 5 | Keskustan mysteeri, Ensimmäinen työpäivä, Kadonnut reppu, Joen kuningas, Salin legenda |
 | Itemit | 15 | Kahvi, Energiajuoma, Karjalanpiirakka, Lenkkarit, Kalastusvavat, Ahven, Kuntosalikortti, Bussikortti, Vanha Nokia, Kerava Hoodie, Ostoskassi, Keravan kartta, Mystinen avain, Keskustan kuitti, Harvinainen Kerava-item |
 | NPC | 5 | Asemamies Arto, Kirjastonhoitaja Leena, Salivalmentaja Jonne, Kalastaja-Pertti, Kauppias Sari |
-| Skillit | 5 | Strength, Endurance, Running, Cooking, Fishing |
+| Skillit | 7 | Strength, Endurance, Running, Cooking, Fishing, Hustlaus, Kyttien pakoilu |
 
 Ei MVP:ssä: equipment-slotit (tyyppi on valmiina), achievementit, daily/weekly, minipelit, GPS, backend, multiplayer.
 
@@ -128,7 +128,7 @@ Ei MVP:ssä: equipment-slotit (tyyppi on valmiina), achievementit, daily/weekly,
 Tyypit ovat tiedostossa `src/types/game.ts`. Tiivistelmä:
 
 ```ts
-type SkillId = 'strength' | 'endurance' | 'running' | 'cooking' | 'fishing';
+type SkillId = 'strength' | 'endurance' | 'running' | 'cooking' | 'fishing' | 'hustling' | 'evasion';
 
 interface Player {
   id: string;
@@ -294,6 +294,7 @@ Järjestelmät:
 - **Vankila**: tuomio kestää pelin sisäistä aikaa (pituus riippuu määrästä ja aiemmista tuomioista). Vankilassa voi tehdä rajattuja aktiviteetteja (punnerrukset → Strength, kirjasto → Knowledge, keittiövuoro → Cooking) ja tavata omia NPC:itä ja questeja. Tuomion voi lyhentää hyvällä käytöksellä. Takavarikko vie mukana olleet aineet ja osan rahoista, heat nollautuu.
 - **Kotietsinnät**: satunnaistapahtuma, jonka todennäköisyys kasvaa heatin ja kotona olevan määrän mukaan (`raidChance = f(heat, kotivarasto)`). Ratsia vie kotivaraston ja sakottaa. Pelaaja voi vähentää riskiä hajauttamalla varastoa tai pitämällä heatin matalana.
 - **Rangit**: katukaupan maine ("Rivikaupustelija" → "Välittäjä" → "Keravan tukkuri") avaa isompia kauppoja ja parempia kontakteja.
+- **Skillit**: **Hustlaus** parantaa hintoja ja avaa isompia diilejä, **Kyttien pakoilu** helpottaa jahdeista karkaamista ja hidastaa heatin nousua.
 - **Liitännät muihin järjestelmiin**: Charisma parantaa hintoja ja selittelyä (Charisma ja Knowledge tuodaan skilleihin tämän vaiheen yhteydessä), Running auttaa jahdeissa, raha ja maine vaikuttavat questeihin. Aseman Areenalla voi myöhemmin olla katukauppaan liittyviä haastajia.
 
 Tekninen toteutus: puhdas `src/game/street/`-moduuli (market, heat, police, raids, interrogation, jail). Kuulustelu käyttää samaa dialogijärjestelmää kuin NPC:t, laajennettuna skill-check-vaihtoehdoilla, data `src/data/street.ts`. Satunnaisuus kulkee yhden siemenellisen RNG:n kautta, jotta tapahtumat ovat testattavia ja myöhemmin palvelimen ratkaistavissa.

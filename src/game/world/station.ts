@@ -108,6 +108,13 @@ export function isInStationClearZone(layout: StationLayout, p: WorldXZ): boolean
   return inside(CLEAR_ZONE, toLocal(layout, p));
 }
 
+/** Track bed next to the platform: off limits (no walking onto the rails or through the train). */
+const TRACK_ZONE = { minX: -95, maxX: 95, minZ: -5, maxZ: PLATFORM.minZ + 0.3 };
+
+export function isTrackBlocked(layout: StationLayout, p: WorldXZ): boolean {
+  return inside(TRACK_ZONE, toLocal(layout, p));
+}
+
 /** Ground height for walking: the platform is raised. */
 export function stationGroundHeight(layout: StationLayout, p: WorldXZ): number {
   return inside(PLATFORM, toLocal(layout, p)) ? PLATFORM.height : 0;

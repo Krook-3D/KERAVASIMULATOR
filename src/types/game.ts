@@ -7,7 +7,14 @@
 /** [longitude, latitude], same order as MapLibre and GeoJSON. */
 export type LngLat = [number, number];
 
-export type SkillId = 'strength' | 'endurance' | 'running' | 'cooking' | 'fishing';
+export type SkillId =
+  | 'strength'
+  | 'endurance'
+  | 'running'
+  | 'cooking'
+  | 'fishing'
+  | 'hustling'
+  | 'evasion';
 
 export interface SkillState {
   /** Total XP in this skill. Level is derived from XP. */

@@ -9,6 +9,7 @@ import {
   clearStationArea,
   computeStationLayout,
   isInStationClearZone,
+  isTrackBlocked,
   stationFootprints,
   stationGroundHeight,
   toWorld,
@@ -91,6 +92,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     return new BuildingCollider([...world.buildings, ...extra]);
   }, [world, layout]);
   const groundHeight = useCallback((p: WorldXZ) => (layout ? stationGroundHeight(layout, p) : 0), [layout]);
+  const trackBlocked = useCallback((p: WorldXZ) => (layout ? isTrackBlocked(layout, p) : false), [layout]);
   const excludeTrees = useCallback((p: WorldXZ) => (layout ? isInStationClearZone(layout, p) : false), [layout]);
 
   const cameraOffset = useMemo(() => {
@@ -179,6 +181,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
           target={target}
           collider={collider}
           groundHeight={groundHeight}
+          extraBlocked={trackBlocked}
           visible={playerVisible}
           scriptRef={scriptRef}
           onArrive={(p) => {

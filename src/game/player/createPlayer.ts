@@ -1,7 +1,7 @@
 import type { Player, SkillId } from '../../types/game';
 import { KERAVA_STATION } from '../map/config';
 
-export const SKILL_IDS: SkillId[] = ['strength', 'endurance', 'running', 'cooking', 'fishing'];
+export const SKILL_IDS: SkillId[] = ['strength', 'endurance', 'running', 'cooking', 'fishing', 'hustling', 'evasion'];
 
 export const STARTING_MONEY = 50;
 export const MAX_HEALTH = 100;

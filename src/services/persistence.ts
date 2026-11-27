@@ -1,4 +1,5 @@
 import type { Player } from '../types/game';
+import { SKILL_IDS } from '../game/player/createPlayer';
 
 /**
  * Save storage. MVP uses localStorage; later this module is swapped for REST
@@ -18,10 +19,17 @@ export function loadPlayer(): Player | null {
     if (!raw) return null;
     const save = JSON.parse(raw) as SaveFile;
     if (save.version !== SAVE_VERSION || !save.player?.id) return null;
-    return save.player;
+    return migrate(save.player);
   } catch {
     return null;
   }
+}
+
+/** Fills in fields added after the save was written (e.g. new skills). */
+function migrate(player: Player): Player {
+  const skills = { ...player.skills };
+  for (const id of SKILL_IDS) skills[id] ??= { xp: 0 };
+  return { ...player, skills };
 }
 
 export function savePlayer(player: Player | null): void {
