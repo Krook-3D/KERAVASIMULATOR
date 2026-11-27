@@ -9,7 +9,7 @@ import type { LiftId } from '../../../game/gym/lifting';
 import { ClickFloor, Hotspot } from '../interiors/kit';
 import { TunnelInterior } from '../interiors/TunnelInterior';
 import { StationInterior } from '../interiors/StationInterior';
-import { PrismaInterior, Shopper } from '../interiors/PrismaInterior';
+import { PrismaInterior, Shopper, type ShelfProductsProps } from '../interiors/PrismaInterior';
 import { PrisonInterior } from '../interiors/PrisonInterior';
 import { GymInterior, type GymActive } from '../interiors/GymInterior';
 import { PoolInterior } from '../interiors/PoolInterior';
@@ -41,6 +41,8 @@ export function InteriorScene(props: {
   onCaught: () => void;
   onFiled: () => void;
   onGroundClick: (p: WorldXZ) => void;
+  /** Clickable products on the Prisma shelves. */
+  shelf: ShelfProductsProps;
 }) {
   const { scene, shop, jailStep, putkaUntil, outfit, clockRef, onGroundClick } = props;
   const def = INTERIORS[scene];
@@ -49,7 +51,7 @@ export function InteriorScene(props: {
       <ClickFloor r={def.floor} invisible={scene === 'pool'} color={scene === 'prison' ? '#8f918c' : scene === 'tunnel' ? '#5d5f63' : scene === 'station' ? '#c9b48a' : '#d4d4cf'} onClick={onGroundClick} />
       {scene === 'tunnel' && <TunnelInterior />}
       {scene === 'station' && <StationInterior />}
-      {scene === 'prisma' && <PrismaInterior />}
+      {scene === 'prisma' && <PrismaInterior shelf={props.shelf} />}
       {scene === 'gym' && <GymInterior pairs={props.gymPairs} active={props.gymActive} outfit={outfit} clockRef={clockRef} />}
       {scene === 'alepa' && <AlepaInterior />}
       {scene === 'barber' && <BarberInterior />}

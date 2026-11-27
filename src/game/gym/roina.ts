@@ -21,17 +21,16 @@ export interface RoinaDef {
   /** Strain added (0–100 scale); negative lowers it. */
   strain: number;
   price: number;
-  karma: number;
   blurb: string;
 }
 
 export const ROINA: Record<RoinaId, RoinaDef> = {
-  tankkioljy: { id: 'tankkioljy', duration: 600, strengthXp: 1.5, strain: 22, price: 40, karma: -2, blurb: 'Voima-XP +50 % 10 min. Rasitus +22.' },
-  massamix: { id: 'massamix', duration: 900, maxLift: 1.12, strengthXp: 1.25, strain: 32, price: 70, karma: -3, blurb: 'Maksimikuorma +12 % ja Voima-XP +25 % 15 min. Rasitus +32.' },
-  kuivatin: { id: 'kuivatin', duration: 600, enduranceXp: 1.4, strain: 18, price: 35, karma: -2, blurb: 'Kestävyys-XP +40 % 10 min. Rasitus +18.' },
-  palautin: { id: 'palautin', duration: 600, energyRegen: 2, strain: 8, price: 30, karma: -1, blurb: 'Energia palautuu tuplanopeudella 10 min. Rasitus +8.' },
-  tuplaus: { id: 'tuplaus', duration: 900, strengthXp: 1.2, enduranceXp: 1.2, energyRegen: 1.5, strain: 26, price: 95, karma: -3, blurb: 'Kaikki treeni-XP +20 % ja energia +50 % 15 min. Rasitus +26.' },
-  leikkuri: { id: 'leikkuri', duration: 0, strain: -40, price: 45, karma: 0, blurb: 'Laskee rasitusta 40. Ei muuta vaikutusta.' },
+  tankkioljy: { id: 'tankkioljy', duration: 600, strengthXp: 1.5, strain: 22, price: 40, blurb: 'Voima-XP +50 % 10 min. Rasitus +22.' },
+  massamix: { id: 'massamix', duration: 900, maxLift: 1.12, strengthXp: 1.25, strain: 32, price: 70, blurb: 'Maksimikuorma +12 % ja Voima-XP +25 % 15 min. Rasitus +32.' },
+  kuivatin: { id: 'kuivatin', duration: 600, enduranceXp: 1.4, strain: 18, price: 35, blurb: 'Kestävyys-XP +40 % 10 min. Rasitus +18.' },
+  palautin: { id: 'palautin', duration: 600, energyRegen: 2, strain: 8, price: 30, blurb: 'Energia palautuu tuplanopeudella 10 min. Rasitus +8.' },
+  tuplaus: { id: 'tuplaus', duration: 900, strengthXp: 1.2, enduranceXp: 1.2, energyRegen: 1.5, strain: 26, price: 95, blurb: 'Kaikki treeni-XP +20 % ja energia +50 % 15 min. Rasitus +26.' },
+  leikkuri: { id: 'leikkuri', duration: 0, strain: -40, price: 45, blurb: 'Laskee rasitusta 40. Ei muuta vaikutusta.' },
 };
 
 export interface ActiveBuff {

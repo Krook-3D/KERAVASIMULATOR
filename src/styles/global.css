@@ -840,6 +840,13 @@ button.inv-slot:disabled { cursor: default; }
 .ctx-menu button { text-align: left; background: none; border: 0; color: var(--text); font: inherit; font-size: 13px; padding: 7px 8px; border-radius: 5px; cursor: pointer; }
 .ctx-menu button:hover { background: #2a3042; }
 .ctx-menu button.is-danger { color: #ff8a9a; }
+.inv-detail__harm { color: #ff8a9a; font-size: 12px; font-weight: 700; }
+.shelf-tag { pointer-events: none; white-space: nowrap; background: #14171fe6; color: var(--text); border: 1px solid #2f3648; border-radius: 6px; padding: 3px 7px; font-size: 12px; }
+.shelf-pop { min-width: 180px; background: #14171f; border: 2px solid var(--yellow); border-radius: 8px; padding: 4px; display: grid; box-shadow: 0 8px 24px #000a; white-space: nowrap; }
+.shelf-pop__title { font-weight: 800; color: var(--yellow); padding: 4px 8px; font-size: 13px; }
+.shelf-pop button { text-align: left; background: none; border: 0; color: var(--text); font: inherit; font-size: 13px; padding: 7px 8px; border-radius: 5px; cursor: pointer; }
+.shelf-pop button:hover { background: #2a3042; }
+.shelf-pop button.is-danger { color: #ff8a9a; }
 .alert-meter { display: flex; align-items: center; gap: 8px; font-size: 12px; }
 .alert-meter__bar { flex: 1; min-width: 80px; height: 8px; border-radius: 4px; background: #2a3042; overflow: hidden; }
 .alert-meter__bar div { height: 100%; transition: width 0.3s; }

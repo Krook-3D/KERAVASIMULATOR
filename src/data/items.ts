@@ -25,7 +25,7 @@ const defs: Record<string, Def> = {
   spray_valkoinen: { name: 'Spraymaali, valkoinen', description: 'Spraymaalitölkki graffiteihin. Pidä kädessä ja maalaa seinään.', category: 'tool', value: 6, rarity: 'common', stackable: true, hands: 1, icon: '🎨', price: 7 },
   spray_pinkki: { name: 'Spraymaali, pinkki', description: 'Spraymaalitölkki graffiteihin. Pidä kädessä ja maalaa seinään.', category: 'tool', value: 6, rarity: 'common', stackable: true, hands: 1, icon: '🎨', price: 7 },
   puukko: { name: 'Puukko', description: 'Perinteinen suomalainen puukko tupessa. Työkalu, ei lelu.', category: 'tool', value: 12, rarity: 'uncommon', hands: 1, icon: '🔪' },
-  shankki: { name: 'Shänkki', description: 'Itse teroitettu. Ei kannata jäädä kiinni tämän kanssa.', category: 'tool', value: 8, rarity: 'uncommon', hands: 1, icon: '🗡️' },
+  shankki: { name: 'Shänkki', description: 'Itse teroitettu. Ei kannata jäädä kiinni tämän kanssa.', category: 'tool', value: 8, rarity: 'uncommon', hands: 1, harm: 4, icon: '🗡️' },
   sorkkarauta: { name: 'Sorkkarauta', description: 'Avaa laatikot, ovet ja keskustelut.', category: 'tool', value: 14, rarity: 'uncommon', hands: 1, icon: '🦯' },
   pesapallomaila: { name: 'Pesäpallomaila', description: 'Kotimaisen pesäpallon maila. Lyöntiin tarkoitettu.', category: 'tool', value: 15, rarity: 'uncommon', hands: 2, icon: '🏏' },
   voimapihdit: { name: 'Voimapihdit', description: 'Katkaisee lukot ja ketjut kuin voita.', category: 'tool', value: 35, rarity: 'rare', hands: 2, icon: '✂️' },
@@ -88,12 +88,12 @@ const defs: Record<string, Def> = {
   lammitettypizza: { name: 'Grillattu pizza', description: 'Rapea pohja, sula juusto.', category: 'food', value: 3.0, rarity: 'common', stackable: true, icon: '🍕', effects: { energy: 24 } },
   palanut: { name: 'Palanut annos', description: 'Hiiltä. Syötävä, juuri ja juuri.', category: 'food', value: 0.4, rarity: 'common', stackable: true, icon: '🔥', effects: { energy: 3 } },
   // ---- gym roina (fictional, see game/gym/roina.ts)
-  tankkioljy: { name: 'Tankkiöljy', description: 'Pieni ruskea pullo, etiketissä hauis ja salama. Fiktiivinen salituote.', category: 'drug', value: 0, rarity: 'rare', stackable: true, icon: '🧴' },
-  massamix: { name: 'Massamix-X', description: '"Ammattilaisille." Pakkaus on käsin teipattu. Fiktiivinen.', category: 'drug', value: 0, rarity: 'rare', stackable: true, icon: '💉' },
-  kuivatin: { name: 'Kuivatin 9000', description: 'Lupaa sixpackin viikossa. Fiktiivinen.', category: 'drug', value: 0, rarity: 'uncommon', stackable: true, icon: '💊' },
-  palautin: { name: 'Peptidi P-17 "Palautin"', description: 'Kylmälaukussa säilytettävä ampulli. Fiktiivinen.', category: 'drug', value: 0, rarity: 'uncommon', stackable: true, icon: '🧪' },
-  tuplaus: { name: 'GH-Tuplaus', description: 'Kallein kaikista. Pete kutsuu tätä "kultakaivokseksi". Fiktiivinen.', category: 'drug', value: 0, rarity: 'epic', stackable: true, icon: '⚗️' },
-  leikkuri: { name: 'Leikkuri-T', description: 'Pete sanoo että tämä "tasoittaa". Fiktiivinen.', category: 'drug', value: 0, rarity: 'uncommon', stackable: true, icon: '💠' },
+  tankkioljy: { name: 'Tankkiöljy', description: 'Pieni ruskea pullo, etiketissä hauis ja salama. Fiktiivinen salituote.', category: 'drug', value: 0, rarity: 'rare', stackable: true, harm: 2, icon: '🧴' },
+  massamix: { name: 'Massamix-X', description: '"Ammattilaisille." Pakkaus on käsin teipattu. Fiktiivinen.', category: 'drug', value: 0, rarity: 'rare', stackable: true, harm: 3, icon: '💉' },
+  kuivatin: { name: 'Kuivatin 9000', description: 'Lupaa sixpackin viikossa. Fiktiivinen.', category: 'drug', value: 0, rarity: 'uncommon', stackable: true, harm: 2, icon: '💊' },
+  palautin: { name: 'Peptidi P-17 "Palautin"', description: 'Kylmälaukussa säilytettävä ampulli. Fiktiivinen.', category: 'drug', value: 0, rarity: 'uncommon', stackable: true, harm: 1, icon: '🧪' },
+  tuplaus: { name: 'GH-Tuplaus', description: 'Kallein kaikista. Pete kutsuu tätä "kultakaivokseksi". Fiktiivinen.', category: 'drug', value: 0, rarity: 'epic', stackable: true, harm: 3, icon: '⚗️' },
+  leikkuri: { name: 'Leikkuri-T', description: 'Pete sanoo että tämä "tasoittaa". Fiktiivinen.', category: 'drug', value: 0, rarity: 'uncommon', stackable: true, harm: 1, icon: '💠' },
   oljy: { name: 'Moottoriöljy', description: 'Litra 5W-30.', category: 'material', value: 4, rarity: 'common', stackable: true, price: 12, icon: '🛢️' },
 };
 

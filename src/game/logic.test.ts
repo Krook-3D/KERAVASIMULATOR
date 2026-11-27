@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { gameReducer, INVENTORY_SIZE, type GameState } from './store/gameReducer';
+import { gameReducer, harmKarma, INVENTORY_SIZE, type GameState } from './store/gameReducer';
+import { ITEMS } from '../data/items';
 import { createPlayer } from './player/createPlayer';
 import { alertLevel, auraTier, basketTotal, catchChance, CAUGHT_KARMA_MULT, priceOf, STEAL_KARMA } from './shop/shop';
 import { burnChance, canCook, RECIPES, resolveCook } from './cooking/recipes';
@@ -91,6 +92,30 @@ describe('shops, theft and karma', () => {
     expect(auraTier(80)).toBe('radiant');
     expect(auraTier(0)).toBe('neutral');
     expect(auraTier(-80)).toBe('dark');
+  });
+});
+
+describe('harmful goods and karma', () => {
+  it('obtaining a harmful item costs karma per unit, harmless ones nothing', () => {
+    const harm = ITEMS.massamix!.harm!;
+    expect(harm).toBeGreaterThan(0);
+    expect(gameReducer(fresh(), { type: 'addItem', itemId: 'massamix', quantity: 2 }).player!.karma).toBe(-harm * 2);
+    expect(gameReducer(fresh(), { type: 'addItem', itemId: 'pulla' }).player!.karma ?? 0).toBe(0);
+    expect(harmKarma('shankki')).toBeLessThan(0);
+  });
+
+  it('harm applies however the item arrives: reward, loot or theft on top of the theft karma', () => {
+    const harm = ITEMS.shankki!.harm!;
+    expect(gameReducer(fresh(), { type: 'grantReward', reward: { items: [{ itemId: 'shankki', quantity: 1 }] } }).player!.karma).toBe(-harm);
+    expect(gameReducer(fresh(), { type: 'pickupLoot', lootId: 'x', itemId: 'shankki' }).player!.karma).toBe(-harm);
+    expect(gameReducer(fresh(), { type: 'stealItem', itemId: 'shankki' }).player!.karma).toBe(-harm + STEAL_KARMA);
+  });
+
+  it('holding and putting back an item does not cost karma again', () => {
+    let s = gameReducer(fresh(), { type: 'addItem', itemId: 'shankki' });
+    const k = s.player!.karma;
+    s = run(s, { type: 'equipItem', itemId: 'shankki', hand: 'handR' }, { type: 'unequip', slot: 'handR' });
+    expect(s.player!.karma).toBe(k);
   });
 });
 

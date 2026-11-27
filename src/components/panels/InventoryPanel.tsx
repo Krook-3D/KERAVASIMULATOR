@@ -87,6 +87,7 @@ export function InventoryPanel({ player }: { player: Player }) {
           </div>
           <p className="muted">{def.description}</p>
           {def.value > 0 && <div className="muted">Arvo noin {def.value} €</div>}
+          {def.harm ? <div className="inv-detail__harm">⚠ Yhteiskunnalle haitallinen: karma −{def.harm} jokaisesta saadusta</div> : null}
           {def.hands === 1 && (
             <div className="row">
               <button type="button" className="btn btn--small" onClick={() => dispatch({ type: 'equipItem', itemId: def.id, hand: 'handL' })}>Vasempaan käteen</button>

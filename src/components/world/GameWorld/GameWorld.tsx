@@ -243,6 +243,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
         training.setAtPool(false);
         training.setCarrying(null);
         shop.setAtShelf(null);
+        shop.setPicked(null);
         shop.setAtTill(false);
       },
       route,
@@ -325,6 +326,18 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
             onCaught={jailbreak.onCaught}
             onFiled={jailbreak.onFiled}
             onGroundClick={onGroundClick}
+            shelf={{
+              shelves: shop.shop?.shelves ?? [],
+              picked: shop.picked,
+              atShelfId: shop.atShelf?.id ?? null,
+              inBasket: shop.basket,
+              onPick: (s, itemId) => {
+                onGroundClick(s.at);
+                shop.setPicked({ shelfId: s.id, itemId });
+              },
+              onBasket: shop.toBasket,
+              onSteal: shop.stealItem,
+            }}
           />
         )}
 

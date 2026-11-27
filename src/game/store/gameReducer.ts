@@ -59,7 +59,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'grantReward':
       return state.player ? { player: applyReward(state.player, action.reward) } : state;
     case 'addItem':
-      return state.player ? { player: addItem(state.player, action.itemId, action.quantity ?? 1) } : state;
+      return state.player ? { player: obtain(state.player, action.itemId, action.quantity ?? 1) } : state;
     case 'removeItem':
       return state.player ? { player: removeItem(state.player, action.itemId, action.quantity ?? Infinity) } : state;
     case 'equipItem':
@@ -69,7 +69,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'pickupLoot': {
       const p = state.player;
       if (!p || p.lootTaken?.includes(action.lootId) || !canAdd(p, action.itemId)) return state;
-      return { player: { ...addItem(p, action.itemId, 1), lootTaken: [...(p.lootTaken ?? []), action.lootId] } };
+      return { player: { ...obtain(p, action.itemId, 1), lootTaken: [...(p.lootTaken ?? []), action.lootId] } };
     }
     case 'buyBasket': {
       const p = state.player;
@@ -78,14 +78,15 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const newSlots = ids.filter((id) => !p.inventory.some((s) => s.itemId === id)).length;
       if (p.inventory.length + newSlots > INVENTORY_SIZE) return state;
       let next: Player = { ...p, money: Math.round((p.money - action.total) * 100) / 100 };
-      for (const id of ids) next = addItem(next, id, action.basket[id]!);
+      for (const id of ids) next = obtain(next, id, action.basket[id]!);
       return { player: next };
     }
     case 'stealItem': {
       const p = state.player;
       if (!p || !canAdd(p, action.itemId)) return state;
       const stolen = { ...p.stolen, [action.itemId]: (p.stolen?.[action.itemId] ?? 0) + 1 };
-      return { player: { ...addItem(p, action.itemId, 1), stolen, karma: clampKarma((p.karma ?? 0) + STEAL_KARMA), sinceCaught: (p.sinceCaught ?? 0) + 1 } };
+      const got = obtain(p, action.itemId, 1);
+      return { player: { ...got, stolen, karma: clampKarma((got.karma ?? 0) + STEAL_KARMA), sinceCaught: (p.sinceCaught ?? 0) + 1 } };
     }
     case 'caughtStealing': {
       const p = state.player;
@@ -188,6 +189,19 @@ function addItem(p: Player, itemId: string, quantity: number): Player {
   return { ...p, inventory: inv };
 }
 
+/** Karma change for obtaining `quantity` of an item (harmful goods cost karma). */
+export function harmKarma(itemId: string, quantity = 1): number {
+  return -(ITEMS[itemId]?.harm ?? 0) * quantity;
+}
+
+/** A new item enters the backpack (bought, stolen, found, given): harmful goods cost karma. */
+function obtain(p: Player, itemId: string, quantity: number): Player {
+  if (!canAdd(p, itemId)) return p;
+  const next = addItem(p, itemId, quantity);
+  const k = harmKarma(itemId, quantity);
+  return k ? { ...next, karma: clampKarma((p.karma ?? 0) + k) } : next;
+}
+
 function removeItem(p: Player, itemId: string, quantity: number): Player {
   const inv = p.inventory
     .map((s) => (s.itemId === itemId ? { ...s, quantity: s.quantity - quantity } : s))
@@ -252,6 +266,6 @@ function applyReward(p: Player, r: Reward): Player {
     }
     next = { ...next, skills };
   }
-  for (const it of r.items ?? []) next = addItem(next, it.itemId, it.quantity);
+  for (const it of r.items ?? []) next = obtain(next, it.itemId, it.quantity);
   return next;
 }

@@ -3,6 +3,9 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { WorldXZ } from '../../game/world/projection';
 import { ARRIVE_EPSILON, WALK_SPEED } from '../../game/world/movement';
+
+/** Longest single move between collision checks, in metres (thinnest wall + padding is 0.84 m). */
+const MAX_SUBSTEP = 0.2;
 import { Humanoid, type HumanBones, type Outfit } from './humanoid/Humanoid';
 import { poseFlail, poseLocomotion, resetPose } from './humanoid/animate';
 import { defaultAppearance, type Appearance } from '../../game/player/appearance';
@@ -76,21 +79,26 @@ export function PlayerCharacter({ color, appearance, positionRef, target, collid
         onArrive(target);
       } else {
         const step = Math.min(dist, WALK_SPEED * dt);
-        const sx = (dx / dist) * step;
-        const sz = (dz / dist) * step;
         const blocked = (x: number, z: number) => !!collider?.isBlocked([x, z]) || !!extraBlocked?.([x, z], [pos.x, pos.z]);
-        if (!blocked(pos.x + sx, pos.z + sz)) {
-          pos.x += sx;
-          pos.z += sz;
-        } else if (Math.abs(sx) > 1e-4 && !blocked(pos.x + sx, pos.z)) {
-          pos.x += sx; // slide along a wall
-        } else if (Math.abs(sz) > 1e-4 && !blocked(pos.x, pos.z + sz)) {
-          pos.z += sz;
-        } else {
-          // Fully blocked: stop where we are.
-          arrivedFor.current = target;
-          onArrive([pos.x, pos.z]);
-          return;
+        // Move in short sub-steps so a slow frame (long dt) can't carry the
+        // player through a thin wall, such as the holding cell dividers.
+        const subs = Math.max(1, Math.ceil(step / MAX_SUBSTEP));
+        const sx = ((dx / dist) * step) / subs;
+        const sz = ((dz / dist) * step) / subs;
+        for (let i = 0; i < subs; i++) {
+          if (!blocked(pos.x + sx, pos.z + sz)) {
+            pos.x += sx;
+            pos.z += sz;
+          } else if (Math.abs(sx) > 1e-4 && !blocked(pos.x + sx, pos.z)) {
+            pos.x += sx; // slide along a wall
+          } else if (Math.abs(sz) > 1e-4 && !blocked(pos.x, pos.z + sz)) {
+            pos.z += sz;
+          } else {
+            // Fully blocked: stop where we are.
+            arrivedFor.current = target;
+            onArrive([pos.x, pos.z]);
+            return;
+          }
         }
         // Face the walking direction, turning smoothly.
         const want = Math.atan2(dx, dz);

@@ -6,6 +6,7 @@ import { canAdd, INVENTORY_SIZE } from '../../../../game/store/gameReducer';
 import { itemName } from '../../../../data/items';
 import type { DialogueOptionView } from '../../quest/DialogueBox';
 import type { GameCtx } from '../gameWorld.types';
+import type { PickedProduct } from '../../shop/ShelfProducts';
 
 export type PutkaReason = 'theft' | 'graffiti' | 'stash';
 
@@ -19,6 +20,8 @@ export function useShop(ctx: GameCtx) {
   const [basket, setBasket] = useState<Record<string, number>>({});
   const [atShelf, setAtShelf] = useState<Shelf | null>(null);
   const [atTill, setAtTill] = useState(false);
+  /** Product clicked on a shelf in 3D: its Basket / Steal choice shows once you're at that shelf. */
+  const [picked, setPicked] = useState<PickedProduct | null>(null);
   const [visitThefts, setVisitThefts] = useState(0);
   const [putkaUntil, setPutkaUntil] = useState<number | null>(null);
   const [putkaLeft, setPutkaLeft] = useState(0);
@@ -33,6 +36,7 @@ export function useShop(ctx: GameCtx) {
     setVisitThefts(0);
     setAtShelf(null);
     setAtTill(false);
+    setPicked(null);
   };
 
   const toBasket = (id: string) => setBasket((b) => ({ ...b, [id]: (b[id] ?? 0) + 1 }));
@@ -113,7 +117,7 @@ export function useShop(ctx: GameCtx) {
     ]);
 
   return {
-    shop, alert, basket, atShelf, setAtShelf, atTill, setAtTill, putkaUntil, putkaLeft,
+    shop, alert, basket, atShelf, setAtShelf, atTill, setAtTill, picked, setPicked, putkaUntil, putkaLeft,
     leaveScene, toBasket, fromBasket, payBasket, stealItem, toPutka, talkAtPoliceDesk,
   };
 }

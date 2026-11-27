@@ -70,6 +70,10 @@ export function useDebugHook(d: {
       steal: shop.stealItem,
       shelfAt: (id: string) => shop.shop?.shelves.find((x) => x.id === id)?.at,
       tillAt: () => shop.shop?.till,
+      pick: (shelfId: string, itemId: string) => {
+        const s = shop.shop?.shelves.find((x) => x.id === shelfId);
+        if (s) { d.onGroundClick(s.at); shop.setPicked({ shelfId, itemId }); }
+      },
       loot: () => w.loot.filter((l) => !d.lootTaken.includes(l.id)).map((l) => ({ id: l.id, item: l.itemId, x: l.x, z: l.z })),
       trains: w.trainStops,
       blocked: (x: number, z: number) => !!w.collider?.isBlocked([x, z]) || w.extraBlocked([x, z]),

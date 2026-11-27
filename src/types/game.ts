@@ -61,6 +61,8 @@ export interface ItemDef {
   price?: number;
   /** Emoji used as the icon until item models/icons get their own pass. */
   icon?: string;
+  /** Harmful to society: karma lost per unit whenever you obtain it (bought, stolen, found, given). */
+  harm?: number;
 }
 
 export interface InventorySlot {

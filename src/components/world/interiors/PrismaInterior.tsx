@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, type ComponentProps } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { INTERIORS, PRISMA_CHECKOUT_XS, PRISMA_HALL, PRISMA_SHELF_XS, PRISMA_SHELF_Z } from '../../../game/interiors/interiors';
@@ -6,6 +6,7 @@ import { createRng } from '../../../game/world/random';
 import { Humanoid, type HumanBones, type Outfit } from '../humanoid/Humanoid';
 import { poseLocomotion, posePhone, resetPose } from '../humanoid/animate';
 import { Box, Cutaway, InstancedBoxes, TextPanel, WallFromRect, type V3 } from './kit';
+import { ShelfProducts, type ShelfDisplay } from '../shop/ShelfProducts';
 
 const WALL_H = 6;
 const PRODUCT_COLORS = ['#e05555', '#ffd23f', '#3a7bd5', '#2e9e5b', '#f28c28', '#8a5a9e', '#f2f2f2', '#14171f', '#c97b4a', '#6fbfd8', '#d94f8a', '#9fc54a'];
@@ -62,7 +63,20 @@ function Cart({ x, z, rotY = 0 }: { x: number; z: number; rotY?: number }) {
   );
 }
 
-export function PrismaInterior() {
+export type ShelfProductsProps = Omit<ComponentProps<typeof ShelfProducts>, 'displays'>;
+
+/** Where each Prisma shelf (SHOPS.prisma) shows its real, clickable products. */
+export const PRISMA_SHELF_DISPLAYS: Record<string, ShelfDisplay> = {
+  fridge: { origin: [2, 1.25, -20.8], along: 'x', yaw: 0 },
+  meat: { origin: [16, 1.25, -20.8], along: 'x', yaw: 0 },
+  bakery: { origin: [-30.75, 1.06, -13], along: 'z', yaw: Math.PI / 2 },
+  veg: { origin: [-18.5, 0.96, 0.8], along: 'x', yaw: 0 },
+  dry: { origin: [-5.2, 1.06, -5], along: 'z', yaw: Math.PI / 2 },
+  candy: { origin: [5.8, 1.06, -5], along: 'z', yaw: Math.PI / 2 },
+  frozen: { origin: [16.8, 1.06, -5], along: 'z', yaw: Math.PI / 2 },
+};
+
+export function PrismaInterior({ shelf }: { shelf?: ShelfProductsProps }) {
   const def = INTERIORS.prisma;
   const { products, fruit } = useMemo(() => {
     const rng = createRng(4004);
@@ -138,6 +152,7 @@ export function PrismaInterior() {
         </group>
       ))}
       <InstancedBoxes items={products} />
+      {shelf && <ShelfProducts {...shelf} displays={PRISMA_SHELF_DISPLAYS} />}
       {/* hanging aisle signs */}
       {['MAITO & JUUSTO', 'LEIPÄ & AAMIAINEN', 'PASTA & RIISI', 'JUOMAT', 'HERKUT', 'KOTI & PESU', 'LEMMIKIT'].map((t, i) => (
         <group key={t} position={[PRISMA_SHELF_XS[i]! + 2.75, 4.4, -5]}>
