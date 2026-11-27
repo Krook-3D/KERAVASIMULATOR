@@ -472,3 +472,10 @@ describe('online look', () => {
     expect(bad.shape).toEqual({ fat: 1, muscle: 0 });
   });
 });
+
+describe('starting outfit', () => {
+  it('is a suit without hat or backpack', async () => {
+    const { defaultAppearance } = await import('./player/appearance');
+    expect(defaultAppearance()).toMatchObject({ topStyle: 'suit', hat: 'none', backpack: false });
+  });
+});

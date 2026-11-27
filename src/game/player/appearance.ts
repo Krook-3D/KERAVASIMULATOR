@@ -7,7 +7,7 @@ export type HairStyle = (typeof HAIR_STYLES)[number];
 export const FACIAL_HAIR = ['none', 'stubble', 'moustache', 'goatee', 'beard'] as const;
 export type FacialHair = (typeof FACIAL_HAIR)[number];
 export type HatKind = 'beanie' | 'cap' | 'none';
-export type TopStyle = 'hoodie' | 'jacket';
+export type TopStyle = 'hoodie' | 'jacket' | 'suit';
 
 export interface Appearance {
   skin: string;
@@ -55,22 +55,23 @@ export const CLOTH_COLORS = ['#ffd23f', '#3a7bd5', '#ff6b6b', '#5ee07a', '#c084f
 
 export const BARBER_PRICE = 15;
 
-export function defaultAppearance(color = '#ffd23f'): Appearance {
+/** The look you start with: a dark suit, white shirt and tie. No hat, no backpack. */
+export function defaultAppearance(_color?: string): Appearance {
   return {
     skin: '#efc19b',
     hair: '#4a3222',
-    hairStyle: 'short',
+    hairStyle: 'sidepart',
     facialHair: 'none',
     eyes: '#2d2118',
     glasses: false,
-    top: color,
-    topStyle: 'hoodie',
-    legs: '#2e3b55',
-    shoes: '#f4f4f0',
-    hat: 'beanie',
+    top: '#23262d',
+    topStyle: 'suit',
+    legs: '#23262d',
+    shoes: '#14171f',
+    hat: 'none',
     hatColor: '#3a7bd5',
-    accent: '#ffd23f',
-    backpack: true,
+    accent: '#8a1f2a',
+    backpack: false,
     build: 1,
     height: 1,
   };

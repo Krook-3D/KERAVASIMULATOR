@@ -23,8 +23,8 @@ export interface Outfit {
   hatColor: string;
   accent: string;
   backpack?: boolean;
-  /** hoodie (default) or a uniform jacket with collar. */
-  style?: 'hoodie' | 'jacket';
+  /** hoodie (default), a uniform jacket with collar, or a suit (blazer, white shirt, tie). */
+  style?: 'hoodie' | 'jacket' | 'suit';
   /** Small prop in the right hand. */
   prop?: 'phone' | 'reader';
   /** Body width multiplier, 0.9–1.15. */
@@ -330,6 +330,9 @@ export function buildHumanoid(outfit: Outfit): { mesh: THREE.SkinnedMesh; bones:
   const sole = shoes.getHSL({ h: 0, s: 0, l: 0 }).l > 0.6 ? new THREE.Color('#d8d2c4') : new THREE.Color('#f0ece2');
   const accent = new THREE.Color(outfit.accent);
   const hoodie = (outfit.style ?? 'hoodie') === 'hoodie';
+  const suit = outfit.style === 'suit';
+  const shirt = new THREE.Color('#f2f2ee');
+  const tie = new THREE.Color(outfit.accent);
   const bulk = hoodie ? 0.014 : 0.008;
   const loose = hoodie ? 0.012 : 0;
 
@@ -352,7 +355,7 @@ export function buildHumanoid(outfit: Outfit): { mesh: THREE.SkinnedMesh; bones:
       [1.475, 0.125, 0.078, -0.01],
       [1.505, 0.07, 0.064, -0.01],
     ];
-    const hem = hoodie ? 0.885 : 0.96;
+    const hem = hoodie ? 0.885 : suit ? 0.87 : 0.96;
     // extra rings right at the colour borders keep the hem line crisp
     const lerpRing = (y: number): [number, number, number, number] => {
       const i = prof.findIndex((r) => r[0] > y);
@@ -405,7 +408,12 @@ export function buildHumanoid(outfit: Outfit): { mesh: THREE.SkinnedMesh; bones:
       clean(g),
       (p) => {
         if (p.y < hem - 0.035) return legs;
-        if (p.y < hem) return hoodie ? topDark : new THREE.Color('#1a1a1a'); // hem band / belt
+        if (p.y < hem) return hoodie || suit ? topDark : new THREE.Color('#1a1a1a'); // hem band / belt
+        if (suit && p.z > 0.02) {
+          // open blazer front: white shirt in a V down to the button, tie in the middle
+          const open = Math.max(0, (p.y - 1.13) * 0.3);
+          if (Math.abs(p.x) < open) return Math.abs(p.x) < 0.014 && p.y < 1.46 ? tie : shirt;
+        }
         return top;
       },
       torsoWeights,
@@ -669,6 +677,15 @@ export function buildHumanoid(outfit: Outfit): { mesh: THREE.SkinnedMesh; bones:
     for (const sx of [1, -1])
       add(at(roundedBox(0.006, 0.09, 0.006, 0.0029, 1), sx * 0.03, 1.375, 0.134), solid(accent), only('chest'));
     add(at(roundedBox(0.19 * W, 0.085, 0.016, 0.008, 2), 0, 1.03, 0.113), solid(topDark), torsoWeights);
+  } else if (suit) {
+    // lapels, buttons, breast pocket square, shirt collar and tie knot
+    for (const sx of [1, -1]) {
+      add(at(roundedBox(0.03, 0.17, 0.008, 0.003, 1), sx * 0.045, 1.33, 0.118, -0.2, 0, sx * 0.32), solid(topDark), only('chest'));
+      add(at(roundedBox(0.04, 0.07, 0.01, 0.004, 1), sx * 0.024, 1.445, 0.1, -0.35, 0, sx * 0.45), solid(shirt), only('chest'));
+    }
+    add(at(roundedBox(0.022, 0.02, 0.012, 0.005, 1), 0, 1.455, 0.112), solid(tie.clone().multiplyScalar(0.85)), only('chest'));
+    for (const y of [1.1, 1.02]) add(at(roundedBox(0.012, 0.012, 0.006, 0.004, 1), 0.012, y, 0.122), solid('#14171f'), torsoWeights);
+    add(at(roundedBox(0.035, 0.014, 0.008, 0.003, 1), 0.085, 1.3, 0.128), solid(shirt), only('chest'));
   } else {
     // jacket: zipper line, badge, epaulettes
     add(at(roundedBox(0.008, 0.36, 0.008, 0.003, 1), 0, 1.2, 0.132), solid(topDark), torsoWeights);

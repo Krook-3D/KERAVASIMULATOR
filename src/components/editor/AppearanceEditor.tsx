@@ -106,7 +106,7 @@ export function AppearanceEditor({ value, onChange, only, onTab }: { value: Appe
       )}
       {tab === 'clothes' && (
         <>
-          <Choices label="Takki" options={['hoodie', 'jacket'] as const} names={{ hoodie: 'Huppari', jacket: 'Takki' }} value={value.topStyle} onPick={(v) => set('topStyle', v)} />
+          <Choices label="Takki" options={['suit', 'hoodie', 'jacket'] as const} names={{ suit: 'Puku', hoodie: 'Huppari', jacket: 'Takki' }} value={value.topStyle} onPick={(v) => set('topStyle', v)} />
           <Swatches label="Paidan väri" colors={CLOTH_COLORS} value={value.top} onPick={(c) => set('top', c)} />
           <Swatches label="Housut" colors={['#2e3b55', '#14171f', '#3b4a6b', '#6b4a2e', '#8a8f96', '#2e6b4f', '#c8c0aa']} value={value.legs} onPick={(c) => set('legs', c)} />
           <Swatches label="Kengät" colors={['#f4f4f0', '#14171f', '#8a5a32', '#c8312b', '#3a7bd5']} value={value.shoes} onPick={(c) => set('shoes', c)} />

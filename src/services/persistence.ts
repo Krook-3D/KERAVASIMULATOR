@@ -1,5 +1,6 @@
 import type { Player } from '../types/game';
 import { SKILL_IDS } from '../game/player/createPlayer';
+import { defaultAppearance } from '../game/player/appearance';
 
 /**
  * Save storage. MVP uses localStorage; later this module is swapped for REST
@@ -29,7 +30,16 @@ export function loadPlayer(): Player | null {
 function migrate(player: Player): Player {
   const skills = { ...player.skills };
   for (const id of SKILL_IDS) skills[id] ??= { xp: 0 };
-  return { ...player, skills };
+  return { ...player, skills, appearance: suitUp(player) };
+}
+
+/** The old starting outfit (hoodie, backpack, beanie) became a suit; your face and hair stay as they were. */
+function suitUp(player: Player): Player['appearance'] {
+  const a = player.appearance;
+  const suit = defaultAppearance();
+  if (!a) return suit;
+  if (a.topStyle !== 'hoodie' || a.hat !== 'beanie' || !a.backpack) return a;
+  return { ...a, top: suit.top, topStyle: suit.topStyle, legs: suit.legs, shoes: suit.shoes, hat: 'none', accent: suit.accent, backpack: false };
 }
 
 export function savePlayer(player: Player | null): void {

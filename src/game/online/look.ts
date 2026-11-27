@@ -16,7 +16,7 @@ export function lookToAppearance(look: PlayerLook | undefined, color: string): {
   if (typeof a.hairStyle === 'string' && (HAIR_STYLES as readonly string[]).includes(a.hairStyle)) out.hairStyle = a.hairStyle as Appearance['hairStyle'];
   if (typeof a.facialHair === 'string' && (FACIAL_HAIR as readonly string[]).includes(a.facialHair)) out.facialHair = a.facialHair as Appearance['facialHair'];
   if (a.hat === 'beanie' || a.hat === 'cap' || a.hat === 'none') out.hat = a.hat;
-  if (a.topStyle === 'hoodie' || a.topStyle === 'jacket') out.topStyle = a.topStyle;
+  if (a.topStyle === 'hoodie' || a.topStyle === 'jacket' || a.topStyle === 'suit') out.topStyle = a.topStyle;
   if (typeof a.glasses === 'boolean') out.glasses = a.glasses;
   if (typeof a.backpack === 'boolean') out.backpack = a.backpack;
   out.build = clamp(a.build, 0.9, 1.15, base.build);
