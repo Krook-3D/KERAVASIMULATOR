@@ -6,9 +6,10 @@ interface HudProps {
   player: Player;
   graphics: GraphicsQuality;
   onToggleGraphics: () => void;
+  onMenu?: () => void;
 }
 
-export function Hud({ player, graphics, onToggleGraphics }: HudProps) {
+export function Hud({ player, graphics, onToggleGraphics, onMenu }: HudProps) {
   const level = levelFromXp(player.xp);
   const progress = levelProgress(player.xp);
 
@@ -28,9 +29,16 @@ export function Hud({ player, graphics, onToggleGraphics }: HudProps) {
         <div className="hud__chip">💰 {player.money} €</div>
         <div className="hud__chip">⚡ {player.energy}</div>
       </div>
-      <button type="button" className="hud__chip hud__gfx" onClick={onToggleGraphics} title="Vaihda grafiikan laatu">
-        🎨 {graphics === 'high' ? 'Korkea' : 'Kevyt'}
-      </button>
+      <div className="hud__right">
+        <button type="button" className="hud__chip hud__gfx" onClick={onToggleGraphics} title="Vaihda grafiikan laatu">
+          🎨 {graphics === 'high' ? 'Korkea' : 'Kevyt'}
+        </button>
+        {onMenu && (
+          <button type="button" className="hud__chip hud__gfx" onClick={onMenu} title="Päävalikko">
+            ☰
+          </button>
+        )}
+      </div>
     </header>
   );
 }

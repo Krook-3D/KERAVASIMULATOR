@@ -31,7 +31,7 @@ function PanelContent({ id, player }: { id: PanelId; player: Player }) {
   }
 }
 
-export function GamePage({ player }: { player: Player }) {
+export function GamePage({ player, onMenu }: { player: Player; onMenu?: () => void }) {
   const { dispatch } = useGame();
   const [panel, setPanel] = useState<PanelId | null>(null);
   const [gfx, setGfx] = useState<GraphicsQuality>(loadGraphicsQuality);
@@ -52,7 +52,7 @@ export function GamePage({ player }: { player: Player }) {
         highQuality={gfx === 'high'}
         onMove={(position) => dispatch({ type: 'movePlayer', position })}
       />
-      {player.introDone && <Hud player={player} graphics={gfx} onToggleGraphics={toggleGfx} />}
+      {player.introDone && <Hud player={player} graphics={gfx} onToggleGraphics={toggleGfx} onMenu={onMenu} />}
       {!player.introDone ? null : panel ? (
         <Panel title={PANEL_TITLES[panel]} onClose={() => setPanel(null)}>
           <PanelContent id={panel} player={player} />
