@@ -7,6 +7,8 @@ import { loadWorldData, worldBounds, type Building, type WorldData } from '../..
 import { createTerrain } from '../../game/world/terrain';
 import { placeBlock, placePrisma } from '../../game/world/prisma';
 import { SITES } from '../../game/world/sites';
+import { BUS_FARE, FARE_DODGE_CATCH, inspectorDropStop, placeBusStops, type BusStop } from '../../game/world/transit';
+import { BUS_ARRIVE, BusStopModel, BusVehicle, type BusRun } from './Bus';
 import { LIFTS, SET_ENERGY, liftChance, liftXp, barWeight, type LiftId } from '../../game/gym/lifting';
 import { BuildingCollider } from '../../game/world/collision';
 import {
@@ -212,6 +214,24 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     }
     return Object.fromEntries(list.map((d) => [d.id, d])) as Record<WorldDoorId, WorldDoor>;
   }, [layout, prisma, placed]);
+
+  const busStops = useMemo((): BusStop[] => {
+    if (!world || !doors || !layout) return [];
+    const ahead = (d: WorldDoor, k: number): WorldXZ => [d.at[0] + d.outward[0] * k, d.at[1] + d.outward[1] * k];
+    return placeBusStops(
+      [
+        { id: 'asema', name: 'Asema', near: ahead(doors['station-town'], 30) },
+        { id: 'keskusta', name: 'Keskusta / Prisma', near: ahead(doors.prisma, 20) },
+        { id: 'sali', name: 'Kuntosali', near: ahead(doors.gym, 15) },
+        { id: 'uimahalli', name: 'Uimahalli', near: ahead(doors.pool, 15) },
+        { id: 'kaleva', name: 'Kaleva', near: [-300, 420] },
+        { id: 'ahjo', name: 'Ahjo', near: [420, 60] },
+        { id: 'talma', name: 'Talma', near: [1450, -860] },
+        { id: 'vankila', name: 'Vankilan risteys', near: [PRISON_AT[0], PRISON_AT[1] + 45] },
+      ],
+      world.roads,
+    );
+  }, [world, doors, layout]);
 
   const jonneAt = useMemo(() => (layout ? toWorld(layout, JONNE_LOCAL) : null), [layout]);
   const jonneYaw = useMemo(() => (layout ? Math.atan2(-layout.dirZ[0], -layout.dirZ[1]) + 0.6 : 0), [layout]);
@@ -463,6 +483,42 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     }, SWIM_TIME * 1000);
   };
 
+  // ------------------------------------------------------------ buses
+  const [atBusStop, setAtBusStop] = useState<BusStop | null>(null);
+  const [busRun, setBusRun] = useState<BusRun | null>(null);
+  const [dodge, setDodge] = useState(false);
+  const riding = !!busRun;
+  const money = player?.money ?? 0;
+
+  const takeBus = (from: BusStop, to: BusStop) => {
+    const pay = !dodge;
+    if (pay && money < BUS_FARE) {
+      setToast(`Lippu maksaa ${BUS_FARE} €. Rahat ei riitä.`);
+      return;
+    }
+    setAtBusStop(null);
+    setRoute([]);
+    setBusRun({ stop: from, mode: 'in', t0: clockRef.current, dest: to.name.toUpperCase() });
+    window.setTimeout(() => {
+      // board
+      setPlayerVisible(false);
+      if (pay) dispatch({ type: 'adjustStats', money: -BUS_FARE });
+      setBusRun({ stop: from, mode: 'out', t0: clockRef.current, dest: to.name.toUpperCase() });
+      const caught = !pay && Math.random() < FARE_DODGE_CATCH;
+      const end = caught ? (inspectorDropStop(busStops, from.id, to.id, Math.random()) ?? to) : to;
+      window.setTimeout(() => {
+        teleport('world', end.at);
+        window.setTimeout(() => {
+          setBusRun({ stop: end, mode: 'wait', t0: clockRef.current, dest: to.name.toUpperCase() });
+          setPlayerVisible(true);
+          setToast(caught ? `Lipuntarkastus! Sinut heitettiin ulos pysäkillä ${end.name}. Voihan vittu.` : `🚌 Perillä: ${end.name}${pay ? ` (−${BUS_FARE} €)` : ' · pummilla, onnistui!'}`);
+          window.setTimeout(() => setBusRun({ stop: end, mode: 'out', t0: clockRef.current, dest: to.name.toUpperCase() }), 1500);
+          window.setTimeout(() => setBusRun(null), 7000);
+        }, 450);
+      }, 2200);
+    }, (BUS_ARRIVE + 0.6) * 1000);
+  };
+
   // ------------------------------------------------------------ clicks and arrival
   interface Spot {
     at: WorldXZ;
@@ -476,6 +532,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
         list.push({ at: d.at, use: () => (to ? goTo({ scene: to.scene, exit: to.exit }) : setToast('Vankilan portti on lukossa. Hyvä niin.')) });
       }
       if (jonneAt) list.push({ at: jonneAt, use: talkToJonne });
+      for (const b of busStops) list.push({ at: b.at, use: () => setAtBusStop(b) });
       return list;
     }
     const list: Spot[] = INTERIORS[scene].exits.map((e) => ({
@@ -486,10 +543,11 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     if (scene === 'pool') list.push({ at: POOL_SWIM_SPOT, use: () => setAtPool(true) });
     return list;
     // talkToJonne/escaped read the latest state through closures re-created each render
-  }, [scene, doors, jonneAt, goTo, jailStep, player, carrying]);
+  }, [scene, doors, jonneAt, goTo, jailStep, player, carrying, busStops]);
 
   const onGroundClick = (raw: WorldXZ) => {
-    if (cutscene || dialogue || fading || busy) return;
+    if (cutscene || dialogue || fading || busy || riding) return;
+    setAtBusStop(null);
     setAtStation(null);
     setAtPool(false);
     setCarrying(null);
@@ -527,6 +585,9 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       live: jailLive.current,
       hold: (v: boolean) => (holdingRef.current = v),
       click: (x: number, z: number) => onGroundClick([x, z]),
+      stops: busStops,
+      blocked: (x: number, z: number) => !!collider?.isBlocked([x, z]) || extraBlocked([x, z]),
+      ui: () => ({ atBusStop: atBusStop?.id, busRun: busRun?.mode, scene, cutscene }),
       local: (x: number, z: number) => (layout ? toWorld(layout, [x, z]) : null),
       ground: (x: number, z: number) => [terrain?.heightAt(x, z), terrain?.surfaceAt(x, z), positionRef.current.y],
     };
@@ -564,6 +625,12 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
             <Station layout={layout!} xray={xray} />
             <Train layout={layout!} clockRef={clockRef} />
             <PrismaExterior site={prisma!.site} ground={terrain!.surfaceAt(prisma!.site.door[0], prisma!.site.door[1])} />
+            {busStops.map((b) => (
+              <BusStopModel key={b.id} stop={b} ground={terrain!.surfaceAt(b.at[0], b.at[1])} />
+            ))}
+            {!cutscene &&
+              busStops.map((b) => <Hotspot key={b.id} at={b.at} y={terrain!.surfaceAt(b.at[0], b.at[1])} label={`🚌 ${b.name}`} onClick={() => onGroundClick(b.at)} />)}
+            {busRun && <BusVehicle run={busRun} clockRef={clockRef} groundAt={(x, z) => terrain!.surfaceAt(x, z)} />}
             {placed && <BlockExterior site={placed.gym} ground={terrain!.surfaceAt(placed.gym.door[0], placed.gym.door[1])} sign="KUNTOSALI RAUTA" color="#c8312b" sub="AVOINNA 24/7" />}
             {placed && <BlockExterior site={placed.pool} ground={terrain!.surfaceAt(placed.pool.door[0], placed.pool.door[1])} sign="UIMAHALLI" color="#1f8fc0" sub="KERAVAN UIMAHALLI" />}
             <PrisonExterior at={PRISON_AT} yaw={0} ground={terrain!.surfaceAt(PRISON_AT[0], PRISON_AT[1] + 8)} />
@@ -673,6 +740,24 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
               {energy < SWIM_ENERGY ? 'Liian väsynyt' : `Ui 10 × 25 m (−${SWIM_ENERGY} ⚡)`}
             </button>
           </div>
+        </div>
+      )}
+      {!cutscene && inWorld && atBusStop && !busRun && (
+        <div className="gym-hud bus-hud">
+          <div className="gym-hud__title">🚌 Pysäkki: {atBusStop.name}</div>
+          <div className="gym-hud__label">Minne mennään? Lippu {BUS_FARE} € · rahaa {money} €</div>
+          <div className="bus-hud__list">
+            {busStops
+              .filter((b) => b.id !== atBusStop.id)
+              .map((b) => (
+                <button key={b.id} type="button" className="bus-hud__dest" onClick={() => takeBus(atBusStop, b)}>
+                  {b.name}
+                </button>
+              ))}
+          </div>
+          <label className="bus-hud__dodge">
+            <input type="checkbox" checked={dodge} onChange={(e) => setDodge(e.target.checked)} /> Matkusta pummilla (ilmainen, mutta tarkastaja voi heittää ulos)
+          </label>
         </div>
       )}
       {dialogue && <DialogueBox view={dialogue} />}
