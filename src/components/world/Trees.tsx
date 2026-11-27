@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -49,12 +49,42 @@ function makeTreeGeometries(): Record<TreeKind, [THREE.BufferGeometry, THREE.Buf
   };
 }
 
-/** Crowns sway gently in the wind (phase from the instance position). */
-function swayMaterial(uTime: { value: number }, roughness: number) {
+type SeeThrough = { uTime: { value: number }; uPlayer: { value: THREE.Vector3 }; uCam: { value: THREE.Vector3 } };
+
+/**
+ * Crowns sway gently in the wind (phase from the instance position), and crowns
+ * between the camera and the player dissolve with a dither so the player stays visible.
+ */
+function swayMaterial(u: SeeThrough, roughness: number) {
   const m = new THREE.MeshStandardMaterial({ roughness, vertexColors: true });
   m.onBeforeCompile = (shader) => {
-    shader.uniforms.uTime = uTime;
-    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nuniform float uTime;').replace(
+    Object.assign(shader.uniforms, u);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform vec3 uPlayer;\nuniform vec3 uCam;\nvarying vec3 vTreeW;')
+      .replace(
+        '#include <clipping_planes_fragment>',
+        `#include <clipping_planes_fragment>
+        {
+          vec3 seg = uPlayer + vec3(0.0, 1.1, 0.0) - uCam;
+          float len = length(seg);
+          vec3 dir = seg / max(len, 0.001);
+          float t = dot(vTreeW - uCam, dir);
+          if (t > 0.0 && t < len - 0.8) {
+            float k = 1.0 - length(vTreeW - uCam - dir * t) / 2.8;
+            float dither = fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453);
+            if (k > 0.0 && dither < 0.2 + k * 0.75) discard;
+          }
+        }`,
+      );
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nuniform float uTime;\nvarying vec3 vTreeW;').replace(
+      '#include <project_vertex>',
+      `#include <project_vertex>
+      #ifdef USE_INSTANCING
+        vTreeW = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+      #else
+        vTreeW = (modelMatrix * vec4(transformed, 1.0)).xyz;
+      #endif`,
+    ).replace(
       '#include <begin_vertex>',
       `#include <begin_vertex>
       #ifdef USE_INSTANCING
@@ -67,7 +97,7 @@ function swayMaterial(uTime: { value: number }, roughness: number) {
       transformed.z += cos(uTime * 1.1 + ph) * 0.028 * hh;`,
     );
   };
-  m.customProgramCacheKey = () => 'tree-sway';
+  m.customProgramCacheKey = () => 'tree-sway-seethrough';
   return m;
 }
 
@@ -116,13 +146,17 @@ function TreeKindMesh({ kind, trees, geos, crownMat }: { kind: TreeKind; trees: 
   );
 }
 
-export function Trees({ trees }: { trees: Tree[] }) {
+export function Trees({ trees, playerRef }: { trees: Tree[]; playerRef?: MutableRefObject<THREE.Vector3> }) {
   const geos = useMemo(makeTreeGeometries, []);
-  const uTime = useMemo(() => ({ value: 0 }), []);
-  const crownMat = useMemo(() => swayMaterial(uTime, 0.82), [uTime]);
+  const u = useMemo<SeeThrough>(() => ({ uTime: { value: 0 }, uPlayer: { value: new THREE.Vector3(0, -1e4, 0) }, uCam: { value: new THREE.Vector3(0, -1e4, 0) } }), []);
+  const crownMat = useMemo(() => swayMaterial(u, 0.82), [u]);
   useEffect(() => () => crownMat.dispose(), [crownMat]);
-  useFrame(({ clock }) => {
-    uTime.value = clock.elapsedTime;
+  useFrame(({ clock, camera }) => {
+    u.uTime.value = clock.elapsedTime;
+    if (playerRef) {
+      u.uPlayer.value.copy(playerRef.current);
+      u.uCam.value.copy(camera.position);
+    }
   });
   const byKind = useMemo(() => {
     const out: Record<TreeKind, Tree[]> = { spruce: [], pine: [], birch: [] };

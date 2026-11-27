@@ -127,7 +127,7 @@ export function KeravaWorld({ data, terrain, collider, excludeTrees, onGroundCli
       {flat(r.rails, materials.rail)}
       {geos.buildings && <mesh geometry={geos.buildings} material={materials.building} castShadow receiveShadow />}
       <WaterDetails data={data} terrain={terrain} />
-      <Trees trees={trees} />
+      <Trees trees={trees} playerRef={playerRef} />
       <StreetProps lamps={props.lamps} cars={props.cars} />
     </group>
   );
