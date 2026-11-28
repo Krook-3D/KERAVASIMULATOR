@@ -1,5 +1,98 @@
 # Kerava Simulator
 
+Selaimessa pelattava 3D-roolipeli (K18), joka sijoittuu Keravalle. Pelaaja luo hahmon, saapuu junalla asemalle ilman lippua ja kehittää kymmentä taitoa tekemällä asioita kaupungissa: salilla, keittiössä, kaduilla, rakennustyömaalla ja Kerava-Pörssissä. Peli on oma, RuneScape-tyyliseen kehitykseen pohjautuva kokonaisuus, eikä se kopioi muita pelejä.
+
+Kattava raportti kaikista ominaisuuksista ja niiden toteutuksesta: [Kerava Simulator: ominaisuudet ja toteutus](https://claude.ai/artifact/63zi2Hn8nwMu9B7tkzC6yF).
+
+## Pelin käynnistys
+
+Vaatii Node.js 22+.
+
+```bash
+npm install
+npm run dev        # peli osoitteessa http://localhost:5173
+npm test           # pelisääntöjen yksikkötestit (vitest)
+npm run build      # tyyppitarkistus ja tuotantobuild
+```
+
+Oikean Keravan kadut, rakennukset, sillat ja alikulut haetaan OpenStreetMapista. Ilman tätä peli käyttää sisäänrakennettua varakaupunkia.
+
+```bash
+npm run fetch:osm          # kirjoittaa public/data/kerava-world.json (oletus 700 m säde asemasta)
+npm run fetch:osm -- 1200  # isompi alue
+```
+
+### Moninpelipalvelin (valinnainen)
+
+Yksinpeli toimii ilman palvelinta ja tallentuu selaimeen. Verkkopeli (tilit, muut pelaajat, chat, kaupankäynti ja Kerava-Pörssi) tarvitsee PostgreSQL:n ja palvelimen:
+
+```bash
+cd server
+npm install
+npm run migrate        # luo taulut (oletus: postgres://kerava:kerava@localhost:5432/kerava)
+npm start              # http://localhost:8787, Vite välittää /api-kutsut sinne
+```
+
+Asetukset luetaan ympäristömuuttujista (mallit tiedostossa `server/.env.example`, jota ei lueta automaattisesti).
+
+Lisätiedot: [server/README.md](server/README.md) ja [docs/MULTIPLAYER.md](docs/MULTIPLAYER.md).
+
+## Ohjaus
+
+| Näppäin | Toiminto |
+| --- | --- |
+| Klikkaus pelialueelle | Lukitsee hiiren, ja hiiri kääntää kameraa |
+| Nuolet tai WASD | Liikkuminen kameran suuntaan |
+| E | Käytä lähintä kohdetta (ovi, hylly, laite, NPC) |
+| Hiiren oikea nappi | Kohteen toimintovalikko |
+| Välilyönti | Pakotilanteissa: hakkaa paetaksesi |
+| M | Äänet päälle tai pois |
+| Esc | Vapauttaa hiiren |
+
+## Mitä pelissä on
+
+- **Kerava 3D:nä:** maasto ja mäet, asema ja lähijuna, radan ylitykset, kadut suojateineen ja jalkakäytävineen, metsät, katulamput, minikartta ja vuorokausirytmi (36 minuutin päivä, ilta, yö ja tähdet).
+- **Kymmenen taitoa:** Voima, Kestävyys, Juoksu, Ruoanlaitto, Kalastus, Hustlaus, Art, Kamppailu, Rakentaminen ja Kyttien pakoilu, tasot 1–50.
+- **Hahmo:** hahmonluonti, parturi, vartalo joka muuttuu treenin mukaan, karma-aura ja kolmannen persoonan kamera.
+- **Sisätilat:** Prisma, Alepa, Motonet, K-Rauta, kuntosali, uimahalli, Ahjo Training Center, parturi, poliisiasema, putka, asema ja tunneli.
+- **Aktiviteetit:** painot, uinti, säkki, paini ja sparri, kahdeksan reseptin kokkaus, vapaalla kädellä maalattavat graffitit ja rakentaminen.
+- **Esineet:** 102 esinettä ja 30-paikkainen reppu. Kaupungissa on 150 löytöpaikkaa, ja pakettipudotukset tuovat aina legendaarisen esineen (Kultainen Rolux, kultainen sorkkarauta, Kultainen Nokka 3310 tai kultaharkko).
+- **Kaupat ja rikollisuus:** ostaminen tai varastaminen, karma, hälytystaso, vartijat, poliisipartiot ja putka. Fiktiivinen katukauppa jengien kanssa, jossa on huijausriski.
+- **Kaupungin elämä:** noin 90 asukasta ja kuusi sekakokoonpanoista jengiä, haarautuvat keskustelut, provosointi ja tappelut.
+- **Questit:** Viilattu vapaus -vankilapako ja kahdeksan maastokätköä, joilla on omistajat.
+- **Liikkuminen:** bussit pysäkeiltä, lähijuna Keravan ja Savion välillä sekä lipuntarkastajat.
+- **Tontit ja talot:** 42 ostettavaa tonttia, neljä rakennusvaihetta, seitsemän laajennusta (piha, terassi, aita, eristys, sauna, autotalli ja aurinkopaneelit), maalaus, lepo kotona ja vuokraus. Materiaalit saa Motonetista ja K-Raudasta.
+- **Moninpeli:** tilit, muut pelaajat ja chat, pelaajien välinen kauppa kaksoisvahvistuksella sekä Kerava-Pörssi torilla: tilauskirja, välitystili ja noutolaatikko.
+- **Äänet:** kaikki tehosteet ja ympäristöäänet syntetisoidaan selaimessa, joten äänitiedostoja ei ladata.
+
+## Tekniikka
+
+- **Selain:** React 19, Vite, TypeScript (strict), Three.js ja React Three Fiber, drei, postprocessing, Web Audio API.
+- **Palvelin:** Node.js 22, Fastify, ws, zod ja PostgreSQL.
+- **Rakenne:**
+  - `src/game/` sisältää pelisäännöt puhtaina, testattavina funktioina.
+  - `src/components/world/` sisältää 3D-maailman. Pelijärjestelmät ovat hookeja kansiossa `GameWorld/systems/`.
+  - `src/data/` sisältää esineet ja taidot.
+  - `src/audio/` sisältää äänimoottorin.
+  - `shared/` sisältää säännöt, jotka selain ja palvelin jakavat.
+  - `server/` on moninpelipalvelin.
+- **Testit:** 66 pelisääntötestiä (`npm test`) ja 69 palvelintestiä (`cd server && npm test`).
+- **Debug:** `?debug=1` osoitteen perässä tuo konsoliin komennot `window.__kerava` (teleport, kamera, tontit, kaupat), `__keravaDrop()` ja `__keravaHour(h)`.
+
+## Dokumentaatio
+
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): arkkitehtuuri, tietomalli ja järjestelmien kuvaus
+- [docs/MULTIPLAYER.md](docs/MULTIPLAYER.md): moninpelin suunnitelma ja vaiheet
+- [TODO.md](TODO.md): tehtävälista ja seuraavat askeleet
+
+Karttadata © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors. Kaikki hahmot, järjestöt ja tapahtumat ovat keksittyjä.
+
+---
+
+# Alkuperäinen suunnitteluohje (English design brief)
+
+The section below is the original design brief the project was started from. It is kept for reference; the current state of the game is described above.
+
 ## Project Context
 
 Kerava Simulator is a browser-based open-world life simulator / RPG set in the real city of Kerava, Finland.
@@ -346,7 +439,7 @@ Preferred technology:
 
 ```text
 OpenStreetMap
-MapLibre GL JS
+Three.js + React Three Fiber (3D, RuneScape-style third-person view)
 ```
 
 The map should eventually support:
@@ -427,7 +520,7 @@ TypeScript
 ## Map
 
 ```text
-MapLibre GL JS
+Three.js + React Three Fiber (3D, RuneScape-style third-person view)
 OpenStreetMap
 ```
 
