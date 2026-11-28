@@ -150,7 +150,81 @@ export const PRACTICE = { name: 'Puutyöt', needs: { lauta: 2 }, energy: 8, xp: 
 export interface PlotState {
   /** Stages built so far (0–4). */
   stage: number;
+  /** Extensions built on a finished house (UPGRADES ids). */
+  upgrades?: string[];
+  /** Wall colour (HOUSE_COLORS id); falu red until painted. */
+  color?: string;
+  /** Rented out since (ms since epoch); rent piles up until collected. */
+  rentFrom?: number;
+  /** Last rest at home (ms since epoch). */
+  restAt?: number;
 }
+
+// ------------------------------------------------------------ after the house: extensions, paint, rent, rest
+
+export interface Upgrade {
+  id: string;
+  name: string;
+  icon: string;
+  blurb: string;
+  needs: Record<string, number>;
+  level: number;
+  energy: number;
+  xp: number;
+  time: number;
+  /** Adds to the resale price and to the rent per hour. */
+  value: number;
+  rent: number;
+  /** Must be built first. */
+  after?: string;
+}
+
+/** Extensions for a finished house, all with K-Rauta materials. */
+export const UPGRADES: Upgrade[] = [
+  { id: 'piha', name: 'Kukkapenkit', icon: '🌷', blurb: 'Kukkapenkit talon eteen.', needs: { multasakki: 4, kukkasipulit: 3 }, level: 8, energy: 10, xp: 140, time: 5, value: 120, rent: 1 },
+  { id: 'terassi', name: 'Terassi', icon: '🪵', blurb: 'Puuterassi talon kylkeen.', needs: { terassilauta: 16 }, level: 9, energy: 18, xp: 380, time: 7, value: 300, rent: 2 },
+  { id: 'aita', name: 'Aita', icon: '🚧', blurb: 'Säleaita tontin ympäri, portti kadun puolelle.', needs: { aitaelementti: 8 }, level: 10, energy: 18, xp: 450, time: 7, value: 350, rent: 1 },
+  { id: 'eristys', name: 'Lisäeristys', icon: '🧽', blurb: 'Lisävillat yläpohjaan. Lepo kotona palauttaa enemmän energiaa.', needs: { eriste: 8 }, level: 11, energy: 15, xp: 520, time: 6, value: 300, rent: 2 },
+  { id: 'sauna', name: 'Pihasauna', icon: '♨️', blurb: 'Oma pihasauna. Saunominen palauttaa koko energian.', needs: { lauta: 14, eriste: 4, kiuas: 1 }, level: 12, energy: 22, xp: 800, time: 8, value: 900, rent: 4, after: 'eristys' },
+  { id: 'autotalli', name: 'Autotalli', icon: '🚗', blurb: 'Tiilinen autotalli nosto-ovella.', needs: { tiili: 60, sementti: 4, nostoovi: 1, kattopelti: 4 }, level: 14, energy: 25, xp: 1200, time: 9, value: 1400, rent: 5 },
+  { id: 'aurinko', name: 'Aurinkopaneelit', icon: '🔆', blurb: 'Paneelit katolle. Vuokralaiset rakastavat pientä sähkölaskua.', needs: { aurinkopaneeli: 4 }, level: 15, energy: 15, xp: 900, time: 6, value: 800, rent: 4 },
+];
+export const upgradeById = (id: string) => UPGRADES.find((u) => u.id === id);
+
+/** Wall colours for the paint job: classic Finnish house colours. */
+export const HOUSE_COLORS: { id: string; name: string; wall: string; trim: string }[] = [
+  { id: 'falu', name: 'Punamulta', wall: '#9b2d20', trim: '#f2efe6' },
+  { id: 'keltainen', name: 'Keltamulta', wall: '#e0b545', trim: '#f2efe6' },
+  { id: 'valkoinen', name: 'Valkoinen', wall: '#eeeae0', trim: '#3b3f46' },
+  { id: 'harmaa', name: 'Harmaa', wall: '#8d939a', trim: '#f2efe6' },
+  { id: 'sininen', name: 'Siniharmaa', wall: '#5d7c99', trim: '#f2efe6' },
+  { id: 'vihrea', name: 'Vihreä', wall: '#5f7f55', trim: '#f2efe6' },
+  { id: 'musta', name: 'Musta', wall: '#26282c', trim: '#d8b070' },
+];
+export const houseColor = (id?: string) => HOUSE_COLORS.find((c) => c.id === id) ?? HOUSE_COLORS[0]!;
+/** Paint job: three buckets, any colour. */
+export const PAINT = { needs: { talomaali: 3 }, energy: 12, xp: 160, time: 5 };
+
+/** Rent per real hour for a finished house: grows with the plot size and the extensions. */
+export function rentPerHour(plot: Plot, s: PlotState): number {
+  if (!houseDone(s)) return 0;
+  return Math.round(4 + plot.size * 0.2 + (s.upgrades ?? []).reduce((a, id) => a + (upgradeById(id)?.rent ?? 0), 0));
+}
+/** Rent piles up for at most a day. */
+export const RENT_CAP_H = 24;
+export function rentDue(plot: Plot, s: PlotState, now: number): number {
+  if (s.rentFrom == null) return 0;
+  const h = Math.min(RENT_CAP_H, Math.max(0, (now - s.rentFrom) / 3_600_000));
+  return Math.floor(h * rentPerHour(plot, s));
+}
+
+/** Rest at home: once every 10 minutes; insulation and the sauna make it better. */
+export const REST_GAP_MS = 10 * 60_000;
+export function restEnergy(s: PlotState): number {
+  const u = s.upgrades ?? [];
+  return u.includes('sauna') ? 100 : u.includes('eristys') ? 60 : 40;
+}
+export const canRest = (s: PlotState, now: number) => houseDone(s) && s.rentFrom == null && (!s.restAt || now - s.restAt >= REST_GAP_MS);
 
 export const houseDone = (s: PlotState | undefined) => (s?.stage ?? 0) >= BUILD_STAGES.length;
 
@@ -159,6 +233,7 @@ export function plotResale(plot: Plot, s: PlotState, matPrice: (id: string) => n
   let v = plot.price * 0.8;
   for (let i = 0; i < s.stage; i++) for (const [id, n] of Object.entries(BUILD_STAGES[i]!.needs)) v += matPrice(id) * n;
   if (houseDone(s)) v += 400 + plot.size * 20;
+  for (const id of s.upgrades ?? []) v += upgradeById(id)?.value ?? 0;
   return Math.round(v / 10) * 10;
 }
 

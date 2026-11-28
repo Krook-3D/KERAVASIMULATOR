@@ -30,7 +30,8 @@ export type GameAction =
   | { type: 'setCrewMood'; crewId: string; mood: CrewMood }
   | { type: 'buyPlot'; plotId: string; price: number }
   | { type: 'sellPlot'; plotId: string; value: number }
-  | { type: 'buildStage'; plotId: string; needs: Record<string, number>; energy: number; xp: number; advance: boolean }
+  | { type: 'buildStage'; plotId: string; needs: Record<string, number>; energy: number; xp: number; advance: boolean; upgrade?: string; color?: string }
+  | { type: 'setPlot'; plotId: string; patch: Partial<import('../world/plots').PlotState>; money?: number; energy?: number }
   | { type: 'recordLift'; lift: string; kg: number }
   | { type: 'eatItem'; itemId: string }
   | { type: 'useUp'; itemId: string }
@@ -126,8 +127,29 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       for (const [id, n] of Object.entries(action.needs)) next = removeItem(next, id, n);
       const skills = { ...next.skills, construction: { xp: (next.skills.construction?.xp ?? 0) + action.xp } };
       const energy = Math.max(0, next.energy - action.energy);
+      const nextPlot = {
+        ...plot,
+        stage: plot.stage + (action.advance ? 1 : 0),
+        ...(action.upgrade && !plot.upgrades?.includes(action.upgrade) ? { upgrades: [...(plot.upgrades ?? []), action.upgrade] } : {}),
+        ...(action.color ? { color: action.color } : {}),
+      };
       const body = { ...(next.body ?? START_BODY), fat: Math.max(0, (next.body ?? START_BODY).fat - fatBurn(action.energy)) };
-      return { player: { ...next, skills, energy, body, plots: { ...next.plots, [action.plotId]: { stage: plot.stage + (action.advance ? 1 : 0) } } } };
+      return { player: { ...next, skills, energy, body, plots: { ...next.plots, [action.plotId]: nextPlot } } };
+    }
+    case 'setPlot': {
+      const p = state.player;
+      const plot = p?.plots?.[action.plotId];
+      if (!p || !plot) return state;
+      const patched = { ...plot, ...action.patch };
+      for (const k of Object.keys(action.patch) as (keyof typeof patched)[]) if (action.patch[k] === undefined) delete patched[k];
+      return {
+        player: {
+          ...p,
+          money: Math.round((p.money + (action.money ?? 0)) * 100) / 100,
+          energy: Math.min(MAX_ENERGY, Math.max(0, p.energy + (action.energy ?? 0))),
+          plots: { ...p.plots, [action.plotId]: patched },
+        },
+      };
     }
     case 'recordLift': {
       const p = state.player;

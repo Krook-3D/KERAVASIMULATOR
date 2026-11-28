@@ -521,3 +521,35 @@ describe('package drops', async () => {
     expect(compassFi({ x: 0, z: 0 }, { x: 100, z: 100 })).toBe('kaakkoon');
   });
 });
+
+describe('home extensions and rent', async () => {
+  const { UPGRADES, rentPerHour, rentDue, restEnergy, canRest, plotResale, REST_GAP_MS, RENT_CAP_H } = await import('./world/plots');
+  const { SHOPS } = await import('./shop/shop');
+  const plot = { id: 't', at: [0, 0] as [number, number], size: 20, front: [0, 1] as [number, number], sign: [0, 9] as [number, number], price: 1000, zone: 'Kantakaupunki' as const };
+  it('K-Rauta sells everything the extensions need', () => {
+    const sold = new Set(Object.values(SHOPS).flatMap((s) => s!.shelves.flatMap((sh) => sh.items)));
+    for (const u of UPGRADES) for (const id of Object.keys(u.needs)) expect(sold.has(id), id).toBe(true);
+    expect(SHOPS.krauta).toBeTruthy();
+  });
+  it('extensions raise value and rent', () => {
+    const base = { stage: 4 };
+    const up = { stage: 4, upgrades: ['terassi', 'sauna'] };
+    expect(rentPerHour(plot, { stage: 3 })).toBe(0);
+    expect(rentPerHour(plot, up)).toBeGreaterThan(rentPerHour(plot, base));
+    expect(plotResale(plot, up, () => 1)).toBeGreaterThan(plotResale(plot, base, () => 1));
+  });
+  it('rent piles up to a cap; resting needs an unrented house', () => {
+    const s = { stage: 4, rentFrom: 0 };
+    expect(rentDue(plot, s, 3_600_000)).toBe(rentPerHour(plot, s));
+    expect(rentDue(plot, s, 1000 * 3_600_000)).toBe(Math.floor(RENT_CAP_H * rentPerHour(plot, s)));
+    expect(canRest({ stage: 4, rentFrom: 5 }, 1e12)).toBe(false);
+    expect(canRest({ stage: 4, restAt: 1000 }, 1000 + REST_GAP_MS - 1)).toBe(false);
+    expect(restEnergy({ stage: 4, upgrades: ['sauna'] })).toBe(100);
+  });
+  it('building a stage keeps the extensions and colour', () => {
+    const p = { ...createPlayer('A', '#fff'), plots: { t: { stage: 4, upgrades: ['piha'], color: 'harmaa' } } };
+    p.inventory = [{ itemId: 'terassilauta', quantity: 16 }];
+    const next = gameReducer({ player: p } as GameState, { type: 'buildStage', plotId: 't', needs: { terassilauta: 16 }, energy: 5, xp: 10, advance: false, upgrade: 'terassi' }).player!;
+    expect(next.plots!.t).toEqual({ stage: 4, upgrades: ['piha', 'terassi'], color: 'harmaa' });
+  });
+});

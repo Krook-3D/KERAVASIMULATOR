@@ -67,6 +67,17 @@ const defs: Record<string, Def> = {
   sementti: { name: 'Sementtisäkki', description: '25 kg säkki. Sekoita vedellä, valuta perustukseen.', category: 'material', value: 4, rarity: 'common', stackable: true, price: 9, icon: '🧱' },
   kattopelti: { name: 'Kattopelti', description: 'Profiloitu teräspelti. Ei vuoda, kolisee sateella.', category: 'material', value: 7, rarity: 'common', stackable: true, price: 14, icon: '🔩' },
   ikkuna: { name: 'Ikkuna', description: 'Kolmilasinen ikkuna karmeineen.', category: 'material', value: 18, rarity: 'uncommon', stackable: true, price: 35, icon: '🪟' },
+  // K-Rauta: extensions and finishing for a finished house
+  terassilauta: { name: 'Terassilauta', description: 'Painekyllästetty lauta. Kestää grillibileet ja sateen.', category: 'material', value: 2, rarity: 'common', stackable: true, price: 5, icon: '🪵' },
+  aitaelementti: { name: 'Aitaelementti', description: 'Valmis säleaitaelementti 1,8 m. Naapuri ei enää kurki.', category: 'material', value: 10, rarity: 'common', stackable: true, price: 22, icon: '🚧' },
+  multasakki: { name: 'Multasäkki', description: '50 litraa puutarhamultaa.', category: 'material', value: 2, rarity: 'common', stackable: true, price: 5, icon: '🟫' },
+  kukkasipulit: { name: 'Kukkasipulit', description: 'Tulppaaneja ja narsisseja. Kevät tulee.', category: 'material', value: 3, rarity: 'common', stackable: true, price: 7, icon: '🌷' },
+  eriste: { name: 'Mineraalivilla', description: 'Eristelevy. Kutittaa, mutta lämmittää.', category: 'material', value: 5, rarity: 'common', stackable: true, price: 11, icon: '🧽' },
+  kiuas: { name: 'Sähkökiuas', description: '6 kW kiuas kivineen. Löylyä!', category: 'material', value: 140, rarity: 'uncommon', stackable: true, price: 290, icon: '♨️' },
+  tiili: { name: 'Tiili', description: 'Punatiili. Kestää sukupolvia.', category: 'material', value: 0.6, rarity: 'common', stackable: true, price: 1.5, icon: '🧱' },
+  nostoovi: { name: 'Autotallin nosto-ovi', description: 'Lamellinen nosto-ovi kaukosäätimellä.', category: 'material', value: 120, rarity: 'uncommon', stackable: true, price: 240, icon: '🚪' },
+  talomaali: { name: 'Talomaali', description: '10 litran ämpäri ulkomaalia. Värin saa valita.', category: 'material', value: 10, rarity: 'common', stackable: true, price: 24, icon: '🪣' },
+  aurinkopaneeli: { name: 'Aurinkopaneeli', description: '400 W paneeli. Sähkölasku pienenee, vuokra nousee.', category: 'material', value: 90, rarity: 'uncommon', stackable: true, price: 180, icon: '🔆' },
 
   // ---- groceries (shops)
   maito: { name: 'Maito', description: 'Litra kevytmaitoa.', category: 'food', value: 0.5, rarity: 'common', stackable: true, price: 1.2, icon: '🥛', effects: { energy: 4 } },

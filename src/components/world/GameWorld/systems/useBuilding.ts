@@ -5,13 +5,24 @@ import { priceOf } from '../../../../game/shop/shop';
 import { PropCollider } from '../../../../game/world/propCollider';
 import {
   BUILD_STAGES,
+  canRest,
+  HOUSE_COLORS,
+  houseColor,
   houseDone,
+  PAINT,
+  rentDue,
+  rentPerHour,
+  REST_GAP_MS,
+  restEnergy,
+  UPGRADES,
+  upgradeById,
   houseHalf,
   MAX_PLOTS,
   missingFor,
   plotResale,
   PRACTICE,
   type Plot,
+  type PlotState,
 } from '../../../../game/world/plots';
 import type { DialogueView } from '../../quest/DialogueBox';
 import type { GameCtx } from '../gameWorld.types';
@@ -29,6 +40,8 @@ export interface BuildJob {
   energy: number;
   xp: number;
   advance: boolean;
+  upgrade?: string;
+  color?: string;
 }
 
 const fmt = (n: number) => n.toLocaleString('fi-FI');
@@ -68,7 +81,7 @@ export function useBuilding(ctx: GameCtx, w: WorldSetup) {
         onPick: () => {
           dispatch({ type: 'buyPlot', plotId: plot.id, price: plot.price });
           close();
-          setToast(`🏡 Ostit tontin: ${describe(plot)}. Rakennustarvikkeet saat Motonetista.`);
+          setToast(`🏡 Ostit tontin: ${describe(plot)}. Rakennustarvikkeet saat Motonetista ja K-Raudasta (Motonetin vieressä).`);
         },
       });
     opts.push({ text: 'Ei nyt.', onPick: close });
@@ -86,7 +99,7 @@ export function useBuilding(ctx: GameCtx, w: WorldSetup) {
       if (level < next.level) {
         opts.push({ text: `🔒 ${next.name}: vaatii Rakentaminen ${next.level}`, onPick: () => say('🏗️ Oma tontti', `${next.name} on vielä liian vaativa. Harjoittele puutöillä tai tee aiemmat vaiheet. Rakentaminen ${level}/${next.level}.`, [bye]) });
       } else if (miss.length) {
-        opts.push({ text: `🧱 ${next.name}: puuttuu ${list(miss)}`, onPick: () => say('🏗️ Oma tontti', `Tarvitset vaiheeseen ${next.name}: ${list(next.needs)}. Puuttuu: ${list(miss)}. Rakennustarvikkeet löytyvät Motonetista.`, [bye]) });
+        opts.push({ text: `🧱 ${next.name}: puuttuu ${list(miss)}`, onPick: () => say('🏗️ Oma tontti', `Tarvitset vaiheeseen ${next.name}: ${list(next.needs)}. Puuttuu: ${list(miss)}. Rakennustarvikkeet löytyvät Motonetista ja K-Raudasta.`, [bye]) });
       } else if (energy < next.energy) {
         opts.push({ text: `😮‍💨 ${next.name}: liian väsynyt (−${next.energy} ⚡)`, onPick: close });
       } else {
@@ -102,6 +115,7 @@ export function useBuilding(ctx: GameCtx, w: WorldSetup) {
           ? { text: '🪚 Puutyöt: liian väsynyt', onPick: close }
           : { text: `🪚 Tee puutöitä (${list(PRACTICE.needs)}, −${PRACTICE.energy} ⚡)`, onPick: () => start(plot, { name: PRACTICE.name, time: PRACTICE.time, needs: PRACTICE.needs, energy: PRACTICE.energy, xp: PRACTICE.xp, advance: false }) },
     );
+    if (houseDone(s)) opts.unshift({ text: '🏡 Koti: laajennukset, maalaus, lepo ja vuokraus', onPick: () => homeMenu(plot) });
     const resale = plotResale(plot, s, priceOf);
     opts.push({
       text: `💶 Myy tontti (${fmt(resale)} €)`,
@@ -120,6 +134,68 @@ export function useBuilding(ctx: GameCtx, w: WorldSetup) {
     say('🏗️ Oma tontti', `${describe(plot)}. ${status}`, opts, note);
   };
 
+  // ---------------------------------------------------------- a finished house
+  const homeMenu = (plot: Plot) => {
+    const s = owned[plot.id]!;
+    const now = Date.now();
+    const opts: Option[] = [];
+    opts.push({ text: `🧰 Laajennukset (${(s.upgrades ?? []).length}/${UPGRADES.length})`, onPick: () => upgradeMenu(plot) });
+    opts.push({ text: `🎨 Maalaa talo (nyt: ${houseColor(s.color).name})`, onPick: () => paintMenu(plot) });
+    if (s.rentFrom != null) {
+      const due = rentDue(plot, s, now);
+      opts.push({ text: `💶 Kerää vuokrat (+${fmt(due)} €)`, onPick: () => { dispatch({ type: 'setPlot', plotId: plot.id, patch: { rentFrom: now }, money: due }); close(); setToast(due ? `💶 Vuokralainen maksoi: +${fmt(due)} €` : 'Vuokraa ei ole vielä kertynyt.'); } });
+      opts.push({ text: '🔑 Lopeta vuokraus ja muuta takaisin', onPick: () => { dispatch({ type: 'setPlot', plotId: plot.id, patch: { rentFrom: undefined }, money: due }); close(); setToast(`🔑 Vuokralainen muutti pois.${due ? ` Viimeiset vuokrat: +${fmt(due)} €` : ''}`); } });
+    } else {
+      const sauna = (s.upgrades ?? []).includes('sauna');
+      const wait = s.restAt ? Math.ceil((REST_GAP_MS - (now - s.restAt)) / 60_000) : 0;
+      opts.push(
+        canRest(s, now)
+          ? { text: `${sauna ? '♨️ Saunoa ja levätä' : '🛏️ Lepää kotona'} (+${restEnergy(s)} ⚡)`, onPick: () => { dispatch({ type: 'setPlot', plotId: plot.id, patch: { restAt: now }, energy: restEnergy(s) }); close(); setToast(sauna ? '♨️ Löylyt otettu. Energia täynnä!' : `🛏️ Lepäsit kotona. +${restEnergy(s)} ⚡`); } }
+          : { text: `🛏️ Lepää kotona (vielä ${wait} min)`, onPick: close },
+      );
+      opts.push({ text: `🏠 Vuokraa talo (${fmt(rentPerHour(plot, s))} €/h)`, onPick: () => say('🏡 Koti', `Vuokralainen maksaa ${fmt(rentPerHour(plot, s))} € tunnissa, kun olet itse muualla. Vuokraa kertyy enintään vuorokauden ajalta, joten käy keräämässä. Vuokratussa talossa et voi levätä.`, [
+        { text: 'Vuokraa', onPick: () => { dispatch({ type: 'setPlot', plotId: plot.id, patch: { rentFrom: Date.now() } }); close(); setToast('🏠 Talo vuokrattu. Käy keräämässä vuokrat kyltiltä.'); } },
+        { text: 'Ei sittenkään.', onPick: close },
+      ]) });
+    }
+    opts.push(bye);
+    const ups = (s.upgrades ?? []).map((id) => upgradeById(id)?.name.toLowerCase()).filter(Boolean);
+    say('🏡 Koti', `${houseColor(s.color).name} talo, ${plot.size} × ${plot.size} m tontti.${ups.length ? ` Pihalla: ${ups.join(', ')}.` : ' Piha on vielä paljas.'}${s.rentFrom != null ? ` Vuokralla, ${fmt(rentPerHour(plot, s))} €/h.` : ''}`, opts);
+  };
+
+  const upgradeMenu = (plot: Plot) => {
+    const s = owned[plot.id]!;
+    const energy = player?.energy ?? 0;
+    const opts: Option[] = [];
+    for (const u of UPGRADES) {
+      if (s.upgrades?.includes(u.id)) continue;
+      const miss = missingFor(u.needs, count);
+      const after = u.after && !s.upgrades?.includes(u.after) ? upgradeById(u.after) : undefined;
+      if (after) opts.push({ text: `🔒 ${u.icon} ${u.name}: tee ensin ${after.name.toLowerCase()}`, onPick: close });
+      else if (level < u.level) opts.push({ text: `🔒 ${u.icon} ${u.name}: vaatii Rakentaminen ${u.level}`, onPick: close });
+      else if (miss.length) opts.push({ text: `🧱 ${u.icon} ${u.name}: puuttuu ${list(miss)}`, onPick: () => say('🧰 Laajennukset', `${u.name}: ${u.blurb} Tarvitset ${list(u.needs)}. Puuttuu: ${list(miss)}. Tarvikkeet saa K-Raudasta.`, [bye]) });
+      else if (energy < u.energy) opts.push({ text: `😮‍💨 ${u.icon} ${u.name}: liian väsynyt (−${u.energy} ⚡)`, onPick: close });
+      else opts.push({ text: `🔨 ${u.icon} ${u.name} (${list(u.needs)}, −${u.energy} ⚡)`, onPick: () => start(plot, { name: u.name, time: u.time, needs: u.needs, energy: u.energy, xp: u.xp, advance: false, upgrade: u.id }) });
+    }
+    if (!opts.length) opts.push({ text: 'Kaikki laajennukset on tehty! 🏆', onPick: close });
+    opts.push({ text: '⬅️ Takaisin', onPick: () => homeMenu(plot) });
+    say('🧰 Laajennukset', `Laajennukset nostavat talon arvoa ja vuokraa. Rakentaminen ${level}.`, opts);
+  };
+
+  const paintMenu = (plot: Plot) => {
+    const s: PlotState = owned[plot.id]!;
+    const miss = missingFor(PAINT.needs, count);
+    const energy = player?.energy ?? 0;
+    const opts: Option[] = [];
+    if (miss.length) opts.push({ text: `🪣 Tarvitset ${list(PAINT.needs)} (puuttuu ${list(miss)})`, onPick: close });
+    else if (energy < PAINT.energy) opts.push({ text: `😮‍💨 Liian väsynyt (−${PAINT.energy} ⚡)`, onPick: close });
+    else
+      for (const c of HOUSE_COLORS)
+        if (c.id !== houseColor(s.color).id) opts.push({ text: `🎨 ${c.name}`, onPick: () => start(plot, { name: `Maalaus: ${c.name.toLowerCase()}`, time: PAINT.time, needs: PAINT.needs, energy: PAINT.energy, xp: PAINT.xp, advance: false, color: c.id }) });
+    opts.push({ text: '⬅️ Takaisin', onPick: () => homeMenu(plot) });
+    say('🎨 Maalaus', `Valitse uusi väri. Maalaus vie ${list(PAINT.needs)} ja ${PAINT.energy} ⚡.`, opts);
+  };
+
   const usePlot = (plot: Plot) => (owned[plot.id] ? ownPlot(plot) : forSale(plot));
 
   useEffect(() => {
@@ -129,9 +205,10 @@ export function useBuilding(ctx: GameCtx, w: WorldSetup) {
       setProgress(Math.min(1, k));
       if (k < 1) return;
       window.clearInterval(id);
-      dispatch({ type: 'buildStage', plotId: job.plotId, needs: job.needs, energy: job.energy, xp: job.xp, advance: job.advance });
+      dispatch({ type: 'buildStage', plotId: job.plotId, needs: job.needs, energy: job.energy, xp: job.xp, advance: job.advance, upgrade: job.upgrade, color: job.color });
       const plotsLeft = job.advance && (owned[job.plotId]?.stage ?? 0) + 1 >= BUILD_STAGES.length;
-      setToast(plotsLeft ? `🏡 Talo valmis! +${job.xp} Rakentaminen XP` : job.advance ? `🔨 ${job.name} valmis! +${job.xp} Rakentaminen XP` : `🪚 Puutyöt tehty. +${job.xp} Rakentaminen XP`);
+      if (job.upgrade || job.color) setToast(`${job.color ? '🎨' : '🏗️'} ${job.name} valmis! +${job.xp} Rakentaminen XP`);
+      else setToast(plotsLeft ? `🏡 Talo valmis! +${job.xp} Rakentaminen XP` : job.advance ? `🔨 ${job.name} valmis! +${job.xp} Rakentaminen XP` : `🪚 Puutyöt tehty. +${job.xp} Rakentaminen XP`);
       setJob(null);
     }, 200);
     return () => window.clearInterval(id);

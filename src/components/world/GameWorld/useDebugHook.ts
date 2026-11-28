@@ -73,6 +73,12 @@ export function useDebugHook(d: {
       eat: (id: string) => d.dispatch({ type: 'eatItem', itemId: id }),
       crossings: () => (w.terrain?.crossings ?? []).map((c) => ({ kind: c.kind, at: c.at.map(Math.round), dir: c.dir, road: c.road, span: Math.round(c.span) })),
       plots: () => w.plots.map((p) => ({ id: p.id, at: p.at, sign: p.sign, size: p.size, price: p.price, zone: p.zone, d: Math.round(Math.hypot(p.at[0], p.at[1])) })),
+      /** Owns plot `id` with the given state (stage, upgrades, color). */
+      setPlot: (id: string, patch: Record<string, unknown>) => {
+        d.dispatch({ type: 'adjustStats', money: 100000 });
+        d.dispatch({ type: 'buyPlot', plotId: id, price: 0 });
+        d.dispatch({ type: 'setPlot', plotId: id, patch });
+      },
       stats: (money = 0, energy = 0) => d.dispatch({ type: 'adjustStats', money, energy }),
       xp: (skill: string, n: number) => d.dispatch({ type: 'grantReward', reward: { skillXp: { [skill]: n } } }),
       lift: (kg: number) => d.dispatch({ type: 'recordLift', lift: 'deadlift', kg }),

@@ -16,6 +16,7 @@ import { PoolInterior } from '../interiors/PoolInterior';
 import { AlepaInterior } from '../interiors/AlepaInterior';
 import { BarberInterior } from '../interiors/BarberInterior';
 import { PoliceInterior } from '../interiors/PoliceInterior';
+import { KRautaInterior } from '../interiors/KRautaInterior';
 import { MotonetInterior } from '../interiors/MotonetInterior';
 import { FightGymInterior, type FightActive } from '../interiors/FightGymInterior';
 import { FIGHT_SPOTS } from '../../../game/interiors/interiors';
@@ -59,6 +60,7 @@ export function InteriorScene(props: {
       {scene === 'alepa' && <AlepaInterior />}
       {scene === 'barber' && <BarberInterior />}
       {scene === 'motonet' && <MotonetInterior />}
+      {scene === 'krauta' && <KRautaInterior />}
       {scene === 'fightgym' && <FightGymInterior active={props.fightActive} outfit={outfit} clockRef={clockRef} />}
       {scene === 'fightgym' && (
         <>

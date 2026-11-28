@@ -6,11 +6,11 @@ import type { WorldXZ } from '../world/projection';
  * the floor at y = 0. Exits link to a door in the world or to another
  * interior's exit.
  */
-export type InteriorId = 'tunnel' | 'station' | 'prisma' | 'prison' | 'gym' | 'pool' | 'alepa' | 'barber' | 'police' | 'motonet' | 'fightgym';
+export type InteriorId = 'tunnel' | 'station' | 'prisma' | 'prison' | 'gym' | 'pool' | 'alepa' | 'barber' | 'police' | 'motonet' | 'krauta' | 'fightgym';
 export type SceneId = 'world' | InteriorId;
 
 /** Doors placed in the 3D town (positions are worked out at runtime). */
-export type WorldDoorId = 'tunnel-town' | 'tunnel-east' | 'station-platform' | 'station-town' | 'prisma' | 'prison-yard' | 'gym' | 'pool' | 'alepa' | 'barber' | 'police' | 'motonet' | 'fightgym';
+export type WorldDoorId = 'tunnel-town' | 'tunnel-east' | 'station-platform' | 'station-town' | 'prisma' | 'prison-yard' | 'gym' | 'pool' | 'alepa' | 'barber' | 'police' | 'motonet' | 'krauta' | 'fightgym';
 
 export interface Rect {
   minX: number;
@@ -308,6 +308,23 @@ const motonet: InteriorDef = {
   exits: [{ id: 'main', at: [-9, 9.4], spawn: [-9, 7.4], yaw: Math.PI, label: 'Ulos', to: { scene: 'world', door: 'motonet' } }],
 };
 
+// ------------------------------------------------------------ K-Rauta (building materials)
+export const KRAUTA_HALL = R(-15, 15, -11, 11);
+export const KRAUTA_RACK_XS = [-8, -2, 4];
+const krauta: InteriorDef = {
+  id: 'krauta',
+  name: 'K-Rauta Kerava',
+  floor: KRAUTA_HALL,
+  solids: [
+    ...roomWalls(KRAUTA_HALL, 0.5, [['s', -10, 2.8]]),
+    ...KRAUTA_RACK_XS.map((x) => R(x - 0.9, x + 0.9, -8, 2.5)),
+    R(-15, 15, -11, -9.6), // back wall: timber racks
+    R(10, 15, -8, -1), // garden corner
+    R(5, 10, 6.4, 7.8), // checkout
+  ],
+  exits: [{ id: 'main', at: [-10, 10.4], spawn: [-10, 8.4], yaw: Math.PI, label: 'Ulos', to: { scene: 'world', door: 'krauta' } }],
+};
+
 // ------------------------------------------------------------ Ahjo Training Center (combat gym)
 // Boxing ring in the north-west, heavy bags along the north wall, wrestling
 // mats in the east half, reception by the door.
@@ -336,7 +353,7 @@ const fightgym: InteriorDef = {
   exits: [{ id: 'main', at: [8, 8.4], spawn: [8, 6.6], yaw: Math.PI, label: 'Ulos', to: { scene: 'world', door: 'fightgym' } }],
 };
 
-export const INTERIORS: Record<InteriorId, InteriorDef> = { tunnel, station, prisma, prison, gym, pool, alepa, barber, police, motonet, fightgym };
+export const INTERIORS: Record<InteriorId, InteriorDef> = { tunnel, station, prisma, prison, gym, pool, alepa, barber, police, motonet, krauta, fightgym };
 
 export const inRect = (r: Rect, [x, z]: WorldXZ, pad = 0) => x >= r.minX - pad && x <= r.maxX + pad && z >= r.minZ - pad && z <= r.maxZ + pad;
 

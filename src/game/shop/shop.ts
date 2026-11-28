@@ -65,6 +65,19 @@ export const SHOPS: Partial<Record<InteriorId, ShopDef>> = {
     till: [6.5, 4.6],
     guard: [-11.5, 7],
   },
+  krauta: {
+    id: 'krauta',
+    name: 'K-Rauta Kerava',
+    shelves: [
+      { id: 'runko', name: 'Runko ja perustus', at: [-5, -3], items: ['lauta', 'sementti', 'tiili', 'eriste'] },
+      { id: 'katto', name: 'Katot ja ikkunat', at: [1, -3], items: ['kattopelti', 'ikkuna', 'nostoovi', 'aurinkopaneeli'] },
+      { id: 'maalit', name: 'Maalit', at: [7, -3], items: ['talomaali'] },
+      { id: 'piha', name: 'Piha ja puutarha', at: [8.8, -4.5], items: ['terassilauta', 'aitaelementti', 'multasakki', 'kukkasipulit'] },
+      { id: 'sauna', name: 'Sauna ja kylpyhuone', at: [-12, 3], items: ['kiuas'] },
+    ],
+    till: [7.5, 5.4],
+    guard: [-12.5, 8],
+  },
 };
 
 export const STEAL_KARMA = -2;
