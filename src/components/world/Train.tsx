@@ -19,6 +19,130 @@ const W = 3.2; // car width
 const FLOOR = 0.6;
 const ROOF = 4.0;
 const DOOR_W = 1.3;
+/** Depth of the vestibule behind the platform-side doors. */
+const VEST = 0.95;
+const WALL_T = 0.08;
+const DOOR_H = 2.3;
+
+/** [a, b] minus each door opening (centre ± DOOR_W), as the pieces that remain. */
+function spans(a: number, b: number, doors: number[]): (readonly [number, number])[] {
+  const out: (readonly [number, number])[] = [];
+  let x = a;
+  for (const d of [...doors].sort((p, q) => p - q)) {
+    if (d - DOOR_W > x) out.push([x, d - DOOR_W] as const);
+    x = Math.max(x, d + DOOR_W);
+  }
+  if (x < b) out.push([x, b] as const);
+  return out;
+}
+
+/** The platform-side wall of one car, with door-shaped holes, plus the roof, floor and end strips that close the vestibule space. */
+function PlatformWall({ L, h, doors }: { L: number; h: number; doors: number[] }) {
+  const geo = useMemo(() => {
+    const shape = new THREE.Shape();
+    const r = 0.3;
+    shape.moveTo(-L / 2, 0);
+    shape.lineTo(L / 2, 0);
+    shape.lineTo(L / 2, h - r);
+    shape.quadraticCurveTo(L / 2, h, L / 2 - r, h);
+    shape.lineTo(-L / 2 + r, h);
+    shape.quadraticCurveTo(-L / 2, h, -L / 2, h - r);
+    shape.closePath();
+    for (const d of doors) {
+      const hole = new THREE.Path();
+      hole.moveTo(d - DOOR_W, 0.02);
+      hole.lineTo(d - DOOR_W, DOOR_H);
+      hole.lineTo(d + DOOR_W, DOOR_H);
+      hole.lineTo(d + DOOR_W, 0.02);
+      hole.closePath();
+      shape.holes.push(hole);
+    }
+    const g = new THREE.ExtrudeGeometry(shape, { depth: WALL_T, bevelEnabled: false, curveSegments: 4 });
+    g.computeVertexNormals();
+    return g;
+  }, [L, h, doors]);
+  const zMid = W / 2 - VEST / 2;
+  return (
+    <group>
+      <mesh geometry={geo} position={[0, FLOOR, W / 2 - WALL_T]} castShadow receiveShadow>
+        <meshStandardMaterial color={BODY} roughness={0.35} metalness={0.15} />
+      </mesh>
+      {/* roof and floor of the vestibule strip, and its two ends */}
+      <mesh position={[0, FLOOR + h - 0.06, zMid]}>
+        <boxGeometry args={[L - 0.6, 0.12, VEST]} />
+        <meshStandardMaterial color={BODY} roughness={0.35} metalness={0.15} />
+      </mesh>
+      <mesh position={[0, FLOOR + 0.05, zMid]} receiveShadow>
+        <boxGeometry args={[L - 0.2, 0.1, VEST]} />
+        <meshStandardMaterial color="#5d6168" roughness={0.9} />
+      </mesh>
+      {[-1, 1].map((s) => (
+        <mesh key={s} position={[s * (L / 2 - 0.2), FLOOR + h / 2, zMid]}>
+          <boxGeometry args={[0.1, h - 0.1, VEST]} />
+          <meshStandardMaterial color={BODY} roughness={0.35} metalness={0.15} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/** What you see through an open door: a lit vestibule with a grab pole, glass screens and the seats beyond. */
+function Vestibule() {
+  const back = -0.02 - VEST + 0.01;
+  return (
+    <group>
+      {/* back wall with the aisle opening and seat backs either side */}
+      <mesh position={[0, 1.3, back]}>
+        <planeGeometry args={[DOOR_W * 2, 2.6]} />
+        <meshStandardMaterial color="#d4d9e0" roughness={0.6} />
+      </mesh>
+      {[-1, 1].map((s) => (
+        <group key={s} position={[s * 0.95, 0, back + 0.02]}>
+          <mesh position={[0, 0.75, 0]}>
+            <planeGeometry args={[0.7, 0.9]} />
+            <meshStandardMaterial color={BLUE} roughness={0.7} />
+          </mesh>
+          <mesh position={[0, 0.32, 0]}>
+            <planeGeometry args={[0.7, 0.12]} />
+            <meshStandardMaterial color="#2b2f36" roughness={0.8} />
+          </mesh>
+        </group>
+      ))}
+      <mesh position={[0, 1.15, back + 0.015]}>
+        <planeGeometry args={[0.9, 2.2]} />
+        <meshStandardMaterial color="#8d949e" roughness={0.7} />
+      </mesh>
+      {/* ceiling light */}
+      <mesh position={[0, DOOR_H + 0.28, -VEST / 2]} rotation-x={Math.PI / 2}>
+        <planeGeometry args={[DOOR_W * 1.6, 0.22]} />
+        <meshStandardMaterial color="#fffbea" emissive="#fff3cf" emissiveIntensity={1.6} side={THREE.DoubleSide} />
+      </mesh>
+      {/* yellow grab pole */}
+      <mesh position={[0, 1.4, -VEST * 0.45]}>
+        <cylinderGeometry args={[0.03, 0.03, 2.8, 10]} />
+        <meshStandardMaterial color={YELLOW} metalness={0.5} roughness={0.35} />
+      </mesh>
+      {/* glass screens at the sides of the doorway */}
+      {[-1, 1].map((s) => (
+        <mesh key={s} position={[s * (DOOR_W - 0.05), 1.3, -VEST / 2]} rotation-y={Math.PI / 2}>
+          <planeGeometry args={[VEST - 0.1, 1.6]} />
+          <meshStandardMaterial color="#9fc3d8" transparent opacity={0.35} roughness={0.1} side={THREE.DoubleSide} depthWrite={false} />
+        </mesh>
+      ))}
+      {/* dark rubber door frame */}
+      {[-1, 1].map((s) => (
+        <mesh key={`f${s}`} position={[s * DOOR_W, 1.15, -0.03]}>
+          <boxGeometry args={[0.06, DOOR_H, 0.06]} />
+          <meshStandardMaterial color="#1e2024" roughness={0.8} />
+        </mesh>
+      ))}
+      <mesh position={[0, DOOR_H, -0.03]}>
+        <boxGeometry args={[DOOR_W * 2 + 0.06, 0.06, 0.06]} />
+        <meshStandardMaterial color="#1e2024" roughness={0.8} />
+      </mesh>
+    </group>
+  );
+}
 
 function Car({ index, doorLeaves }: { index: number; doorLeaves: MutableRefObject<THREE.Group[]> }) {
   const L = TRAIN.carLength;
@@ -30,34 +154,28 @@ function Car({ index, doorLeaves }: { index: number; doorLeaves: MutableRefObjec
 
   return (
     <group position={[cx, 0, 0]}>
-      {/* main body */}
-      <RoundedBox args={[L, h, W]} radius={0.35} smoothness={3} position={[0, FLOOR + h / 2, 0]} castShadow receiveShadow>
+      {/* main body: the platform side is a separate wall with real door openings and a vestibule behind them */}
+      <RoundedBox args={[L, h, W - VEST]} radius={0.35} smoothness={3} position={[0, FLOOR + h / 2, -VEST / 2]} castShadow receiveShadow>
         <meshStandardMaterial color={BODY} roughness={0.35} metalness={0.15} />
       </RoundedBox>
-      {/* window band and stripes on both sides */}
-      {[1, -1].map((side) => (
-        <group key={side} position={[0, 0, (side * W) / 2]}>
-          <mesh position={[0, 2.45, side * 0.012]} rotation-y={side < 0 ? Math.PI : 0}>
-            <planeGeometry args={[L - 1.6, 1.05]} />
-            <meshStandardMaterial color={GLASS} roughness={0.22} metalness={0.6} />
-          </mesh>
-          <mesh position={[0, 1.55, side * 0.012]} rotation-y={side < 0 ? Math.PI : 0}>
-            <planeGeometry args={[L - 0.8, 0.32]} />
-            <meshStandardMaterial color={BLUE} roughness={0.4} />
-          </mesh>
-          <mesh position={[0, 1.33, side * 0.012]} rotation-y={side < 0 ? Math.PI : 0}>
-            <planeGeometry args={[L - 0.8, 0.08]} />
-            <meshStandardMaterial color={YELLOW} roughness={0.4} />
-          </mesh>
-        </group>
-      ))}
-      {/* doors on the platform side (+z), two sliding leaves each */}
+      <PlatformWall L={L} h={h} doors={doors} />
+      {/* window band and stripes: full length on the far side, between the doors on the platform side */}
+      {[1, -1].map((side) =>
+        (side > 0 ? spans(-L / 2 + 0.8, L / 2 - 0.8, doors) : [[-L / 2 + 0.8, L / 2 - 0.8] as const]).map(([a, b]) => (
+          <group key={`${side}${a}`} position={[(a + b) / 2, 0, (side * W) / 2]}>
+            {([[2.45, 1.05, GLASS], [1.55, 0.32, BLUE], [1.33, 0.08, YELLOW]] as const).map(([y, hh, c]) => (
+              <mesh key={y} position={[0, y, side * 0.012]} rotation-y={side < 0 ? Math.PI : 0}>
+                <planeGeometry args={[b - a, hh]} />
+                <meshStandardMaterial color={c} roughness={c === GLASS ? 0.22 : 0.4} metalness={c === GLASS ? 0.6 : 0} />
+              </mesh>
+            ))}
+          </group>
+        )),
+      )}
+      {/* doors on the platform side (+z): two sliding leaves each, a lit vestibule behind */}
       {doors.map((dx) => (
         <group key={dx} position={[dx, FLOOR, W / 2 + 0.02]}>
-          <mesh position={[0, 1.15, -0.03]}>
-            <planeGeometry args={[DOOR_W * 2, 2.3]} />
-            <meshStandardMaterial color="#9fb3c4" roughness={0.6} />
-          </mesh>
+          <Vestibule />
           {[-1, 1].map((s) => (
             <group
               key={s}
