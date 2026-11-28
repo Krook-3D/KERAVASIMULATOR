@@ -404,3 +404,8 @@ Kaikki äänet syntetisoidaan Web Audio API:lla (oskillaattorit, suodatettu kohi
 - `index.ts`: `installAudio` (ääni avautuu ensimmäisestä klikkauksesta, napit naksahtavat, M mykistää), `soundForAction` (GameProviderin dispatch soittaa toiminnon äänen) ja `soundForProgress` (tasonnousun fanfaari).
 - Pelissä: `components/world/AudioDirector.tsx` (ympäristö ja juna, useFrame 10 Hz) ja `systems/useSoundscape.ts` (ovet, ilmoitukset, treenit, kokkaus, graffitit, rakentaminen, pakot, pudotukset, bussi, chat). Askeleet tulevat `PlayerCharacter`ista kävelyvaiheen mukaan, alusta riippuu tilasta.
 
+### Autot (`src/game/vehicle/cars.ts`)
+- Kolme mallia (`CAR_MODELS`): hinta, huippunopeus, kiihtyvyys ja ohjautuvuus. Fysiikka on yksinkertainen polkupyörämalli `stepCar`, joka törmää seiniin ja rataan ja palauttaa iskunopeuden (`crashHurt` → HP).
+- Oma auto tallentuu: `Player.car {model, color, x, z, yaw}`; toiminnot `buyCar`, `sellCar` (50 %), `parkCar`.
+- Pelissä: `systems/useDriving.ts` (Keravan Autotori Motonetin pihalla, kyytiin E, pois E, kolarit), `components/world/DrivableCar.tsx` (ajo useFramessa, kamera kääntyy auton taakse, moottorin ääni `setEngine`), `CarLot.tsx` ja nopeusmittari `.speedo`.
+

@@ -51,6 +51,8 @@ export interface SpotActions {
   drop: PackageDrop | null;
   openDrop: () => void;
   plotsOwned: Record<string, unknown>;
+  /** Hotspots owned by other systems (the car lot, your car). */
+  extraSpots: Spot[];
 }
 
 /**
@@ -105,6 +107,7 @@ export function useInteraction(
         const mine = !!a.plotsOwned[pl.id];
         list.push({ at: pl.sign, label: mine ? '🏗️ Oma tontti' : `🪧 Tontti ${pl.price.toLocaleString('fi-FI')} €`, info: mine ? `Oma tonttisi (${pl.size} × ${pl.size} m). Rakenna talo Motonetin tarvikkeilla.` : `Myytävä rakennustontti: ${pl.zone}, ${pl.size} × ${pl.size} m, ${pl.price.toLocaleString('fi-FI')} €.`, use: () => a.usePlot(pl) });
       }
+      list.push(...a.extraSpots);
       if (a.drop) list.push({ at: [a.drop.x, a.drop.z], label: '📦 Pakettipudotus', info: 'Laskuvarjolla pudotettu laatikko. Sisällä on aina legendaarinen esine.', use: a.openDrop });
       for (const l of loot) if (!lootTaken.includes(l.id)) list.push({ at: [l.x, l.z], label: `✨ ${itemName(l.itemId)}`, info: `${itemName(l.itemId)} (${RARITY_NAMES[ITEMS[l.itemId]?.rarity ?? 'common']}). ${ITEMS[l.itemId]?.description ?? ''}`, use: () => pickLoot(l) });
       return list;
@@ -128,7 +131,7 @@ export function useInteraction(
     return list;
     // The actions read the latest state through closures re-created each render;
     // the list is rebuilt when any of these change (same dependencies as before the split).
-  }, [scene, doors, jonneAt, goTo, a.jailStep, player, a.carrying, busStops, trainStops, a.currentLook, loot, lootTaken, a.putkaUntil, cookSpots, stashes, a.stashTaken, a.chase, w.plots, a.plotsOwned, a.drop]);
+  }, [scene, doors, jonneAt, goTo, a.jailStep, player, a.carrying, busStops, trainStops, a.currentLook, loot, lootTaken, a.putkaUntil, cookSpots, stashes, a.stashTaken, a.chase, w.plots, a.plotsOwned, a.drop, a.extraSpots]);
 
   /**
    * A click in the world. There is no click-to-walk: you move with the arrow

@@ -35,7 +35,7 @@ function useInstances(ref: React.RefObject<THREE.InstancedMesh | null>, items: P
 }
 
 /** Simple hatchback: body, cabin, wheels and lights, all in one geometry per material. */
-function useCarGeometries() {
+export function useCarGeometries() {
   return useMemo(() => {
     const body = faceted(
       mergeGeometries([

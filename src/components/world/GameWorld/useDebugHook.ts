@@ -58,6 +58,8 @@ export function useDebugHook(d: {
       cam: (dx: number, dz: number, pitch = 0.36, dist = 5.6) => Object.assign(d.controlRef.current, { yaw: Math.atan2(-dx, -dz), pitch, dist }),
       pos: () => [positionRef.current.x, positionRef.current.z],
       ctx: (x: number, z: number) => d.openContextAt([x, z], 400, 300),
+      spotLabels: () => d.spots.map((s) => [s.label, s.at.map(Math.round)]),
+      useSpot: (part: string) => d.spots.find((s) => s.label?.includes(part))?.use(),
       lamps: () => w.streetProps.lamps.slice(0, 400).map((l) => [l.x, l.z]),
       cars: () => w.streetProps.cars.slice(0, 50).map((c) => [c.x, c.z, c.rotation]),
       doors: w.doors,

@@ -192,6 +192,8 @@ export interface Player {
   /** Each crew's patience with you (provocations so far and when they snap). */
   crewMood?: Record<string, import('../game/street/provoke').CrewMood>;
   /** Building plots you own and how far the house on each has got. */
+  /** Own car: model, colour and where it is parked (world metres). */
+  car?: { model: import('../game/vehicle/cars').CarModelId; color: string; x: number; z: number; yaw: number };
   plots?: Record<string, import('../game/world/plots').PlotState>;
   /** Opening cutscene (thrown off the train) has been seen. */
   introDone?: boolean;
