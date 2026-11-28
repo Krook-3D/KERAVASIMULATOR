@@ -49,6 +49,9 @@ const defs: Record<string, Def> = {
   feikkiketju: { name: 'Kultaketju (feikki)', description: 'Kiiltää kuin aito, kunnes kaula muuttuu vihreäksi.', category: 'collectible', value: 4, rarity: 'common', equipSlot: 'accessory', icon: '📿' },
   feikkiranneke: { name: 'Kultaranneke (feikki)', description: 'Kevyt kuin muovi. Koska se on muovia.', category: 'collectible', value: 3, rarity: 'common', equipSlot: 'accessory', icon: '🔗' },
   feikkirolux: { name: 'Rolux (feikki)', description: 'Sekuntiviisari nykii ja logossa lukee ROLUKS. Torilta parilla kympillä.', category: 'collectible', value: 8, rarity: 'common', equipSlot: 'accessory', icon: '⌚' },
+  // package drops only
+  kultasorkkarauta: { name: 'Kultainen sorkkarauta', description: 'Kullattu sorkkarauta. Avaa samat paikat kuin tavallinenkin, mutta tyylillä.', category: 'tool', value: 2000, rarity: 'legendary', hands: 1, icon: '🦯' },
+  kultanokka: { name: 'Kultainen Nokka 3310', description: 'Kullattu Nokka 3310. Matopeli on nyt luksusta.', category: 'collectible', value: 1800, rarity: 'legendary', icon: '📱' },
   kultaharkko: { name: 'Kultaharkko', description: 'Mistä tämä on tänne tullut?', category: 'collectible', value: 2500, rarity: 'legendary', icon: '🥇' },
 
   // ---- junk
@@ -123,7 +126,11 @@ export const RARITY_NAMES: Record<Rarity, string> = { common: 'Tavallinen', unco
 export const RARITY_COLORS: Record<Rarity, string> = { common: '#c8ccd2', uncommon: '#5ee07a', rare: '#3a9bff', epic: '#c084fc', legendary: '#ffb43c' };
 
 /** Items that can turn up lying around the map, weighted by rarity. */
-export const WORLD_LOOT = Object.values(ITEMS).filter((i) => i.category !== 'quest' && i.category !== 'food' && i.category !== 'drug' && !i.price && i.id !== 'oljy' && i.id !== 'feikkipussi');
+/** Found only in package drops, never lying around. */
+export const DROP_ONLY = new Set(['kultasorkkarauta', 'kultanokka']);
+export const WORLD_LOOT = Object.values(ITEMS).filter((i) => i.category !== 'quest' && i.category !== 'food' && i.category !== 'drug' && !i.price && i.id !== 'oljy' && i.id !== 'feikkipussi' && !DROP_ONLY.has(i.id));
+/** What a package drop can hold: every legendary item. */
+export const DROP_POOL = Object.values(ITEMS).filter((i) => i.rarity === 'legendary' && i.category !== 'quest').map((i) => i.id);
 export const RARITY_WEIGHT: Record<Rarity, number> = { common: 60, uncommon: 26, rare: 10, epic: 3.4, legendary: 0.6 };
 
 /** Paint colour of each spray can. */

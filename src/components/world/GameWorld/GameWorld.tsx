@@ -41,6 +41,9 @@ import { usePolicePatrol } from './systems/usePolicePatrol';
 import { useNpcTalk } from './systems/useNpcTalk';
 import { useBarber } from './systems/useBarber';
 import { useInteraction } from './systems/useInteraction';
+import { usePackageDrops } from './systems/usePackageDrops';
+import { PackageDropModel } from '../PackageDropModel';
+import { Minimap, type MinimapMarker } from './hud/Minimap';
 import { createControls } from '../controls';
 import { GameMap } from './GameMap';
 import { WorldObjects } from './WorldObjects';
@@ -55,7 +58,7 @@ import { PorssiWindow } from './hud/PorssiWindow';
 import { PorssiPavilion, PORSSI_COUNTER, PORSSI_STALL } from '../PorssiPavilion';
 import { RemotePlayers, SelfBubble, appearanceToLook } from '../RemotePlayers';
 import { useOnlineAccount } from '../../../game/online/OnlineProvider';
-import { TRADE } from '../../../../shared/economy';
+import { MARKET, TRADE } from '../../../../shared/economy';
 
 interface GameWorldProps {
   start: LngLat;
@@ -245,6 +248,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     shop.setPicked(null);
     shop.setAtTill(false);
   };
+  const drops = usePackageDrops(ctx, w, !cutscene && introDone);
   const interaction = useInteraction(
     ctx,
     w,
@@ -271,6 +275,8 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       talkAtPoliceDesk: () => shop.talkAtPoliceDesk(stash.policeDeskOptions),
       usePlot: building.usePlot,
       openPorssi: setPorssi,
+      drop: drops.drop,
+      openDrop: drops.openDrop,
       plotsOwned: building.owned,
     },
     {
@@ -421,6 +427,14 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     shop, graffiti, transit, stash, openContextAt, controlRef,
   });
 
+  const markersRef = useRef<() => MinimapMarker[]>(() => []);
+  markersRef.current = () => {
+    const out: MinimapMarker[] = [{ x: MARKET.at.x, z: MARKET.at.z, kind: 'porssi' }];
+    if (drops.drop) out.push({ x: drops.drop.x, z: drops.drop.z, kind: 'drop' });
+    if (online.status === 'online') for (const r of online.live.current.values()) if (r.scene === 'world') out.push({ x: r.rx, z: r.rz, kind: 'player' });
+    return out;
+  };
+
   const speaker = line?.speaker === 'inspector' ? INSPECTOR_NAME : line?.speaker === 'player' ? playerName : null;
   const inWorld = scene === 'world';
 
@@ -442,6 +456,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
             <GameMap w={w} clouds={clouds} xray={xray} highQuality={highQuality} cutscene={cutscene} playerRef={positionRef} clockRef={clockRef} busRun={transit.busRun} onGroundClick={onGroundClick} />
             <NPCLayer npcs={w.npcs} live={npcLive} terrain={terrain!} cutscene={cutscene} clockRef={clockRef} playerRef={positionRef} talkingId={talk.talkingId} onTalk={talk.onNpcClick} />
             <PorssiPavilion groundAt={remoteGround} playerRef={positionRef} onUse={(tab) => interaction.onGroundClick(tab === 'npc' ? PORSSI_STALL : PORSSI_COUNTER)} />
+            {drops.drop && <PackageDropModel drop={drops.drop} clockRef={clockRef} onClick={() => onGroundClick([drops.drop!.x, drops.drop!.z])} />}
             <WorldObjects w={w} pieces={graffiti.pieces} stashTaken={stash.stashTaken} lootTaken={interaction.lootTaken} owned={building.owned} cutscene={cutscene} playerRef={positionRef} onGroundClick={onGroundClick} />
             <QuestLayer
               w={w}
@@ -543,6 +558,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       )}
       {!cutscene && nearSpot && !inputLocked && <div className="use-prompt"><kbd>E</kbd> Käytä</div>}
 
+      {inWorld && !cutscene && w.world && <Minimap world={w.world} positionRef={positionRef} controlRef={controlRef} markersRef={markersRef} />}
       {porssi && <PorssiWindow online={online} tab={porssi} onClose={() => setPorssi(null)} />}
       {!cutscene && <OnlineHud online={online} playerCount={online.roster.filter((id) => online.live.current.get(id)?.scene === scene).length} />}
       <GameHUD

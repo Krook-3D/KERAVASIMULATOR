@@ -47,6 +47,8 @@ const MODELS: Record<string, () => Part[]> = {
   hopearasia: () => [[box(0.08, 0.1, 0.018), '#d0d4da', [0, -0.05, 0], undefined, { metal: 1, rough: 0.2 }]],
   nokka3310: () => [[box(0.05, 0.11, 0.022), '#2c4a7a', [0, -0.055, 0]], [box(0.034, 0.03, 0.002), '#9fc79a', [0, -0.035, 0.012], undefined, { emissive: '#2a3a20' }]],
   timanttisormus: () => [[new THREE.TorusGeometry(0.02, 0.004, 8, 18), '#ffc93c', [0, -0.03, 0], undefined, GOLD], [new THREE.OctahedronGeometry(0.012), '#e8f6ff', [0, -0.005, 0], undefined, { metal: 0.2, rough: 0, emissive: '#5a7a90' }]],
+  kultasorkkarauta: () => [[cyl(0.012, 0.62), '#ffc93c', [0, -0.25, 0], undefined, GOLD], [box(0.025, 0.06, 0.012), '#ffc93c', [0, -0.56, 0.025], [0.6, 0, 0], GOLD]],
+  kultanokka: () => [[box(0.05, 0.11, 0.022), '#ffc93c', [0, -0.055, 0], undefined, GOLD], [box(0.034, 0.03, 0.002), '#9fc79a', [0, -0.035, 0.012], undefined, { emissive: '#2a3a20' }]],
   kultakello: () => [[cyl(0.024, 0.012, 0.024, 20), '#ffc93c', [0, -0.05, 0], [Math.PI / 2, 0, 0], GOLD], [cyl(0.019, 0.002, 0.019, 20), '#10331f', [0, -0.05, 0.007], [Math.PI / 2, 0, 0], { metal: 0.3, rough: 0.1 }], [box(0.022, 0.12, 0.006), '#ffc93c', [0, -0.05, -0.004], undefined, GOLD]],
   kultaranneke: () => [[new THREE.TorusGeometry(0.035, 0.008, 8, 22), '#ffc93c', [0, -0.035, 0], [Math.PI / 2, 0, 0], GOLD]],
   terasrolux: () => watch('#c9ced6', '#14233a', STEEL),

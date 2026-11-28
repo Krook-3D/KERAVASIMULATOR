@@ -498,3 +498,26 @@ describe('jewellery and watches', () => {
     expect(ITEMS.feikkirolux!.value).toBeLessThan(ITEMS.terasrolux!.value / 10);
   });
 });
+
+describe('package drops', async () => {
+  const { DROP, compassFi, dropHeight, pickDropSpot, rollLegendary } = await import('./world/packageDrop');
+  const { DROP_POOL, DROP_ONLY, WORLD_LOOT, ITEMS } = await import('../data/items');
+  it('always holds a legendary item, gold crowbar included', () => {
+    expect(DROP_POOL).toContain('kultasorkkarauta');
+    for (let i = 0; i < 50; i++) expect(ITEMS[rollLegendary(() => i / 50)]!.rarity).toBe('legendary');
+  });
+  it('drop-only items never lie on the ground', () => {
+    for (const id of DROP_ONLY) expect(WORLD_LOOT.some((i) => i.id === id)).toBe(false);
+  });
+  it('lands at a fair distance and falls from the sky', () => {
+    const pts = [{ x: 10, y: 0, z: 0 }, { x: 300, y: 2, z: 0 }, { x: 2000, y: 0, z: 0 }];
+    expect(pickDropSpot(pts, { x: 0, z: 0 }, () => 0.5)).toBe(pts[1]);
+    const d = { id: 'a', itemId: 'kultaharkko', x: 0, y: 2, z: 0, at: 0, landsAt: DROP.fallS, goneAt: 999 };
+    expect(dropHeight(d, 0)).toBe(2 + DROP.fromY);
+    expect(dropHeight(d, DROP.fallS + 1)).toBe(2);
+  });
+  it('gives directions in Finnish', () => {
+    expect(compassFi({ x: 0, z: 0 }, { x: 0, z: -100 })).toBe('pohjoiseen');
+    expect(compassFi({ x: 0, z: 0 }, { x: 100, z: 100 })).toBe('kaakkoon');
+  });
+});
