@@ -36,6 +36,7 @@ export function useDebugHook(d: {
   onGroundClick: (p: WorldXZ) => void;
   onNpcClick: (npc: Npc) => void;
   spots: Spot[];
+  clockRef?: MutableRefObject<number>;
   lootTaken: string[];
   shop: ReturnType<typeof useShop>;
   graffiti: ReturnType<typeof useGraffiti>;
@@ -71,6 +72,9 @@ export function useDebugHook(d: {
       cookSpots: () => w.cookSpots,
       give: (id: string, n = 1) => d.dispatch({ type: 'addItem', itemId: id, quantity: n }),
       eat: (id: string) => d.dispatch({ type: 'eatItem', itemId: id }),
+      clock: (t?: number) => (t !== undefined && d.clockRef && (d.clockRef.current = t), d.clockRef?.current),
+      station: () => d.w.layout,
+      railProfile: () => { const L = d.w.layout, t = d.w.terrain; if (!L || !t) return []; const out: number[][] = []; for (let x = -340; x <= 420; x += 40) { const [wx, wz] = toWorld(L, [x, 0]); out.push([x, Math.round(t.railAt(wx, wz) * 10) / 10, Math.round(t.heightAt(wx, wz) * 10) / 10]); } return out; },
       crossings: () => (w.terrain?.crossings ?? []).map((c) => ({ kind: c.kind, at: c.at.map(Math.round), dir: c.dir, road: c.road, span: Math.round(c.span) })),
       plots: () => w.plots.map((p) => ({ id: p.id, at: p.at, sign: p.sign, size: p.size, price: p.price, zone: p.zone, d: Math.round(Math.hypot(p.at[0], p.at[1])) })),
       /** Owns plot `id` with the given state (stage, upgrades, color). */

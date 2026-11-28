@@ -40,7 +40,7 @@ export function GameMap({ w, clouds, xray, highQuality, cutscene, playerRef, clo
       <Birds followRef={playerRef} />
       <KeravaWorld data={world} terrain={terrain} collider={w.collider!} excludeTrees={w.excludeTrees} trees={w.trees} props={w.streetProps} playerRef={playerRef} xray={xray} onGroundClick={onGroundClick} />
       <Station layout={layout} xray={xray} />
-      <Train layout={layout} clockRef={clockRef} />
+      <Train layout={layout} clockRef={clockRef} railAt={terrain ? (x, z) => terrain.railAt(x, z) : undefined} />
       <PrismaExterior site={w.prisma!.site} ground={ground(w.prisma!.site.door)} />
       {w.busStops.map((b) => (
         <BusStopModel key={b.id} stop={b} ground={ground(b.at)} />

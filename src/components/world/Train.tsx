@@ -2,7 +2,7 @@ import { useMemo, useRef, type MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
-import { DOOR_XS, TRAIN, type StationLayout } from '../../game/world/station';
+import { DOOR_XS, TRAIN, toWorld, type StationLayout } from '../../game/world/station';
 import { trainStateAt } from '../../game/world/trainSchedule';
 
 /**
@@ -263,8 +263,9 @@ function Car({ index, doorLeaves }: { index: number; doorLeaves: MutableRefObjec
   );
 }
 
-export function Train({ layout, clockRef }: { layout: StationLayout; clockRef: MutableRefObject<number> }) {
+export function Train({ layout, clockRef, railAt }: { layout: StationLayout; clockRef: MutableRefObject<number>; railAt?: (x: number, z: number) => number }) {
   const group = useRef<THREE.Group>(null);
+  const carGroups = useRef<(THREE.Group | null)[]>([]);
   const doorLeaves = useRef<THREE.Group[]>([]);
   const cars = useMemo(() => Array.from({ length: TRAIN.cars }, (_, i) => i), []);
 
@@ -275,13 +276,29 @@ export function Train({ layout, clockRef }: { layout: StationLayout; clockRef: M
     g.visible = s.visible;
     g.position.x = s.x;
     for (const leaf of doorLeaves.current) leaf.position.x = (leaf.userData.side as number) * s.doors * (DOOR_W - 0.1);
+    // each car rides on the rails: height and pitch from the track bed under its two bogies
+    if (!railAt || !s.visible) return;
+    const base = railAt(layout.origin[0], layout.origin[1]);
+    const L = TRAIN.carLength;
+    for (const i of cars) {
+      const car = carGroups.current[i];
+      if (!car) continue;
+      const cx = (i - (TRAIN.cars - 1) / 2) * (L + TRAIN.carGap) + s.x;
+      const [bx, bz] = toWorld(layout, [cx - L / 2 + 3.5, 0]);
+      const [fx, fz] = toWorld(layout, [cx + L / 2 - 3.5, 0]);
+      const yb = railAt(bx, bz) - base, yf = railAt(fx, fz) - base;
+      car.position.y = (yb + yf) / 2;
+      car.rotation.z = Math.atan2(yf - yb, L - 7);
+    }
   });
 
   return (
     <group position={[layout.origin[0], 0, layout.origin[1]]} rotation-y={layout.rotationY}>
       <group ref={group}>
         {cars.map((i) => (
-          <Car key={i} index={i} doorLeaves={doorLeaves} />
+          <group key={i} ref={(el) => void (carGroups.current[i] = el)}>
+            <Car index={i} doorLeaves={doorLeaves} />
+          </group>
         ))}
       </group>
     </group>

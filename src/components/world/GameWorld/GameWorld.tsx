@@ -450,7 +450,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
   useDebugHook({
     w, scene, cutscene, dispatch, positionRef, jailLive, holdingRef, npcLive, goTo, teleport, setRoute,
     talkToJonne: jailbreak.talkToJonne, onGroundClick, onNpcClick: talk.onNpcClick, spots: interaction.spots, lootTaken: interaction.lootTaken,
-    shop, graffiti, transit, stash, openContextAt, controlRef,
+    shop, graffiti, transit, stash, openContextAt, controlRef, clockRef,
   });
 
   const markersRef = useRef<() => MinimapMarker[]>(() => []);
