@@ -40,6 +40,9 @@ export type GameAction =
   | { type: 'confiscateDrugs' }
   | { type: 'cook'; ingredients: Record<string, number>; out: string; xp: number }
   | { type: 'adjustStats'; energy?: number; money?: number; health?: number }
+  | { type: 'buyCar'; model: import('../vehicle/cars').CarModelId; color: string; price: number; at: { x: number; z: number; yaw: number } }
+  | { type: 'sellCar'; value: number }
+  | { type: 'parkCar'; x: number; z: number; yaw: number }
   | { type: 'resetGame' };
 
 export const initialGameState: GameState = { player: null };
@@ -103,6 +106,22 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       let next: Player = p;
       for (const [id, n] of Object.entries(p.stolen ?? {})) next = removeItem(next, id, n);
       return { player: { ...next, stolen: {}, sinceCaught: 0, karma: clampKarma((p.karma ?? 0) + action.karma) } };
+    }
+    case 'buyCar': {
+      const p = state.player;
+      if (!p || p.car || p.money < action.price) return state;
+      return { player: { ...p, money: Math.round((p.money - action.price) * 100) / 100, car: { model: action.model, color: action.color, ...action.at } } };
+    }
+    case 'sellCar': {
+      const p = state.player;
+      if (!p?.car) return state;
+      const { car: _sold, ...rest } = p;
+      return { player: { ...rest, money: Math.round((p.money + action.value) * 100) / 100 } };
+    }
+    case 'parkCar': {
+      const p = state.player;
+      if (!p?.car) return state;
+      return { player: { ...p, car: { ...p.car, x: action.x, z: action.z, yaw: action.yaw } } };
     }
     case 'buyPlot': {
       const p = state.player;

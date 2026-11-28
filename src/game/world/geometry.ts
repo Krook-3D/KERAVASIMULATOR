@@ -471,7 +471,8 @@ export function buildCrossingGeometry(terrain: Terrain): THREE.BufferGeometry | 
         const [x, z] = at(end * (c.span + 0.5), 0);
         const ground = terrain.railAt(x, z) - 0.5;
         const top = terrain.surfaceAt(x, z) - 0.1;
-        box(x, (ground + top) / 2, z, c.halfWidth * 2 + 1.6, top - ground, 1.4, c.dir);
+        // as wide as the raised ramp, so the earth behind it never shows over the tracks
+        box(x, (ground + top) / 2, z, (c.halfWidth + WIDE_FULL + WIDE_FADE) * 2 + 1, top - ground, 1.4, c.dir);
       }
     } else {
       // the rail bridge over the underpass

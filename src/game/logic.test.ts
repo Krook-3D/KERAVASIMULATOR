@@ -602,3 +602,40 @@ describe('sound', () => {
     expect(() => soundForProgress(null, null)).not.toThrow();
   });
 });
+
+describe('cars', () => {
+  it('accelerates to top speed, steers, and bounces off walls', async () => {
+    const { CAR_MODELS, stepCar, crashHurt } = await import('./vehicle/cars');
+    const m = CAR_MODELS.romu;
+    let s = { x: 0, z: 0, yaw: 0, speed: 0, steer: 0 };
+    for (let i = 0; i < 400; i++) s = stepCar(s, { throttle: 1, steer: 0 }, m, 0.05, () => false).state;
+    expect(s.speed).toBeGreaterThan(m.top * 0.9);
+    expect(s.speed).toBeLessThanOrEqual(m.top);
+    expect(s.z).toBeGreaterThan(100);
+    expect(Math.abs(s.x)).toBeLessThan(0.01);
+    // steering right while going south (+z) turns towards west (−x)
+    let t = { x: 0, z: 0, yaw: 0, speed: 10, steer: 0 };
+    for (let i = 0; i < 20; i++) t = stepCar(t, { throttle: 0.5, steer: 1 }, m, 0.05, () => false).state;
+    expect(t.x).toBeLessThan(0);
+    // a wall ahead stops the car and reports the hit
+    const hit = stepCar({ x: 0, z: 0, yaw: 0, speed: 15, steer: 0 }, { throttle: 1, steer: 0 }, m, 0.1, (_x, z) => z > 2.5);
+    expect(hit.impact).toBeGreaterThan(14);
+    expect(hit.state.speed).toBeLessThan(0);
+    expect(crashHurt(5)).toBe(0);
+    expect(crashHurt(15)).toBeGreaterThan(0);
+  });
+  it('buys, parks and sells a car', () => {
+    const p = { ...createPlayer('Testi', '#fff'), money: 2000 };
+    let st: GameState = { player: p };
+    st = gameReducer(st, { type: 'buyCar', model: 'farmari', color: '#000', price: 1200, at: { x: 1, z: 2, yaw: 0 } });
+    expect(st.player!.money).toBe(800);
+    expect(st.player!.car?.model).toBe('farmari');
+    // only one car at a time
+    expect(gameReducer(st, { type: 'buyCar', model: 'romu', color: '#000', price: 450, at: { x: 0, z: 0, yaw: 0 } }).player!.money).toBe(800);
+    st = gameReducer(st, { type: 'parkCar', x: 10, z: 20, yaw: 1 });
+    expect(st.player!.car).toMatchObject({ x: 10, z: 20, yaw: 1 });
+    st = gameReducer(st, { type: 'sellCar', value: 600 });
+    expect(st.player!.car).toBeUndefined();
+    expect(st.player!.money).toBe(1400);
+  });
+});

@@ -19,6 +19,10 @@ import { playerOutfit, type ScriptedPose } from '../PlayerCharacter';
 import { Atmosphere } from '../Atmosphere';
 import { AudioDirector } from '../AudioDirector';
 import { useSoundscape } from './systems/useSoundscape';
+import { useDriving } from './systems/useDriving';
+import { DrivableCar } from '../DrivableCar';
+import { CarLot } from '../CarLot';
+import { CAR_MODELS, kmh } from '../../../game/vehicle/cars';
 import { Effects } from '../Effects';
 import { createXrayUniforms } from '../materials';
 import type { NpcLive } from '../npc/Crowd';
@@ -236,7 +240,8 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
 
   // ------------------------------------------------------------ clicks and arrival
   /** Clicks, keys and steering are ignored while true (cutscene, dialogue, training, riding, painting, chase). */
-  const inputLocked = !!porssi || cutscene || !!dialogue || fading || training.busy || transit.riding || !!graffiti.painting || !!stash.chase || !!talk.gang || !!building.job || !!escapeMash.mash;
+  const drive = useDriving(ctx, w);
+  const inputLocked = !!porssi || cutscene || !!dialogue || fading || training.busy || transit.riding || !!graffiti.painting || !!stash.chase || !!talk.gang || !!building.job || !!escapeMash.mash || drive.driving;
   /** Close all open panels when the player walks off. */
   const closePanels = () => {
     transit.setAtBusStop(null);
@@ -279,6 +284,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       openPorssi: setPorssi,
       drop: drops.drop,
       openDrop: drops.openDrop,
+      extraSpots: drive.spots,
       plotsOwned: building.owned,
     },
     {
@@ -450,7 +456,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
   useDebugHook({
     w, scene, cutscene, dispatch, positionRef, jailLive, holdingRef, npcLive, goTo, teleport, setRoute,
     talkToJonne: jailbreak.talkToJonne, onGroundClick, onNpcClick: talk.onNpcClick, spots: interaction.spots, lootTaken: interaction.lootTaken,
-    shop, graffiti, transit, stash, openContextAt, controlRef,
+    shop, graffiti, transit, stash, openContextAt, controlRef, clockRef,
   });
 
   const markersRef = useRef<() => MinimapMarker[]>(() => []);
@@ -483,6 +489,22 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
             <GameMap w={w} clouds={clouds} xray={xray} highQuality={highQuality} cutscene={cutscene} playerRef={positionRef} clockRef={clockRef} busRun={transit.busRun} onGroundClick={onGroundClick} />
             <NPCLayer npcs={w.npcs} live={npcLive} terrain={terrain!} cutscene={cutscene} clockRef={clockRef} playerRef={positionRef} talkingId={talk.talkingId} onTalk={talk.onNpcClick} />
             <PorssiPavilion groundAt={remoteGround} playerRef={positionRef} onUse={(tab) => interaction.onGroundClick(tab === 'npc' ? PORSSI_STALL : PORSSI_COUNTER)} />
+            {drive.lot && <CarLot lot={drive.lot} groundAt={(x, z) => w.groundHeight([x, z])} />}
+            {state.player?.car && (
+              <DrivableCar
+                key={`${state.player.car.model}${state.player.car.color}`}
+                color={state.player.car.color}
+                model={CAR_MODELS[state.player.car.model]}
+                stateRef={drive.carRef}
+                driving={drive.driving}
+                controlRef={controlRef}
+                positionRef={positionRef}
+                groundHeight={(x, z) => w.groundHeight([x, z])}
+                blocked={drive.blocked}
+                onCrash={drive.onCrash}
+                onSpeed={drive.onSpeed}
+              />
+            )}
             {drops.drop && <PackageDropModel drop={drops.drop} clockRef={clockRef} onClick={() => onGroundClick([drops.drop!.x, drops.drop!.z])} />}
             <WorldObjects w={w} pieces={graffiti.pieces} stashTaken={stash.stashTaken} lootTaken={interaction.lootTaken} owned={building.owned} cutscene={cutscene} playerRef={positionRef} onGroundClick={onGroundClick} />
             <QuestLayer
@@ -585,6 +607,12 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       )}
       {!cutscene && nearSpot && !inputLocked && <div className="use-prompt"><kbd>E</kbd> Käytä</div>}
 
+      {drive.driving && (
+        <div className="speedo">
+          <b>{kmh(drive.speed)}</b> km/h
+          <span>E: nouse autosta · välilyönti: käsijarru</span>
+        </div>
+      )}
       {inWorld && !cutscene && w.world && <Minimap world={w.world} positionRef={positionRef} controlRef={controlRef} markersRef={markersRef} clockRef={clockRef} />}
       {porssi && <PorssiWindow online={online} tab={porssi} onClose={() => setPorssi(null)} />}
       {!cutscene && <OnlineHud online={online} playerCount={online.roster.filter((id) => online.live.current.get(id)?.scene === scene).length} />}

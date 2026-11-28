@@ -165,3 +165,44 @@ function crickets(v: Voice, level: number) {
   const pulses = 3 + Math.floor(Math.random() * 4);
   for (let k = 0; k < pulses; k++) tone(v, { type: 'triangle', f, at: k * 0.045, a: 0.004, d: 0.025, g: 0.018 * level });
 }
+
+// ---------------------------------------------------------------- car engine
+
+let engine: { osc: OscillatorNode; osc2: OscillatorNode; lp: BiquadFilterNode; gain: GainNode } | null = null;
+
+/** The player's car engine: idles when on, revs with `rev` (0–1 of top speed). */
+export function setEngine(on: boolean, rev: number) {
+  if (!audioReady()) return;
+  const a = audio();
+  if (!a) return;
+  const { ctx } = a;
+  if (!engine) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'square';
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.Q.value = 2;
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    const g2 = ctx.createGain();
+    g2.gain.value = 0.4;
+    osc.connect(lp);
+    osc2.connect(g2).connect(lp);
+    lp.connect(gain).connect(a.buses.sfx);
+    osc.start();
+    osc2.start();
+    engine = { osc, osc2, lp, gain };
+  }
+  const t = ctx.currentTime;
+  // gears: the pitch climbs, drops at each shift, and climbs again
+  const r = Math.max(0, Math.min(1, rev));
+  const gear = Math.min(3, Math.floor(r * 4));
+  const inGear = r * 4 - gear;
+  const f = on ? 34 + gear * 6 + inGear * 46 : 30;
+  engine.osc.frequency.setTargetAtTime(f, t, 0.08);
+  engine.osc2.frequency.setTargetAtTime(f * 0.5, t, 0.08);
+  engine.lp.frequency.setTargetAtTime(300 + r * 900, t, 0.1);
+  engine.gain.gain.setTargetAtTime(on ? 0.05 + r * 0.05 : 0, t, on ? 0.1 : 0.25);
+}

@@ -119,6 +119,9 @@ Vaiheet: ks. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#8-kehitysjärjestys).
 - [x] Kauppahallien julkisivut (Motonet, K-Rauta, salit, uimahalli)
 - [x] Bugikierros: quest-esine mahtuu aina reppuun, raha senttitarkkuudella
 - [x] Äänet: kaikki tehosteet syntetisoidaan selaimessa (src/audio), ympäristöäänet vuorokauden ja paikan mukaan, askeleet, juna, äänenvoimakkuus valikossa, M mykistää
+- [x] Ajettavat autot: Keravan Autotori Motonetin pihalla (3 mallia), ajo W/S/A/D, käsijarru, kolarit, auto jää parkkiin ja tallentuu
+- [x] Rata kulkee siltojen ali avoimena, juna seuraa radan korkeutta
+- [ ] Autot: tankkaus, pysäköintisakot, poliisin takaa-ajo autolla, NPC-liikenne
 - [ ] Taustamusiikki
 - [ ] Kalastus-skillille oma aktiviteetti (skilli on listalla, mutta sitä ei vielä voi harjoittaa)
 

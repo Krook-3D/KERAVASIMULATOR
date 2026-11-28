@@ -167,5 +167,6 @@ export function inEndGap(c: Crossing, p: WorldXZ): boolean {
 export function underBridge(c: Crossing, p: WorldXZ): boolean {
   if (c.kind !== 'over') return false;
   const [s, d] = crossingLocal(c, p);
-  return Math.abs(s) < c.span && Math.abs(d) < c.halfWidth + 4;
+  // the whole width the ramp raises, so its earth never covers the tracks beside the deck
+  return Math.abs(s) < c.span && Math.abs(d) < crossingReach(c) + 2;
 }

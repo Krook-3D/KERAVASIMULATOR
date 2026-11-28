@@ -44,6 +44,8 @@ export function soundForAction(a: GameAction) {
   switch (a.type) {
     case 'buyBasket':
     case 'sellPlot':
+    case 'buyCar':
+    case 'sellCar':
       return sfx('register');
     case 'stealItem':
       return sfx('steal');

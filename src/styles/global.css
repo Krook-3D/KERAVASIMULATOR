@@ -1060,3 +1060,33 @@ button.inv-slot:disabled { cursor: default; }
   background: #14171f; color: #ffd23f; font: 700 12px var(--font-display, monospace); padding: 2px 6px; border-radius: 8px;
   border: 1px solid #c9a36a; pointer-events: none;
 }
+
+/* speedometer while driving */
+.speedo {
+  position: absolute;
+  left: 50%;
+  bottom: 150px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 18px 6px;
+  border-radius: 14px;
+  background: rgba(14, 17, 24, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #f2efe6;
+  font: 600 13px Rubik, Arial, sans-serif;
+  pointer-events: none;
+  z-index: 6;
+}
+.speedo b {
+  font-size: 30px;
+  line-height: 1;
+  color: #ffd23f;
+  font-variant-numeric: tabular-nums;
+}
+.speedo span {
+  font-size: 11px;
+  opacity: 0.7;
+}

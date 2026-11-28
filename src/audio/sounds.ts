@@ -220,6 +220,21 @@ export const SOUNDS = {
     noise(v, { filter: 'highpass', f: 4500, a: 0.02, hold: 0.25, d: 0.1, g: 0.08 });
   },
 
+  crash: (v: Voice) => {
+    noise(v, { f: 2500, f2: 400, d: 0.35, g: 0.5 });
+    tone(v, { f: 90, f2: 40, d: 0.3, g: 0.5 });
+    for (const [f, d] of [[620, 0.4], [1480, 0.3], [2350, 0.2]] as const) tone(v, { f: f * r(0.9, 1.1), at: 0.02, d, g: 0.05 });
+    for (let i = 0; i < 5; i++) noise(v, { filter: 'bandpass', f: r(3000, 6000), q: 3, at: 0.1 + i * r(0.03, 0.07), d: 0.03, g: 0.12 });
+  },
+  carDoor: (v: Voice) => {
+    noise(v, { filter: 'bandpass', f: 1200, q: 1, d: 0.05, g: 0.2 });
+    tone(v, { f: 120, f2: 70, at: 0.02, d: 0.12, g: 0.4 });
+  },
+  ignition: (v: Voice) => {
+    for (let i = 0; i < 5; i++) tone(v, { type: 'sawtooth', f: r(55, 70), at: i * 0.11, d: 0.08, g: 0.06, lp: 600 });
+    tone(v, { type: 'sawtooth', f: 45, f2: 90, at: 0.6, a: 0.05, d: 0.4, g: 0.08, lp: 900 });
+  },
+
   // ---------------------------------------------------------------- footsteps
   stepSoft: (v: Voice) => {
     noise(v, { f: r(500, 800), d: r(0.05, 0.07), g: r(0.4, 0.55) });
