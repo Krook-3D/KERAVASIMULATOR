@@ -248,7 +248,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
     shop.setPicked(null);
     shop.setAtTill(false);
   };
-  const drops = usePackageDrops(ctx, w, !cutscene && introDone);
+  const drops = usePackageDrops(ctx, w, !cutscene);
   const interaction = useInteraction(
     ctx,
     w,

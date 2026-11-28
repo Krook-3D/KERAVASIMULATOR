@@ -573,3 +573,17 @@ describe('day and night', async () => {
     expect(lightingAt(1).key.dir[1]).toBeGreaterThan(0); // the moon lights from above
   });
 });
+
+describe('bug sweep fixes', () => {
+  it('a quest item fits even in a full pack', () => {
+    const p = createPlayer('A', '#fff');
+    p.inventory = Array.from({ length: INVENTORY_SIZE }, () => ({ itemId: 'kahvi', quantity: 1 }));
+    const next = gameReducer({ player: p } as GameState, { type: 'addItem', itemId: 'viila' }).player!;
+    expect(next.inventory.some((s) => s.itemId === 'viila')).toBe(true);
+  });
+  it('money stays in whole cents', () => {
+    const p = { ...createPlayer('A', '#fff'), money: 0.1 };
+    const next = gameReducer({ player: p } as GameState, { type: 'adjustStats', money: 0.2 }).player!;
+    expect(next.money).toBe(0.3);
+  });
+});

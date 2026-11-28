@@ -42,7 +42,7 @@ Vaiheet: ks. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#8-kehitysjärjestys).
 ## Vaihe 6–7: Liikkuminen ja POI:t
 - [ ] Aja `npm run fetch:osm` ja commitoi oikea Keravan data
 - [ ] Reitinhaku rakennusten ympäri
-- [ ] Minikartta
+- [x] Minikartta (kääntyy kameran mukana, kello, paketti- ja Pörssi-merkit)
 - [ ] Energia kuluu liikkuessa, Running/Endurance XP matkasta
 - [ ] 10 POI:ta `src/data/pois.ts`
 - [ ] POI-kortti ja aktiviteetit
@@ -110,6 +110,15 @@ Vaiheet: ks. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#8-kehitysjärjestys).
 - [ ] Online-tavaroiden lähteet palvelimelle (M6): kokkaus, löydöt, työt, jotta muutakin kuin kaupan tavaraa liikkuu
 - [ ] M8 Talouden mittarit, admin-työkalut, moderointi, varmuuskopiot
 - [ ] M9 Katukauppa ja poliisi palvelimella, Areena PvP
+
+## Marraskuun loppu 2026 ✅
+- [x] Pakettipudotukset: laskuvarjolaatikko 6–12 min välein, aina legendaarinen esine (Kultainen sorkkarauta ja Kultainen Nokka 3310 vain paketeista)
+- [x] K-Rauta Motonetin viereen, 10 uutta rakennustarviketta
+- [x] Talon laajennukset (kukkapenkit, terassi, aita, lisäeristys, pihasauna, autotalli, aurinkopaneelit), maalaus, lepo kotona, vuokraus
+- [x] Vuorokausirytmi: aurinko liikkuu, ilta, yö, tähdet, valaistut ikkunat, katulamput, kello
+- [x] Kauppahallien julkisivut (Motonet, K-Rauta, salit, uimahalli)
+- [x] Bugikierros: quest-esine mahtuu aina reppuun, raha senttitarkkuudella
+- [ ] Kalastus-skillille oma aktiviteetti (skilli on listalla, mutta sitä ei vielä voi harjoittaa)
 
 ## Myöhemmin
 - [ ] PostGIS

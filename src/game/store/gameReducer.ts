@@ -229,7 +229,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           ...p,
           energy: clamp(p.energy + (action.energy ?? 0), MAX_ENERGY),
           health: clamp(p.health + (action.health ?? 0), 100),
-          money: Math.max(0, p.money + (action.money ?? 0)),
+          money: Math.max(0, Math.round((p.money + (action.money ?? 0)) * 100) / 100),
           ...((action.energy ?? 0) < 0 ? { body: { ...(p.body ?? START_BODY), fat: Math.max(0, (p.body ?? START_BODY).fat - fatBurn(-(action.energy ?? 0))) } } : {}),
         },
       };
@@ -248,7 +248,7 @@ export function canAdd(p: Player, itemId: string): boolean {
 }
 
 function addItem(p: Player, itemId: string, quantity: number): Player {
-  if (!canAdd(p, itemId)) return p; // full: the item is lost (callers check canAdd first)
+  if (!canAdd(p, itemId) && ITEMS[itemId]?.category !== 'quest') return p; // full: the item is lost (callers check canAdd first); quest items always fit
   const inv = p.inventory.map((s) => ({ ...s }));
   const slot = inv.find((s) => s.itemId === itemId);
   if (slot) slot.quantity += quantity;
@@ -263,7 +263,8 @@ export function harmKarma(itemId: string, quantity = 1): number {
 
 /** A new item enters the backpack (bought, stolen, found, given): harmful goods cost karma. */
 function obtain(p: Player, itemId: string, quantity: number): Player {
-  if (!canAdd(p, itemId)) return p;
+  // quest items always fit, so a full pack can't block a quest (the jail file)
+  if (!canAdd(p, itemId) && ITEMS[itemId]?.category !== 'quest') return p;
   const next = addItem(p, itemId, quantity);
   const k = harmKarma(itemId, quantity);
   return k ? { ...next, karma: clampKarma((p.karma ?? 0) + k) } : next;
