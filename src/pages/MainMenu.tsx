@@ -1,3 +1,4 @@
+import { setAudioSettings, sfx, useAudioSettings } from '../audio';
 import { useState } from 'react';
 import { OnlineLogin } from './OnlineLogin';
 import { MenuBackdrop } from '../components/world/MenuBackdrop';
@@ -65,6 +66,7 @@ export function MainMenu({ onPlay }: { onPlay: () => void }) {
                     <option value="low">Kevyt (heikommille koneille)</option>
                   </select>
                 </label>
+                <SoundSettings />
                 {player && (
                   <div className="menu__row">
                     <span>Tallennus</span>
@@ -118,5 +120,27 @@ export function MainMenu({ onPlay }: { onPlay: () => void }) {
         </div>
       )}
     </div>
+  );
+}
+
+/** Volume sliders: everything, effects and the background sound. */
+function SoundSettings() {
+  const a = useAudioSettings();
+  const row = (label: string, key: 'master' | 'sfx' | 'amb') => (
+    <label className="menu__row">
+      <span>{label}</span>
+      <input type="range" min={0} max={100} step={5} value={Math.round(a[key] * 100)} onChange={(e) => setAudioSettings({ [key]: Number(e.target.value) / 100 })} onPointerUp={() => sfx('coin')} />
+    </label>
+  );
+  return (
+    <>
+      {row('Äänenvoimakkuus', 'master')}
+      {row('Tehosteet', 'sfx')}
+      {row('Ympäristöäänet', 'amb')}
+      <label className="menu__row">
+        <span>Mykistä (M)</span>
+        <input type="checkbox" checked={a.muted} onChange={(e) => setAudioSettings({ muted: e.target.checked })} />
+      </label>
+    </>
   );
 }

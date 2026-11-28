@@ -1,6 +1,7 @@
 import type { Player } from '../types/game';
 import { levelFromXp, levelProgress } from '../game/xp/xp';
 import type { GraphicsQuality } from '../services/settings';
+import { toggleMute, useAudioSettings } from '../audio';
 import { AURA_COLORS, AURA_NAMES, auraTier } from '../game/shop/shop';
 
 interface HudProps {
@@ -32,6 +33,7 @@ export function Hud({ player, graphics, onToggleGraphics, onMenu }: HudProps) {
         <div className="hud__chip">⚡ {player.energy}</div>
       </div>
       <div className="hud__right">
+        <SoundChip />
         <button type="button" className="hud__chip hud__gfx" onClick={onToggleGraphics} title="Vaihda grafiikan laatu">
           🎨 {graphics === 'high' ? 'Korkea' : 'Kevyt'}
         </button>
@@ -58,5 +60,15 @@ function KarmaChip({ karma }: { karma: number }) {
       </div>
       <span className="hud__label">{karma > 0 ? `+${karma}` : karma}</span>
     </div>
+  );
+}
+
+/** Mute toggle (also the M key). */
+function SoundChip() {
+  const a = useAudioSettings();
+  return (
+    <button type="button" className="hud__chip hud__gfx" onClick={toggleMute} title={a.muted ? 'Äänet pois päältä (M)' : 'Mykistä äänet (M)'} aria-pressed={a.muted}>
+      {a.muted ? '🔇' : '🔊'}
+    </button>
   );
 }

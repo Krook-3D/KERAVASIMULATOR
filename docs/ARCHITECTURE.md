@@ -395,3 +395,12 @@ Grafiikka: vesi ja vaahto shaderina (`materials.ts`), lumpeet ja kaislat (`Water
 Jokainen järjestelmähook saa `GameCtx`-olion (player, dispatch, scene, teleport, say…) ja palauttaa tilansa ja toimintonsa. Moninpelissä nämä toiminnot ovat luonteva paikka vaihtaa paikallinen `dispatch` palvelimelle lähetettäviksi intenteiksi.
 
 Moninpeli: palvelin on omassa haarassaan (PR #2, `server/` ja `shared/`), suunnitelma ja tila tiedostossa `docs/MULTIPLAYER.md`.
+
+### Äänet (`src/audio/`)
+Kaikki äänet syntetisoidaan Web Audio API:lla (oskillaattorit, suodatettu kohina, verhokäyrät), joten äänitiedostoja ei ladata.
+- `engine.ts`: AudioContext, väylät (tehosteet, käyttöliittymä, ympäristö), rajoitin, asetukset (`kerava-sim:audio`), primitiivit `tone` ja `noise`, `distanceGain`.
+- `sounds.ts`: noin 45 kertaääntä reseptinä (`SOUNDS`), `sfx(id)` toistaa ja estää saman äänen pinoutumisen.
+- `ambience.ts`: tuuli, liikenne, linnut päivällä, sirkat yöllä, sisätilojen ilmanvaihto, uimahallin vesi, junan jyrinä etäisyyden mukaan, paistinpannun ja spraypurkin loopit.
+- `index.ts`: `installAudio` (ääni avautuu ensimmäisestä klikkauksesta, napit naksahtavat, M mykistää), `soundForAction` (GameProviderin dispatch soittaa toiminnon äänen) ja `soundForProgress` (tasonnousun fanfaari).
+- Pelissä: `components/world/AudioDirector.tsx` (ympäristö ja juna, useFrame 10 Hz) ja `systems/useSoundscape.ts` (ovet, ilmoitukset, treenit, kokkaus, graffitit, rakentaminen, pakot, pudotukset, bussi, chat). Askeleet tulevat `PlayerCharacter`ista kävelyvaiheen mukaan, alusta riippuu tilasta.
+

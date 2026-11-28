@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { playFootstep } from '../../audio/footsteps';
 import * as THREE from 'three';
 import type { WorldXZ } from '../../game/world/projection';
 import { ARRIVE_EPSILON, WALK_SPEED } from '../../game/world/movement';
@@ -59,6 +60,7 @@ export function PlayerCharacter({ color, appearance, shape, positionRef, target,
   const bones = useRef<HumanBones | null>(null);
   const run = useRef(0);
   const walkPhase = useRef(0);
+  const lastStep = useRef(0);
   const arrivedFor = useRef<WorldXZ | null>(null);
   const steering = useRef(false);
 
@@ -151,6 +153,12 @@ export function PlayerCharacter({ color, appearance, shape, positionRef, target,
     g.position.copy(pos);
     run.current = THREE.MathUtils.lerp(run.current, moving ? 1 : 0, Math.min(1, dt * (moving ? 10 : 7)));
     walkPhase.current += dt * 11 * run.current;
+    // a footstep every half stride (the legs swing on sin(phase))
+    const step = Math.floor(walkPhase.current / Math.PI);
+    if (step !== lastStep.current) {
+      lastStep.current = step;
+      if (moving && visible) playFootstep();
+    }
     if (bones.current) poseLocomotion(bones.current, walkPhase.current, run.current, performance.now() / 1000);
   });
 

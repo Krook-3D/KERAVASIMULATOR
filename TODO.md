@@ -118,6 +118,8 @@ Vaiheet: ks. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#8-kehitysjärjestys).
 - [x] Vuorokausirytmi: aurinko liikkuu, ilta, yö, tähdet, valaistut ikkunat, katulamput, kello
 - [x] Kauppahallien julkisivut (Motonet, K-Rauta, salit, uimahalli)
 - [x] Bugikierros: quest-esine mahtuu aina reppuun, raha senttitarkkuudella
+- [x] Äänet: kaikki tehosteet syntetisoidaan selaimessa (src/audio), ympäristöäänet vuorokauden ja paikan mukaan, askeleet, juna, äänenvoimakkuus valikossa, M mykistää
+- [ ] Taustamusiikki
 - [ ] Kalastus-skillille oma aktiviteetti (skilli on listalla, mutta sitä ei vielä voi harjoittaa)
 
 ## Myöhemmin

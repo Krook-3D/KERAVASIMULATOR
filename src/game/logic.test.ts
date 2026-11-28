@@ -587,3 +587,18 @@ describe('bug sweep fixes', () => {
     expect(next.money).toBe(0.3);
   });
 });
+
+describe('sound', () => {
+  it('falls off with distance and is silent far away', async () => {
+    const { distanceGain } = await import('../audio/engine');
+    expect(distanceGain(3)).toBe(1);
+    expect(distanceGain(100)).toBeGreaterThan(distanceGain(200));
+    expect(distanceGain(400)).toBe(0);
+  });
+  it('maps actions to sounds without an audio device', async () => {
+    const { soundForAction, soundForProgress } = await import('../audio');
+    expect(() => soundForAction({ type: 'buyBasket', basket: {}, total: 0 })).not.toThrow();
+    expect(() => soundForAction({ type: 'grantReward', reward: { money: 5 } })).not.toThrow();
+    expect(() => soundForProgress(null, null)).not.toThrow();
+  });
+});

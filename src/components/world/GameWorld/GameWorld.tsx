@@ -17,6 +17,8 @@ import { placeClouds } from '../../../game/world/streetProps';
 import { useGame } from '../../../game/store/GameProvider';
 import { playerOutfit, type ScriptedPose } from '../PlayerCharacter';
 import { Atmosphere } from '../Atmosphere';
+import { AudioDirector } from '../AudioDirector';
+import { useSoundscape } from './systems/useSoundscape';
 import { Effects } from '../Effects';
 import { createXrayUniforms } from '../materials';
 import type { NpcLive } from '../npc/Crowd';
@@ -404,6 +406,30 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
   const account = useOnlineAccount();
   const myLook = useMemo(() => appearanceToLook(appearance, color, shape), [appearance, color, shape]);
   const online = useOnline({ character: account.character, enabled: introDone || !cutscene, positionRef, scene, look: myLook, setToast });
+  useSoundscape({
+    scene,
+    cutscene,
+    toast,
+    dialogueOpen: !!dialogue,
+    lifting: !!training.gymActive,
+    swimming: training.swimT0 !== null,
+    drilling: !!training.fightActive,
+    cooking: !!cooking.cooking,
+    painting: !!graffiti.painting,
+    policeComing: graffiti.policeAt !== null,
+    building: !!building.job,
+    mash: escapeMash.mash,
+    gang: !!talk.gang,
+    chase: !!stash.chase,
+    drop: drops.drop,
+    busRiding: transit.riding,
+    trainRide: !!transit.trainRide,
+    chatCount: online.chat.length ? online.chat[online.chat.length - 1]!.key + 1 : 0,
+    lastChatMine: !!online.chat[online.chat.length - 1]?.mine,
+    tradeIncoming: !!online.incoming,
+    clockRef,
+    positionRef,
+  });
   const remoteGround = useCallback((x: number, z: number) => (scene === 'world' ? w.groundHeight([x, z]) : 0), [scene, w.groundHeight]);
   const openRemoteMenu = (id: string, x: number, y: number) => {
     const r = online.live.current.get(id);
@@ -448,6 +474,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       >
         <Clock clockRef={clockRef} />
         <Atmosphere followRef={positionRef} high={highQuality} indoor={!inWorld} clockRef={clockRef} />
+        <AudioDirector scene={scene} layout={layout ?? null} clockRef={clockRef} positionRef={positionRef} dim={cutscene || !!porssi} />
         {highQuality && <Effects />}
         <group onContextMenu={onContext}>
 
