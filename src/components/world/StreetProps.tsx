@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Cloud, PlacedProp } from '../../game/world/streetProps';
+import { NIGHT } from './nightState';
 
 const CAR_COLORS = ['#c9ccd1', '#2c2f36', '#f2f2ef', '#8b1e22', '#1f4e8c', '#5f6b72', '#355e3b', '#d6b04a'];
 
@@ -106,13 +107,37 @@ function Lamps({ lamps }: { lamps: PlacedProp[] }) {
         ]),
       ),
       head: faceted(new THREE.BoxGeometry(0.32, 0.12, 0.6).translate(0, 6.3, -1.3)),
+      // a soft pool of light on the ground under the head, seen at night
+      pool: new THREE.CircleGeometry(3.4, 20).rotateX(-Math.PI / 2).translate(0, 0.12, -1.3),
     }),
     [],
   );
   const pole = useRef<THREE.InstancedMesh>(null);
   const head = useRef<THREE.InstancedMesh>(null);
+  const pool = useRef<THREE.InstancedMesh>(null);
+  const headMat = useRef<THREE.MeshStandardMaterial>(null);
+  const poolMat = useRef<THREE.MeshBasicMaterial>(null);
   useInstances(pole, lamps);
   useInstances(head, lamps);
+  useInstances(pool, lamps);
+  const glowTex = useMemo(() => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d')!;
+    const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, 'rgba(255,255,255,1)');
+    grad.addColorStop(0.5, 'rgba(255,255,255,0.35)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 64, 64);
+    return new THREE.CanvasTexture(c);
+  }, []);
+  useFrame(() => {
+    const n = NIGHT.value;
+    if (headMat.current) headMat.current.emissiveIntensity = 0.25 + n * 5;
+    if (poolMat.current) poolMat.current.opacity = n * 0.55;
+    if (pool.current) pool.current.visible = n > 0.05;
+  });
   if (lamps.length === 0) return null;
   return (
     <group>
@@ -120,7 +145,10 @@ function Lamps({ lamps }: { lamps: PlacedProp[] }) {
         <meshStandardMaterial color="#5d646b" roughness={0.5} metalness={0.6} />
       </instancedMesh>
       <instancedMesh ref={head} args={[geos.head, undefined, lamps.length]}>
-        <meshStandardMaterial color="#e9e5d6" emissive="#fff2c4" emissiveIntensity={0.25} />
+        <meshStandardMaterial ref={headMat} color="#e9e5d6" emissive="#fff2c4" emissiveIntensity={0.25} />
+      </instancedMesh>
+      <instancedMesh ref={pool} args={[geos.pool, undefined, lamps.length]} raycast={() => null} visible={false}>
+        <meshBasicMaterial ref={poolMat} map={glowTex} color="#ffd9a0" transparent opacity={0} depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
       </instancedMesh>
     </group>
   );
@@ -139,17 +167,23 @@ export function StreetProps({ lamps, cars }: { lamps: PlacedProp[]; cars: Placed
 export function Clouds({ clouds }: { clouds: Cloud[] }) {
   const group = useRef<THREE.Group>(null);
   const geo = useMemo(() => faceted(new THREE.IcosahedronGeometry(1, 1)), []);
+  // one shared material: white by day, dim blue-grey at night
+  const mat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 1, emissive: '#ffffff', emissiveIntensity: 0.35, fog: false }), []);
+  const day = useMemo(() => new THREE.Color('#ffffff'), []);
+  const night = useMemo(() => new THREE.Color('#39425e'), []);
   useFrame((_, dt) => {
     if (group.current) group.current.position.x += dt * 1.5;
+    const n = NIGHT.value;
+    mat.color.copy(day).lerp(night, n);
+    mat.emissive.copy(day).lerp(night, n);
+    mat.emissiveIntensity = 0.35 - n * 0.2;
   });
   return (
     <group ref={group}>
       {clouds.map((c, i) => (
         <group key={i} position={[c.x, c.y, c.z]} scale={c.scale}>
           {c.puffs.map(([x, y, z, r], j) => (
-            <mesh key={j} geometry={geo} position={[x, y, z]} scale={[r, r * 0.6, r]}>
-              <meshStandardMaterial color="#ffffff" roughness={1} emissive="#ffffff" emissiveIntensity={0.35} fog={false} />
-            </mesh>
+            <mesh key={j} geometry={geo} material={mat} position={[x, y, z]} scale={[r, r * 0.6, r]} />
           ))}
         </group>
       ))}

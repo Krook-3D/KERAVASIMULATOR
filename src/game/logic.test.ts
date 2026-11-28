@@ -553,3 +553,23 @@ describe('home extensions and rent', async () => {
     expect(next.plots!.t).toEqual({ stage: 4, upgrades: ['piha', 'terassi'], color: 'harmaa' });
   });
 });
+
+describe('day and night', async () => {
+  const { hourAt, clockText, sunDirection, nightAmount, lightingAt, DAY_SECONDS, START_HOUR } = await import('./world/dayNight');
+  it('runs a full day in DAY_SECONDS and prints the time', () => {
+    expect(hourAt(0)).toBe(START_HOUR);
+    expect(hourAt(DAY_SECONDS)).toBeCloseTo(START_HOUR);
+    expect(clockText(7.5)).toBe('07:30');
+  });
+  it('sun: east in the morning, south at noon, west in the evening', () => {
+    expect(sunDirection(8)[0]).toBeGreaterThan(0);
+    expect(sunDirection(13)[2]).toBeGreaterThan(0.7);
+    expect(sunDirection(18)[0]).toBeLessThan(0);
+  });
+  it('night is dark, noon is bright', () => {
+    expect(nightAmount(13)).toBe(0);
+    expect(nightAmount(1)).toBe(1);
+    expect(lightingAt(1).key.intensity).toBeLessThan(lightingAt(13).key.intensity);
+    expect(lightingAt(1).key.dir[1]).toBeGreaterThan(0); // the moon lights from above
+  });
+});

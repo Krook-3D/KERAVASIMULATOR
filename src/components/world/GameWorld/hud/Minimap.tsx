@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'rea
 import type * as THREE from 'three';
 import { worldBounds, type Area, type WorldData } from '../../../../game/world/worldData';
 import type { ControlState } from '../../controls';
+import { clockText, hourAt } from '../../../../game/world/dayNight';
 
 export interface MinimapMarker {
   x: number;
@@ -85,7 +86,8 @@ function renderBase(world: WorldData) {
  * rim and markers for the package drop, the Pörssi and other players.
  * Click it to zoom out (three steps).
  */
-export function Minimap({ world, positionRef, controlRef, markersRef }: {
+export function Minimap({ world, positionRef, controlRef, markersRef, clockRef }: {
+  clockRef: MutableRefObject<number>;
   world: WorldData;
   positionRef: MutableRefObject<THREE.Vector3>;
   controlRef: MutableRefObject<ControlState>;
@@ -93,6 +95,7 @@ export function Minimap({ world, positionRef, controlRef, markersRef }: {
 }) {
   const base = useMemo(() => renderBase(world), [world]);
   const ref = useRef<HTMLCanvasElement>(null);
+  const timeRef = useRef<HTMLSpanElement>(null);
   const [range, setRange] = useState(0);
   const rangeRef = useRef(RANGES[0]!);
   rangeRef.current = RANGES[range]!;
@@ -108,6 +111,8 @@ export function Minimap({ world, positionRef, controlRef, markersRef }: {
     const R = SIZE / 2;
     const draw = () => {
       raf = requestAnimationFrame(draw);
+      const tt = clockText(hourAt(clockRef.current));
+      if (timeRef.current && timeRef.current.textContent !== tt) timeRef.current.textContent = tt;
       const p = positionRef.current;
       const yaw = controlRef.current.yaw;
       const k = R / rangeRef.current; // screen px per metre
@@ -205,11 +210,12 @@ export function Minimap({ world, positionRef, controlRef, markersRef }: {
     };
     draw();
     return () => cancelAnimationFrame(raf);
-  }, [base, positionRef, controlRef, markersRef]);
+  }, [base, positionRef, controlRef, markersRef, clockRef]);
 
   return (
     <div className="minimap" title="Kartta: klikkaa loitontaaksesi">
       <canvas ref={ref} style={{ width: SIZE, height: SIZE }} onClick={() => setRange((r) => (r + 1) % RANGES.length)} />
+      <span className="minimap__time" ref={timeRef} title="Kellonaika" />
       <span className="minimap__range">{RANGES[range]! * 2} m</span>
     </div>
   );

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { NIGHT } from './nightState';
 
 /**
  * Shader patches for the world's materials. Everything is procedural, so the
@@ -48,7 +49,7 @@ float vnoise(vec2 p) {
 export function createBuildingMaterial(xray: XrayUniforms): THREE.MeshStandardMaterial {
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, side: THREE.DoubleSide });
   m.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, xray);
+    Object.assign(shader.uniforms, xray, { uNight: NIGHT });
     addWorldVaryings(
       shader,
       'attribute float aFacade;\nattribute float aTop;\nattribute float aBase;\nvarying float vFacade;\nvarying float vTop;\nvarying float vBase;',
@@ -65,6 +66,7 @@ varying float vBase;
 uniform vec3 uPlayer;
 uniform vec3 uCamera;
 uniform float uRadius;
+uniform float uNight;
 ${NOISE_GLSL}`,
       )
       .replace(
@@ -73,14 +75,30 @@ ${NOISE_GLSL}`,
   vec3 seg = uPlayer - uCamera;
   float xt = dot(vWorldPos - uCamera, seg) / max(dot(seg, seg), 0.0001);
   if (xt > 0.0 && xt < 0.96 && length(vWorldPos - (uCamera + seg * xt)) < uRadius) discard;
-  float glass = 0.0;`,
+  float glass = 0.0;
+  vec3 winGlow = vec3(0.0);`,
       )
       .replace(
         '#include <color_fragment>',
         `#include <color_fragment>
   vec3 n = vWorldNormal / max(length(vWorldNormal), 1e-4);
   float grime = vnoise(vWorldPos.xz * 0.35 + vWorldPos.y * 0.2) * 0.12;
-  if (vFacade > 1.5) {
+  if (vFacade > 2.5 && n.y < 0.5) {
+    // big-box store: ribbed cladding, a dark top band, a glass front strip
+    float u = abs(n.z) > abs(n.x) ? vWorldPos.x : vWorldPos.z;
+    float h = vWorldPos.y - vBase;
+    float rib = 0.93 + 0.07 * step(0.5, fract(u / 0.6));
+    diffuseColor.rgb *= rib * (1.0 - grime * 0.6);
+    if (h > vTop - 1.4) diffuseColor.rgb *= 0.42;
+    if (h < 0.4) diffuseColor.rgb *= 0.5;
+    float bay = fract(u / 14.0);
+    if (h > 0.6 && h < 3.2 && bay > 0.08 && bay < 0.46) {
+      vec3 glassCol = mix(vec3(0.16, 0.22, 0.30), vec3(0.42, 0.55, 0.66), (h - 0.6) / 2.6);
+      diffuseColor.rgb = (fract(u / 1.75) < 0.06) ? vec3(0.2, 0.21, 0.23) : glassCol;
+      glass = 1.0;
+      winGlow = vec3(1.0, 0.92, 0.75) * 0.9;
+    }
+  } else if (vFacade > 1.5 && vFacade < 2.5) {
     diffuseColor.rgb *= 0.9 - grime;               // parapet
   } else if (vFacade > 0.5) {
     if (n.y > 0.5) {
@@ -101,10 +119,14 @@ ${NOISE_GLSL}`,
       diffuseColor.rgb *= 1.0 - grime;
       if (h < 0.5) diffuseColor.rgb *= 0.55;        // plinth
       if (shop || inWin) {
-        float lit = step(0.86, hash21(id));
+        float r = hash21(id);
+        float lit = step(0.86, r);
+        // more windows light up in the evening
+        float litNight = step(0.86 - uNight * 0.5, r);
         vec3 glassCol = mix(vec3(0.16, 0.22, 0.30), vec3(0.42, 0.55, 0.66), f.y);
         diffuseColor.rgb = mix(glassCol, vec3(0.95, 0.82, 0.55), lit * 0.55);
         glass = 1.0;
+        winGlow = mix(vec3(1.0, 0.72, 0.38), vec3(0.85, 0.9, 1.0), step(0.93, hash21(id + 7.0))) * litNight * (0.6 + 0.4 * hash21(id + 3.0));
       } else if (inFrame) {
         diffuseColor.rgb = vec3(0.93, 0.92, 0.88);
       }
@@ -120,6 +142,10 @@ ${NOISE_GLSL}`,
       .replace(
         '#include <metalnessmap_fragment>',
         '#include <metalnessmap_fragment>\n  metalnessFactor = mix(metalnessFactor, 0.6, glass);',
+      )
+      .replace(
+        '#include <emissivemap_fragment>',
+        '#include <emissivemap_fragment>\n  totalEmissiveRadiance += winGlow * uNight * 0.75;',
       );
   };
   m.customProgramCacheKey = () => 'kerava-building';

@@ -447,7 +447,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
         camera={{ fov: 45, near: 0.3, far: 9000, position: [startXZ[0] - 12, 9, startXZ[1] + 14] }}
       >
         <Clock clockRef={clockRef} />
-        <Atmosphere followRef={positionRef} high={highQuality} indoor={!inWorld} />
+        <Atmosphere followRef={positionRef} high={highQuality} indoor={!inWorld} clockRef={clockRef} />
         {highQuality && <Effects />}
         <group onContextMenu={onContext}>
 
@@ -558,7 +558,7 @@ export function GameWorld({ start, color, playerName, introDone, highQuality, on
       )}
       {!cutscene && nearSpot && !inputLocked && <div className="use-prompt"><kbd>E</kbd> Käytä</div>}
 
-      {inWorld && !cutscene && w.world && <Minimap world={w.world} positionRef={positionRef} controlRef={controlRef} markersRef={markersRef} />}
+      {inWorld && !cutscene && w.world && <Minimap world={w.world} positionRef={positionRef} controlRef={controlRef} markersRef={markersRef} clockRef={clockRef} />}
       {porssi && <PorssiWindow online={online} tab={porssi} onClose={() => setPorssi(null)} />}
       {!cutscene && <OnlineHud online={online} playerCount={online.roster.filter((id) => online.live.current.get(id)?.scene === scene).length} />}
       <GameHUD

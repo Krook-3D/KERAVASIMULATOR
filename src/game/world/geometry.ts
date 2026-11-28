@@ -24,6 +24,9 @@ const BLOCK_COLORS = ['#ece6da', '#d8cfbf', '#c9bfae', '#e6dccb', '#b7785c', '#a
 const ROOF_COLORS = ['#5a2e25', '#3d3f44', '#6e3a2a', '#2f3a33', '#4a4f57', '#7a4a32'];
 const STATION_COLOR = '#c75b39';
 
+/** Store and hall blocks from sites.ts: cladding instead of flat windows, in their own colours. */
+const BIG_BOX: Record<string, string> = { motonet: '#e4e5e7', krauta: '#c9ccd1', gym: '#d6d4cf', fightgym: '#43464d', pool: '#e2ebef' };
+
 const LOW_KINDS = new Set(['house', 'detached', 'semidetached_house', 'garage', 'garages', 'shed', 'cabin', 'hut', 'barn']);
 
 function addColor(geo: THREE.BufferGeometry, hex: string, facade: number, top: number, base = 0) {
@@ -128,7 +131,8 @@ export function buildBuildingsGeometry(buildings: Building[], terrain: Terrain |
     walls.translate(0, base - sink, 0);
     const flat = walls.index ? walls.toNonIndexed() : walls;
     if (flat !== walls) walls.dispose();
-    addColor(flat, color, 1, b.height, base);
+    const box = BIG_BOX[b.kind ?? ''];
+    addColor(flat, box ?? color, box ? 3 : 1, b.height, base);
     parts.push(flat);
 
     if (small) {
